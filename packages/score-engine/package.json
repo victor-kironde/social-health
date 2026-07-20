@@ -1,0 +1,13 @@
+{
+  "name": "@sg/score-engine",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Pure TypeScript Social Health Score model. No React Native imports.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "devDependencies": {
+    "@sg/synth": "0.1.0"
+  }
+}
