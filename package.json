@@ -1,6 +1,7 @@
 {
   "name": "social-graph",
   "private": true,
+  "type": "module",
   "description": "Privacy-preserving personal social graph and Social Health Score (CSM500 project).",
   "workspaces": [
     "packages/*"

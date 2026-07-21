@@ -54,3 +54,13 @@ describe('scenario orderings', () => {
     expect(total(s.inactive())).toBeLessThanOrEqual(40);
   });
 });
+
+describe('confidence', () => {
+  it('C1 a window that was almost entirely paused is not flagged as low data', () => {
+    expect(computeScore(s.busyPeriod(true), DEFAULT_CONFIG, AS_OF).lowData).toBe(false);
+  });
+
+  it('C2 the same gap without a pause is flagged as low data', () => {
+    expect(computeScore(s.busyPeriod(false), DEFAULT_CONFIG, AS_OF).lowData).toBe(true);
+  });
+});
