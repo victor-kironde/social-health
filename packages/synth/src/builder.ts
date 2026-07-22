@@ -103,6 +103,7 @@ export class ScenarioBuilder {
   }
 
   build(): EventLog {
-    return structuredClone(this.log);
+    // JSON round-trip rather than structuredClone, which Hermes may not provide.
+    return JSON.parse(JSON.stringify(this.log)) as EventLog;
   }
 }

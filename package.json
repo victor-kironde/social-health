@@ -4,12 +4,14 @@
   "type": "module",
   "description": "Privacy-preserving personal social graph and Social Health Score (CSM500 project).",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "apps/*"
   ],
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "android": "npm run android -w @sg/mobile"
   },
   "devDependencies": {
     "fast-check": "^3.22.0",

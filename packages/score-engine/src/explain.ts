@@ -4,7 +4,7 @@ const LABELS: Record<ComponentName, string> = {
   rhythm: 'Contact rhythm',
   coverage: 'Coverage of important relationships',
   quality: 'Quality and support',
-  diversity: 'Diversity across relationship types',
+  diversity: 'Balance across categories',
 };
 
 const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);

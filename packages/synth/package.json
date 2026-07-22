@@ -5,7 +5,8 @@
   "description": "Synthetic network and scenario generator for evaluating the score engine.",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./scenarios": "./src/scenarios.ts"
   },
   "dependencies": {
     "@sg/score-engine": "0.1.0",
