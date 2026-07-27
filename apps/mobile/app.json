@@ -30,7 +30,12 @@
           "useSQLCipher": true
         }
       ],
-      "expo-secure-store"
-    ]
+      "expo-secure-store",
+      "expo-router"
+    ],
+    "scheme": "socialgraph",
+    "experiments": {
+      "typedRoutes": true
+    }
   }
 }
