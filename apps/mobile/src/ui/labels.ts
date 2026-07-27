@@ -1,4 +1,21 @@
-import type { Category, Rating, Rhythm } from '@sg/score-engine';
+import type { Category, InteractionType, Rating, Rhythm } from '@sg/score-engine';
+
+export const INTERACTION_LABELS: Record<InteractionType, string> = {
+  in_person: 'In person',
+  video: 'Video call',
+  voice: 'Voice call',
+  message: 'Messages',
+};
+
+export const WHEN_OPTIONS: { value: number; label: string }[] = [
+  { value: 0, label: 'Today' },
+  { value: 1, label: 'Yesterday' },
+  { value: 2, label: '2 days ago' },
+  { value: 3, label: '3 days ago' },
+  { value: 7, label: 'A week ago' },
+  { value: 14, label: '2 weeks ago' },
+  { value: 30, label: 'A month ago' },
+];
 
 export const CATEGORY_LABELS: Record<Category, string> = {
   family: 'Family',

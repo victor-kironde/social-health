@@ -77,6 +77,44 @@ export function ChoiceChips<T extends string | number>({
   );
 }
 
+/** Multiple-choice row of chips; selected chips show a tick. */
+export function MultiChoiceChips<T extends string>({
+  options,
+  values,
+  onChange,
+}: {
+  options: { value: T; label: string }[];
+  values: T[];
+  onChange: (values: T[]) => void;
+}) {
+  const t = useTheme();
+  return (
+    <View style={styles.chips}>
+      {options.map((o) => {
+        const checked = values.includes(o.value);
+        return (
+          <Pressable
+            key={o.value}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked }}
+            accessibilityLabel={o.label}
+            onPress={() => onChange(checked ? values.filter((v) => v !== o.value) : [...values, o.value])}
+            style={[
+              styles.chip,
+              checked ? { backgroundColor: t.accent } : { borderColor: t.border, borderWidth: 1 },
+            ]}
+          >
+            <Text style={{ color: checked ? t.onAccent : t.text }}>
+              {checked ? '✓ ' : ''}
+              {o.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   card: { borderRadius: 12, padding: 16, gap: 4 },
   label: { fontSize: 13, marginBottom: 6 },

@@ -45,6 +45,12 @@ export default function Home() {
             Add someone you want to stay in touch with. Everything you record stays on this device and is encrypted.
           </Text>
         </Card>
+      ) : log.interactions.length === 0 ? (
+        // No score yet: before any contact it would rest on ratings alone.
+        <Card>
+          <Label>Social Health Score</Label>
+          <Text style={{ color: t.text, lineHeight: 20 }}>Log your first contact to see your score.</Text>
+        </Card>
       ) : (
         <Card>
           <Label>Social Health Score</Label>
@@ -55,7 +61,12 @@ export default function Home() {
         </Card>
       )}
 
-      <Button title="Add person" onPress={() => router.push('/person/new')} />
+      {people.length > 0 && <Button title="Log contact" onPress={() => router.push('/log')} />}
+      <Button
+        title="Add person"
+        variant={people.length > 0 ? 'secondary' : 'primary'}
+        onPress={() => router.push('/person/new')}
+      />
 
       {people.length > 0 && (
         <Card style={{ gap: 0 }}>

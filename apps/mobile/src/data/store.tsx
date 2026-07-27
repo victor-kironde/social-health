@@ -3,6 +3,7 @@ import { randomUUID } from 'expo-crypto';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { appendToLog, emptyLog, logFromRows, type StoredEvent } from './codec';
 import { appendEvents, loadRows } from './db';
+import { newInteractionEvents, type NewInteractionInput } from './interactions';
 import { newPersonEvents, type NewPersonInput } from './people';
 
 interface Store {
@@ -10,6 +11,7 @@ interface Store {
   status: 'loading' | 'ready' | 'error';
   error: string | null;
   addPerson(input: NewPersonInput): Promise<void>;
+  logInteraction(input: NewInteractionInput): Promise<void>;
 }
 
 const StoreContext = createContext<Store | null>(null);
@@ -42,7 +44,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [commit],
   );
 
-  const value = useMemo(() => ({ log, status, error, addPerson }), [log, status, error, addPerson]);
+  const logInteraction = useCallback(
+    (input: NewInteractionInput) =>
+      // getTimezoneOffset is minutes *behind* UTC, so negate it for the conventional offset.
+      commit(newInteractionEvents(input, Date.now(), -new Date().getTimezoneOffset(), randomUUID)),
+    [commit],
+  );
+
+  const value = useMemo(
+    () => ({ log, status, error, addPerson, logInteraction }),
+    [log, status, error, addPerson, logInteraction],
+  );
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }
 
