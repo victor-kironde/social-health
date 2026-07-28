@@ -1,5 +1,6 @@
 import { DAY, DEFAULT_CONFIG, computeScore, explain, type EventLog } from '@sg/score-engine';
 import * as scenarios from '@sg/synth/scenarios';
+import { Link } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text } from 'react-native';
 import { dbStatus, type DbStatus } from '../data/db';
@@ -83,6 +84,10 @@ export default function Preview() {
           ))
         )}
       </Card>
+
+      <Link href={{ pathname: '/graph', params: { demo: '150' } }} style={{ color: t.accent, textAlign: 'center', paddingVertical: 12 }}>
+        Graph stress test (150 synthetic people)
+      </Link>
     </ScrollView>
   );
 }

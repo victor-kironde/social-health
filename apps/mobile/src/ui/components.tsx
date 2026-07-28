@@ -77,6 +77,37 @@ export function ChoiceChips<T extends string | number>({
   );
 }
 
+/** A single on/off chip, optionally with a coloured dot (e.g. a category). */
+export function ToggleChip({
+  label,
+  on,
+  onPress,
+  dot,
+}: {
+  label: string;
+  on: boolean;
+  onPress: () => void;
+  dot?: string;
+}) {
+  const t = useTheme();
+  return (
+    <Pressable
+      accessibilityRole="switch"
+      accessibilityState={{ checked: on }}
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={[
+        styles.chip,
+        styles.toggle,
+        on ? { backgroundColor: t.card, borderColor: t.accent, borderWidth: 1.5 } : { borderColor: t.border, borderWidth: 1 },
+      ]}
+    >
+      {dot && <View style={[styles.dot, { backgroundColor: dot, opacity: on ? 1 : 0.35 }]} />}
+      <Text style={{ color: on ? t.text : t.muted }}>{label}</Text>
+    </Pressable>
+  );
+}
+
 /** Multiple-choice row of chips; selected chips show a tick. */
 export function MultiChoiceChips<T extends string>({
   options,
@@ -122,4 +153,6 @@ const styles = StyleSheet.create({
   buttonText: { fontSize: 16, fontWeight: '600' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, minHeight: 36, justifyContent: 'center' },
+  toggle: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  dot: { width: 10, height: 10, borderRadius: 5 },
 });

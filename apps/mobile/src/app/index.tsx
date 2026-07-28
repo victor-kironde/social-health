@@ -121,6 +121,7 @@ export default function Home() {
       )}
 
       {people.length > 0 && <Button title="Log contact" onPress={() => router.push('/log')} />}
+      {people.length > 0 && <Button title="View as graph" variant="secondary" onPress={() => router.push('/graph')} />}
       <Button
         title="Add person"
         variant={people.length > 0 ? 'secondary' : 'primary'}

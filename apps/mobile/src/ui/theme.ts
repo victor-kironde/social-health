@@ -1,3 +1,4 @@
+import type { Category, Rating } from '@sg/score-engine';
 import { useColorScheme } from 'react-native';
 
 const light = {
@@ -11,6 +12,17 @@ const light = {
   border: '#d6dae1',
   warn: '#a8570a',
   danger: '#b42318',
+  /** Category rings: distinct hues, readable on the card background. */
+  category: {
+    family: '#d9480f',
+    friend: '#1c7ed6',
+    work: '#7048e8',
+    neighbour: '#2b8a3e',
+    community: '#c2255c',
+  } as Record<Category, string>,
+  /** Quality, harmful → very good. Unrated edges use `edge`. */
+  quality: { 1: '#d92d20', 2: '#f79009', 3: '#a39e93', 4: '#66a80f', 5: '#2b8a3e' } as Record<Rating, string>,
+  edge: '#b8bec9',
 };
 
 export type Theme = typeof light;
@@ -26,6 +38,15 @@ const dark: Theme = {
   border: '#343944',
   warn: '#f0a75a',
   danger: '#f97066',
+  category: {
+    family: '#ff8a4c',
+    friend: '#5ea8f0',
+    work: '#a48bf5',
+    neighbour: '#5fc06f',
+    community: '#f06595',
+  },
+  quality: { 1: '#f97066', 2: '#fdb022', 3: '#8f8a80', 4: '#94d82d', 5: '#51cf66' },
+  edge: '#4a505c',
 };
 
 export function useTheme(): Theme {
