@@ -5,6 +5,7 @@
   "dependencies": {
     "@sg/score-engine": "0.1.0",
     "@sg/synth": "0.1.0",
+    "@shopify/react-native-skia": "2.6.2",
     "d3-force": "^3.0.0",
     "expo": "~57.0.26",
     "expo-constants": "~57.0.20",
