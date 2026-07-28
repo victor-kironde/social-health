@@ -24,7 +24,7 @@ const arbChange: fc.Arbitrary<RelationshipChange> = fc.oneof(
   arbRating.map((value) => ({ field: 'importance' as const, value })),
   fc.option(arbRating, { nil: null }).map((value) => ({ field: 'quality' as const, value })),
   fc
-    .constantFrom<Rhythm>('weekly', 'fortnightly', 'monthly', 'quarterly', 'yearly', 'occasional')
+    .constantFrom<Rhythm | null>('weekly', 'fortnightly', 'monthly', 'quarterly', 'yearly', 'occasional', null)
     .map((value) => ({ field: 'rhythm' as const, value })),
   fc
     .constantFrom<RelationshipState>('active', 'active', 'active', 'paused', 'long_distance', 'archived', 'in_memoriam')

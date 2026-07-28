@@ -1,9 +1,10 @@
-import { DAY, DEFAULT_CONFIG, computeScore, explain, type ComponentName, type EventLog } from '@sg/score-engine';
+import { DAY, DEFAULT_CONFIG, computeScore, explain, type EventLog } from '@sg/score-engine';
 import * as scenarios from '@sg/synth/scenarios';
 import { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text } from 'react-native';
 import { dbStatus, type DbStatus } from '../data/db';
 import { Card, ChoiceChips, Label } from '../ui/components';
+import { ScoreBreakdown } from '../ui/ScoreBreakdown';
 import { useTheme } from '../ui/theme';
 
 const SCENARIOS: Record<string, () => EventLog> = {
@@ -16,13 +17,6 @@ const SCENARIOS: Record<string, () => EventLog> = {
   'Busy, paused': () => scenarios.busyPeriod(true),
   'Busy, unpaused': () => scenarios.busyPeriod(false),
 };
-
-const COMPONENTS: [ComponentName, string][] = [
-  ['rhythm', 'Contact rhythm'],
-  ['coverage', 'Important relationships covered'],
-  ['diversity', 'Balance across categories'],
-  ['quality', 'Quality and support'],
-];
 
 /** Developer screen: the engine on synthetic scenarios, plus storage diagnostics. */
 export default function Preview() {
@@ -72,20 +66,7 @@ export default function Preview() {
             ? `Low data (confidence ${result.confidence.toFixed(2)}): treat this score as uncertain`
             : `Confidence ${result.confidence.toFixed(2)}`}
         </Text>
-        {COMPONENTS.map(([key, label]) => {
-          const v = result.components[key];
-          return (
-            <View key={key} style={styles.row}>
-              <View style={styles.rowHead}>
-                <Text style={{ color: t.text }}>{label}</Text>
-                <Text style={{ color: t.muted }}>{v === null ? 'n/a' : Math.round(v * 100)}</Text>
-              </View>
-              <View style={[styles.track, { backgroundColor: t.track }]}>
-                <View style={[styles.fill, { width: `${(v ?? 0) * 100}%`, backgroundColor: t.accent }]} />
-              </View>
-            </View>
-          );
-        })}
+        <ScoreBreakdown result={result} />
       </Card>
 
       <Card>
@@ -109,9 +90,5 @@ export default function Preview() {
 const styles = StyleSheet.create({
   content: { padding: 16, gap: 12 },
   score: { fontSize: 56, fontWeight: '700' },
-  row: { marginTop: 10 },
-  rowHead: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
-  track: { height: 8, borderRadius: 4, overflow: 'hidden' },
-  fill: { height: 8, borderRadius: 4 },
   explanation: { marginTop: 4, lineHeight: 20 },
 });

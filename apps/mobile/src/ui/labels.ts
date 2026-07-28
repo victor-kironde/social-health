@@ -1,4 +1,16 @@
-import type { Category, InteractionType, Rating, Rhythm } from '@sg/score-engine';
+import type { Category, InteractionType, Rating, RelationshipState, Rhythm, Timestamp } from '@sg/score-engine';
+
+export const STATE_LABELS: Record<RelationshipState, string> = {
+  active: 'Active',
+  paused: 'Paused',
+  long_distance: 'Long-distance',
+  archived: 'Archived',
+  in_memoriam: 'In memoriam',
+};
+
+export function formatDate(ts: Timestamp): string {
+  return new Date(ts).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+}
 
 export const INTERACTION_LABELS: Record<InteractionType, string> = {
   in_person: 'In person',

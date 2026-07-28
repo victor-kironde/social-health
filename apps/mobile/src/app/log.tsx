@@ -1,5 +1,5 @@
-import type { InteractionType } from '@sg/score-engine';
-import { router } from 'expo-router';
+import { DEFAULT_CONFIG, resolveRelationships, type InteractionType } from '@sg/score-engine';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { validateInteraction } from '../data/interactions';
@@ -13,20 +13,22 @@ const TYPES = Object.keys(INTERACTION_LABELS) as InteractionType[];
 export default function LogContact() {
   const t = useTheme();
   const { log, logInteraction } = useStore();
+  const { person } = useLocalSearchParams<{ person?: string }>();
 
-  const [participants, setParticipants] = useState<string[]>([]);
+  const [participants, setParticipants] = useState<string[]>(person ? [person] : []);
   const [type, setType] = useState<InteractionType>('in_person');
   const [daysAgo, setDaysAgo] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const people = useMemo(
-    () =>
-      [...log.people]
-        .sort((a, b) => a.displayName.localeCompare(b.displayName))
-        .map((p) => ({ value: p.id, label: p.displayName })),
-    [log.people],
-  );
+  const people = useMemo(() => {
+    const rels = resolveRelationships(log.relationshipEvents, DEFAULT_CONFIG, Date.now());
+    const retired = (id: string) => ['archived', 'in_memoriam'].includes(rels.get(id)?.state ?? 'active');
+    return log.people
+      .filter((p) => !retired(p.id))
+      .sort((a, b) => a.displayName.localeCompare(b.displayName))
+      .map((p) => ({ value: p.id, label: p.displayName }));
+  }, [log.people, log.relationshipEvents]);
 
   async function save() {
     const input = { participants, type, daysAgo };

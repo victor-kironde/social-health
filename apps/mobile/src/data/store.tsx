@@ -1,10 +1,10 @@
-import type { EventLog } from '@sg/score-engine';
+import type { EventLog, RelationshipSnapshot } from '@sg/score-engine';
 import { randomUUID } from 'expo-crypto';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { appendToLog, emptyLog, logFromRows, type StoredEvent } from './codec';
 import { appendEvents, loadRows } from './db';
 import { newInteractionEvents, type NewInteractionInput } from './interactions';
-import { newPersonEvents, type NewPersonInput } from './people';
+import { editPersonEvents, newPersonEvents, type NewPersonInput, type PersonDraft } from './people';
 
 interface Store {
   log: EventLog;
@@ -12,6 +12,7 @@ interface Store {
   error: string | null;
   addPerson(input: NewPersonInput): Promise<void>;
   logInteraction(input: NewInteractionInput): Promise<void>;
+  updatePerson(personId: string, before: { displayName: string; rel: RelationshipSnapshot }, draft: PersonDraft): Promise<void>;
 }
 
 const StoreContext = createContext<Store | null>(null);
@@ -51,9 +52,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [commit],
   );
 
+  const updatePerson = useCallback(
+    (personId: string, before: { displayName: string; rel: RelationshipSnapshot }, draft: PersonDraft) =>
+      commit(editPersonEvents(personId, before, draft, Date.now(), randomUUID)),
+    [commit],
+  );
+
   const value = useMemo(
-    () => ({ log, status, error, addPerson, logInteraction }),
-    [log, status, error, addPerson, logInteraction],
+    () => ({ log, status, error, addPerson, logInteraction, updatePerson }),
+    [log, status, error, addPerson, logInteraction, updatePerson],
   );
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }

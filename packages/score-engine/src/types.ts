@@ -18,7 +18,7 @@ export type RelationshipChange =
   | { field: 'category'; value: Category }
   | { field: 'importance'; value: Rating }
   | { field: 'quality'; value: Rating | null }
-  | { field: 'rhythm'; value: Rhythm }
+  | { field: 'rhythm'; value: Rhythm | null } // null = follow the category default
   | { field: 'state'; value: RelationshipState };
 
 /**
