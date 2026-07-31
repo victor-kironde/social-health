@@ -1,22 +1,27 @@
 import { DEFAULT_CONFIG, computeScore, type Category } from '@sg/score-engine';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Easing, cancelAnimation, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 import { useStore } from '../data/store';
 import { GraphCanvas } from '../graph/GraphCanvas';
 import { demoNetwork } from '../graph/demo';
 import { layoutEgoGraph, type Point } from '../graph/layout';
 import { buildGraph, type GraphStyle } from '../graph/model';
+import { useLiveSimulation } from '../graph/physics/useLiveSimulation';
 import { DEFAULT_RENDERER, GRAPH_RENDERERS, type RendererId } from '../graph/renderers';
 import { ToggleChip } from '../ui/components';
 import { CATEGORY_LABELS } from '../ui/labels';
 import { useTheme } from '../ui/theme';
+import { useReduceMotion } from '../ui/useReduceMotion';
 
 const RETIRED = new Set(['archived', 'in_memoriam']);
 const CATEGORIES = Object.keys(CATEGORY_LABELS) as Category[];
 /** Above this many people, names appear only once zoomed in. */
 const LABEL_LIMIT = 60;
 const LABEL_ZOOM = 1.6;
+/** One full breath of the pulse, in ms. Slow on purpose: calm, not urgent. */
+const PULSE_MS = 2800;
 
 /** Positions from earlier layouts this session, so the picture stays put as people are added. */
 const positionCache = new Map<string, Point>();
@@ -26,29 +31,62 @@ export default function GraphScreen() {
   const { log } = useStore();
   const { demo } = useLocalSearchParams<{ demo?: string }>();
   const demoSize = demo ? Math.min(500, Math.max(1, Number(demo) || 150)) : null;
+  const reducedMotion = useReduceMotion();
 
   const [categories, setCategories] = useState<Set<Category>>(() => new Set(CATEGORIES));
   const [behindOnly, setBehindOnly] = useState(false);
   const [colourByQuality, setColourByQuality] = useState(true);
   const [zoomedIn, setZoomedIn] = useState(false);
   const [rendererId, setRendererId] = useState<RendererId>(DEFAULT_RENDERER);
+  const isLive = GRAPH_RENDERERS[rendererId].live;
 
   const { relationships, names } = useMemo(() => {
     if (demoSize) return demoNetwork(demoSize);
     const rels = computeScore(log, DEFAULT_CONFIG, Date.now()).relationships.filter((r) => !RETIRED.has(r.state));
     return { relationships: rels, names: new Map(log.people.map((p) => [p.id, p.displayName])) };
   }, [log, demoSize]);
+  const layoutInputs = useMemo(
+    () => relationships.map((r) => ({ id: r.personId, importance: r.importance })),
+    [relationships],
+  );
 
-  // Lay out everyone, then filter at draw time, so filtering never reshuffles the graph.
-  const { positions, layoutMs } = useMemo(() => {
+  // Live renderers: a running simulation (lays everyone out, then filtering only hides people).
+  // Once it settles, the view re-fits to where people actually ended up.
+  const [settled, setSettled] = useState<Map<string, Point> | null>(null);
+  const liveSim = useLiveSimulation(layoutInputs, {
+    enabled: isLive,
+    previous: demoSize ? undefined : positionCache,
+    reducedMotion,
+    onSettled: (p) => {
+      if (!demoSize) p.forEach((v, k) => positionCache.set(k, v));
+      setSettled(p);
+    },
+  });
+
+  // Static renderers: a one-shot layout.
+  const { staticPositions, layoutMs } = useMemo(() => {
+    if (isLive) return { staticPositions: null, layoutMs: 0 };
     const start = performance.now();
-    const positions = layoutEgoGraph(
-      relationships.map((r) => ({ id: r.personId, importance: r.importance })),
-      { previous: demoSize ? undefined : positionCache },
-    );
-    if (!demoSize) for (const [id, p] of positions) positionCache.set(id, p);
-    return { positions, layoutMs: performance.now() - start };
-  }, [relationships, demoSize]);
+    const p = layoutEgoGraph(layoutInputs, { previous: demoSize ? undefined : positionCache });
+    if (!demoSize) p.forEach((v, k) => positionCache.set(k, v));
+    return { staticPositions: p, layoutMs: performance.now() - start };
+  }, [isLive, layoutInputs, demoSize]);
+  // Only trust settled positions that belong to the current set of people.
+  const settledMatches =
+    settled !== null && settled.size === layoutInputs.length && layoutInputs.every((n) => settled.has(n.id));
+  const positions = (settledMatches ? settled : liveSim?.initial) ?? staticPositions ?? new Map<string, Point>();
+
+  // A slow, looping phase for the pulse; only while this screen is focused and motion is allowed.
+  const pulse = useSharedValue(0);
+  useFocusEffect(
+    useCallback(() => {
+      if (isLive && !reducedMotion) {
+        pulse.value = 0;
+        pulse.value = withRepeat(withTiming(1, { duration: PULSE_MS, easing: Easing.linear }), -1, false);
+      }
+      return () => cancelAnimation(pulse);
+    }, [isLive, reducedMotion, pulse]),
+  );
 
   const visible = useMemo(
     () =>
@@ -89,6 +127,10 @@ export default function GraphScreen() {
       return next;
     });
 
+  const timing = isLive
+    ? `first frame ${renderMs?.toFixed(0) ?? '…'} ms`
+    : `layout ${layoutMs.toFixed(0)} ms · render ${renderMs?.toFixed(0) ?? '…'} ms`;
+
   return (
     <View style={styles.root}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={styles.filters}>
@@ -125,22 +167,25 @@ export default function GraphScreen() {
         positions={positions}
         renderer={GRAPH_RENDERERS[rendererId].component}
         style={style}
+        live={liveSim?.live}
+        drag={liveSim ?? undefined}
+        pulse={isLive ? pulse : undefined}
+        reduceMotion={reducedMotion}
         onRendered={onRendered}
         onZoomEnd={(s) => setZoomedIn(s >= LABEL_ZOOM)}
-        onNodePress={
-          demoSize ? undefined : (id) => router.push({ pathname: '/person/[id]', params: { id } })
-        }
+        onNodePress={demoSize ? undefined : (id) => router.push({ pathname: '/person/[id]', params: { id } })}
       />
 
       <View style={[styles.legend, { borderTopColor: t.border }]}>
         <Text style={[styles.legendText, { color: t.muted }]}>
           Closer and thicker = more important · faded = behind usual rhythm
+          {isLive ? ' · glowing = in touch this week' : ''}
           {colourByQuality ? ' · line colour = how the relationship is going' : ''}
         </Text>
         <Text style={[styles.legendText, { color: t.muted }]}>
           {demoSize
-            ? `Stress test (${GRAPH_RENDERERS[rendererId].label}): ${visible.length} people · layout ${layoutMs.toFixed(0)} ms · render ${renderMs?.toFixed(0) ?? '…'} ms`
-            : `${visible.length} of ${relationships.length} shown · tap someone to open them`}
+            ? `Stress test (${GRAPH_RENDERERS[rendererId].label}): ${visible.length} people · ${timing}`
+            : `${visible.length} of ${relationships.length} shown · tap to open${isLive ? ' · drag to move' : ''}`}
           {showLabels ? '' : ' · pinch to zoom in for names'}
         </Text>
       </View>

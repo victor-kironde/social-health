@@ -20,7 +20,11 @@ export interface GraphNode {
   quality: Rating | null;
   /** Behind their usual rhythm: drawn faded. */
   behind: boolean;
+  /** In touch within RECENT_DAYS: live renderers give these a gentle pulse. */
+  recent: boolean;
 }
+
+export const RECENT_DAYS = 7;
 
 export interface GraphEdge {
   id: string;
@@ -60,23 +64,39 @@ export interface ViewValues {
   tx: SharedValue<number>;
   ty: SharedValue<number>;
   scale: SharedValue<number>;
+  /** Pixels per graph unit at scale 1, eased towards the `fit` prop when it changes. */
+  fit: SharedValue<number>;
+}
+
+/** Positions that change every frame (live physics), readable on the UI thread. */
+export interface LivePositions {
+  /** Node ids; index i owns xy[2i], xy[2i + 1]. */
+  ids: string[];
+  /** Interleaved graph coordinates [x0, y0, x1, y1, ...]. */
+  xy: SharedValue<number[]>;
 }
 
 /**
  * The contract every renderer implements. Graph (0, 0) must be drawn at the
  * centre of `size`, a graph point p at  centre + (tx, ty) + scale * fit * p,
- * which is what screenToGraph() inverts for hit testing.
+ * which is what screenToGraph() inverts for hit testing. Renderers should use
+ * the animated `view.fit`; static ones may use the `fit` number instead (the
+ * view then jumps rather than eases when the fit changes).
  */
 export interface GraphRendererProps {
   data: GraphData;
   positions: Map<string, Point>;
   size: { width: number; height: number };
-  /** Pixels per graph unit at scale 1. */
+  /** Target pixels per graph unit at scale 1 (see `view.fit` for the animated value). */
   fit: number;
   view: ViewValues;
   style: GraphStyle;
   /** Called once the renderer has committed a new drawing (for timing). */
   onRendered?: () => void;
+  /** Present when positions are live; live renderers draw from these instead of `positions`. */
+  live?: LivePositions;
+  /** Animation phase in [0, 1), looping; 0 and static when motion is reduced. */
+  pulse?: SharedValue<number>;
 }
 
 export type GraphRenderer = ComponentType<GraphRendererProps>;
@@ -92,6 +112,7 @@ export function buildGraph(relationships: RelationshipContribution[], names: Map
       importance: r.importance,
       quality: r.quality,
       behind: behind(r),
+      recent: !behind(r) && r.lastContactAgeDays !== null && r.lastContactAgeDays <= RECENT_DAYS,
     })),
     edges: relationships.map((r) => ({
       id: `ego:${r.personId}`,

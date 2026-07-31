@@ -18,6 +18,7 @@ export function screenToGraph(
   view: ViewTransform,
   fit: number,
 ): Point {
+  'worklet';
   const cx = size.width / 2;
   const cy = size.height / 2;
   return {
@@ -36,6 +37,26 @@ export function hitTest(p: Point, positions: Map<string, Point>, ids: Iterable<s
     const d = Math.hypot(p.x - q.x, p.y - q.y);
     if (d <= bestDist) {
       best = id;
+      bestDist = d;
+    }
+  }
+  return best;
+}
+
+/**
+ * Hit test against interleaved positions [x0, y0, x1, y1, ...], considering
+ * only `candidates` (indices). Returns the nearest index within `radius`, or
+ * -1. Runs on the UI thread (worklet) as well as on JS.
+ */
+export function hitTestXY(px: number, py: number, xy: number[], candidates: number[], radius: number): number {
+  'worklet';
+  let best = -1;
+  let bestDist = radius;
+  for (let k = 0; k < candidates.length; k++) {
+    const i = candidates[k]!;
+    const d = Math.hypot(px - xy[2 * i]!, py - xy[2 * i + 1]!);
+    if (d <= bestDist) {
+      best = i;
       bestDist = d;
     }
   }

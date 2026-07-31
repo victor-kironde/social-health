@@ -1,36 +1,17 @@
-import {
-  Canvas,
-  Group,
-  PaintStyle,
-  Picture,
-  Skia,
-  createPicture,
-  matchFont,
-  type SkCanvas,
-  type SkFont,
-} from '@shopify/react-native-skia';
+import { Canvas, Group, Picture, createPicture, type SkCanvas, type SkFont } from '@shopify/react-native-skia';
 import { useEffect, useMemo } from 'react';
-import { Platform } from 'react-native';
 import { useDerivedValue } from 'react-native-reanimated';
 import { NODE_RADIUS, type Point } from '../layout';
 import { ME_ID, encode, type GraphData, type GraphRendererProps, type GraphStyle } from '../model';
-
-const FAMILY = Platform.select({ ios: 'Helvetica', default: 'sans-serif' });
+import { centreOffset, makeFonts, paint, type GraphFonts } from './skiaKit';
 
 /**
  * Skia renderer: the whole graph is recorded once into an SkPicture and
  * replayed on the GPU. Pan and zoom only change the group transform, which
  * Skia reads straight from the shared values, so gestures never re-render React.
  */
-export function SkiaRenderer({ data, positions, size, fit, view, style, onRendered }: GraphRendererProps) {
-  const fonts = useMemo(
-    () => ({
-      initial: matchFont({ fontFamily: FAMILY, fontSize: 14, fontWeight: '600' }),
-      label: matchFont({ fontFamily: FAMILY, fontSize: 10 }),
-      me: matchFont({ fontFamily: FAMILY, fontSize: 13, fontWeight: '700' }),
-    }),
-    [],
-  );
+export function SkiaRenderer({ data, positions, size, view, style, onRendered }: GraphRendererProps) {
+  const fonts = useMemo(makeFonts, []);
 
   const picture = useMemo(
     () => createPicture((canvas) => drawGraph(canvas, data, positions, style, fonts)),
@@ -43,7 +24,7 @@ export function SkiaRenderer({ data, positions, size, fit, view, style, onRender
   const transform = useDerivedValue(() => [
     { translateX: size.width / 2 + view.tx.value },
     { translateY: size.height / 2 + view.ty.value },
-    { scale: view.scale.value * fit },
+    { scale: view.scale.value * view.fit.value },
   ]);
 
   return (
@@ -55,21 +36,8 @@ export function SkiaRenderer({ data, positions, size, fit, view, style, onRender
   );
 }
 
-function paint(colour: string, opts: { stroke?: number; alpha?: number } = {}) {
-  const p = Skia.Paint();
-  p.setAntiAlias(true);
-  p.setColor(Skia.Color(colour));
-  if (opts.stroke !== undefined) {
-    p.setStyle(PaintStyle.Stroke);
-    p.setStrokeWidth(opts.stroke);
-  }
-  if (opts.alpha !== undefined) p.setAlphaf(opts.alpha);
-  return p;
-}
-
 function drawCentredText(canvas: SkCanvas, text: string, x: number, baseline: number, font: SkFont, colour: string, alpha = 1) {
-  const width = font.measureText(text).width;
-  canvas.drawText(text, x - width / 2, baseline, paint(colour, { alpha }), font);
+  canvas.drawText(text, x + centreOffset(text, font), baseline, paint(colour, { alpha }), font);
 }
 
 function drawGraph(
@@ -77,7 +45,7 @@ function drawGraph(
   data: GraphData,
   positions: Map<string, Point>,
   style: GraphStyle,
-  fonts: { initial: SkFont; label: SkFont; me: SkFont },
+  fonts: GraphFonts,
 ) {
   const c = style.colours;
 

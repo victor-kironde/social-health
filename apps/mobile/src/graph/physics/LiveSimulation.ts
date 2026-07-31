@@ -1,0 +1,91 @@
+import { ME, createEgoSimulation, knownCount, toPositions, type LayoutInput, type Point, type SimNode } from '../layout';
+
+/** Alpha the simulation is kept at while a node is being dragged. */
+const DRAG_ALPHA = 0.3;
+
+/**
+ * A continuously running version of the ego layout, stepped one tick per
+ * frame by the caller. Pure TypeScript (no React), so it can be tested and
+ * driven from any loop. Uses d3's default cooling, which takes a few seconds
+ * at 60 fps: that slow settle is what makes the graph feel alive.
+ */
+export class LiveSimulation {
+  /** Person ids in drawing order; index i owns xy[2i], xy[2i + 1]. */
+  readonly ids: string[];
+  private readonly simulation;
+  private readonly nodes: SimNode[];
+  private readonly byId: Map<string, SimNode>;
+  private dragging: string | null = null;
+
+  constructor(inputs: LayoutInput[], opts: { previous?: Map<string, Point>; seed?: number } = {}) {
+    const { simulation, simNodes } = createEgoSimulation(inputs, opts);
+    this.simulation = simulation;
+    this.nodes = simNodes.filter((n) => n.id !== ME);
+    this.ids = this.nodes.map((n) => n.id);
+    this.byId = new Map(this.nodes.map((n) => [n.id, n]));
+
+    // Start hotter the less we already know, so a fresh graph unfolds and a
+    // cached one barely moves.
+    const known = knownCount(inputs, opts.previous);
+    const unknownShare = inputs.length ? 1 - known / inputs.length : 0;
+    simulation.alpha(known === inputs.length ? 0 : Math.max(0.1, unknownShare));
+  }
+
+  /** True while still settling or while a node is held. */
+  get active(): boolean {
+    return this.dragging !== null || this.simulation.alpha() >= this.simulation.alphaMin();
+  }
+
+  step(ticks = 1): void {
+    this.simulation.tick(ticks);
+  }
+
+  /** Step until settled (for reduced motion), cooling fast like the one-shot layout. */
+  settle(maxTicks = 600): void {
+    const decay = this.simulation.alphaDecay();
+    this.simulation.alphaDecay(1 - Math.pow(0.001, 1 / 120));
+    for (let i = 0; i < maxTicks && this.active; i++) this.simulation.tick();
+    this.simulation.alphaDecay(decay);
+  }
+
+  /** Interleaved [x0, y0, x1, y1, ...] in `ids` order. */
+  xy(): number[] {
+    const out = new Array<number>(this.nodes.length * 2);
+    this.nodes.forEach((n, i) => {
+      out[2 * i] = n.x ?? 0;
+      out[2 * i + 1] = n.y ?? 0;
+    });
+    return out;
+  }
+
+  dragStart(id: string, x: number, y: number): void {
+    const n = this.byId.get(id);
+    if (!n) return;
+    this.dragging = id;
+    n.fx = x;
+    n.fy = y;
+    this.simulation.alphaTarget(DRAG_ALPHA);
+    if (this.simulation.alpha() < DRAG_ALPHA) this.simulation.alpha(DRAG_ALPHA);
+  }
+
+  dragMove(id: string, x: number, y: number): void {
+    const n = this.byId.get(id);
+    if (!n || this.dragging !== id) return;
+    n.fx = x;
+    n.fy = y;
+  }
+
+  /** Release: the node springs back towards its importance ring and the graph settles. */
+  dragEnd(id: string): void {
+    const n = this.byId.get(id);
+    if (!n || this.dragging !== id) return;
+    this.dragging = null;
+    n.fx = null;
+    n.fy = null;
+    this.simulation.alphaTarget(0);
+  }
+
+  positions(): Map<string, Point> {
+    return toPositions(this.nodes);
+  }
+}
