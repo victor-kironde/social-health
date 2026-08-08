@@ -18,6 +18,20 @@ export interface Point {
   y: number;
 }
 
+/** A remembered position, with the importance it was laid out for. */
+export interface PlacedPoint extends Point {
+  importance?: Rating;
+}
+
+/**
+ * Whether `n` already has a usable position: remembered, and laid out for
+ * its current importance (otherwise it sits on the wrong ring and must move).
+ */
+export function isPlaced(n: LayoutInput, previous?: Map<string, PlacedPoint>): boolean {
+  const p = previous?.get(n.id);
+  return p !== undefined && (p.importance === undefined || p.importance === n.importance);
+}
+
 export const NODE_RADIUS = 18;
 export const ME = '__me__';
 
@@ -47,7 +61,7 @@ export type SimNode = SimulationNodeDatum & { id: string; importance: Rating | n
  */
 export function createEgoSimulation(
   nodes: LayoutInput[],
-  opts: { previous?: Map<string, Point>; seed?: number } = {},
+  opts: { previous?: Map<string, PlacedPoint>; seed?: number } = {},
 ): { simulation: Simulation<SimNode, undefined>; simNodes: SimNode[] } {
   const { previous, seed = 42 } = opts;
   const golden = Math.PI * (3 - Math.sqrt(5));
@@ -78,9 +92,9 @@ export function createEgoSimulation(
   return { simulation, simNodes };
 }
 
-/** How many of `nodes` already have a position in `previous`. */
-export function knownCount(nodes: LayoutInput[], previous?: Map<string, Point>): number {
-  return previous ? nodes.filter((n) => previous.has(n.id)).length : 0;
+/** How many of `nodes` are already placed (see isPlaced). */
+export function knownCount(nodes: LayoutInput[], previous?: Map<string, PlacedPoint>): number {
+  return previous ? nodes.filter((n) => isPlaced(n, previous)).length : 0;
 }
 
 /**
@@ -90,12 +104,12 @@ export function knownCount(nodes: LayoutInput[], previous?: Map<string, Point>):
  */
 export function layoutEgoGraph(
   nodes: LayoutInput[],
-  opts: { previous?: Map<string, Point>; ticks?: number; seed?: number } = {},
-): Map<string, Point> {
+  opts: { previous?: Map<string, PlacedPoint>; ticks?: number; seed?: number } = {},
+): Map<string, PlacedPoint> {
   const { previous } = opts;
   const known = knownCount(nodes, previous);
   if (previous && nodes.length > 0 && known === nodes.length) {
-    return new Map(nodes.map((n) => [n.id, previous.get(n.id)!]));
+    return new Map(nodes.map((n) => [n.id, { ...previous.get(n.id)!, importance: n.importance }]));
   }
   const ticks = opts.ticks ?? (known >= nodes.length * 0.8 ? 40 : 120);
 
@@ -105,8 +119,10 @@ export function layoutEgoGraph(
   return toPositions(simNodes);
 }
 
-export function toPositions(simNodes: SimNode[]): Map<string, Point> {
-  const out = new Map<string, Point>();
-  for (const n of simNodes) if (n.id !== ME) out.set(n.id, { x: n.x ?? 0, y: n.y ?? 0 });
+export function toPositions(simNodes: SimNode[]): Map<string, PlacedPoint> {
+  const out = new Map<string, PlacedPoint>();
+  for (const n of simNodes) {
+    if (n.id !== ME) out.set(n.id, { x: n.x ?? 0, y: n.y ?? 0, importance: n.importance ?? undefined });
+  }
   return out;
 }

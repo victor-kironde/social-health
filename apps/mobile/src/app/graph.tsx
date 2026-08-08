@@ -1,6 +1,6 @@
 import { DEFAULT_CONFIG, computeScore, type Category } from '@sg/score-engine';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Easing, cancelAnimation, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 import { useStore } from '../data/store';
@@ -23,12 +23,9 @@ const LABEL_ZOOM = 1.6;
 /** One full breath of the pulse, in ms. Slow on purpose: calm, not urgent. */
 const PULSE_MS = 2800;
 
-/** Positions from earlier layouts this session, so the picture stays put as people are added. */
-const positionCache = new Map<string, Point>();
-
 export default function GraphScreen() {
   const t = useTheme();
-  const { log } = useStore();
+  const { log, graphPositions, saveGraphPositions } = useStore();
   const { demo } = useLocalSearchParams<{ demo?: string }>();
   const demoSize = demo ? Math.min(500, Math.max(1, Number(demo) || 150)) : null;
   const reducedMotion = useReduceMotion();
@@ -55,10 +52,10 @@ export default function GraphScreen() {
   const [settled, setSettled] = useState<Map<string, Point> | null>(null);
   const liveSim = useLiveSimulation(layoutInputs, {
     enabled: isLive,
-    previous: demoSize ? undefined : positionCache,
+    previous: demoSize ? undefined : graphPositions,
     reducedMotion,
     onSettled: (p) => {
-      if (!demoSize) p.forEach((v, k) => positionCache.set(k, v));
+      if (!demoSize) saveGraphPositions(p);
       setSettled(p);
     },
   });
@@ -67,10 +64,12 @@ export default function GraphScreen() {
   const { staticPositions, layoutMs } = useMemo(() => {
     if (isLive) return { staticPositions: null, layoutMs: 0 };
     const start = performance.now();
-    const p = layoutEgoGraph(layoutInputs, { previous: demoSize ? undefined : positionCache });
-    if (!demoSize) p.forEach((v, k) => positionCache.set(k, v));
+    const p = layoutEgoGraph(layoutInputs, { previous: demoSize ? undefined : graphPositions });
     return { staticPositions: p, layoutMs: performance.now() - start };
-  }, [isLive, layoutInputs, demoSize]);
+  }, [isLive, layoutInputs, demoSize, graphPositions]);
+  useEffect(() => {
+    if (staticPositions && !demoSize) saveGraphPositions(staticPositions);
+  }, [staticPositions, demoSize, saveGraphPositions]);
   // Only trust settled positions that belong to the current set of people.
   const settledMatches =
     settled !== null && settled.size === layoutInputs.length && layoutInputs.every((n) => settled.has(n.id));

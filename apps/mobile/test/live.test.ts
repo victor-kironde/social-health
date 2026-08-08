@@ -89,3 +89,62 @@ describe('hitTestXY', () => {
     expect(hitTestXY(60, 60, xy, [0, 1, 2], 25)).toBe(-1);
   });
 });
+
+describe('remembered positions', () => {
+  it('records the importance each position was laid out for', () => {
+    const nodes = network(10);
+    const pos = layoutEgoGraph(nodes);
+    for (const n of nodes) expect(pos.get(n.id)!.importance).toBe(n.importance);
+  });
+
+  it('a person whose importance changed is not treated as placed, and glides to the new ring', () => {
+    const nodes = network(20);
+    const remembered = new LiveSimulation(nodes);
+    remembered.settle();
+    const previous = remembered.positions();
+
+    const changed = nodes.map((n) => (n.id === 'p000' ? { ...n, importance: 5 as Rating } : n)); // was 1
+    const sim = new LiveSimulation(changed, { previous });
+    expect(sim.active).toBe(true);
+    const start = at(sim, 'p000');
+    expect(start).toEqual({ x: previous.get('p000')!.x, y: previous.get('p000')!.y }); // starts where it was
+    sim.settle();
+    const r = Math.hypot(at(sim, 'p000').x, at(sim, 'p000').y);
+    expect(Math.abs(r - ringRadius(5))).toBeLessThan(Math.abs(Math.hypot(start.x, start.y) - ringRadius(5)));
+  });
+
+  it('the one-shot layout re-runs rather than reusing a position on the wrong ring', () => {
+    const nodes = network(10);
+    const previous = layoutEgoGraph(nodes);
+    const changed = nodes.map((n) => (n.id === 'p000' ? { ...n, importance: 5 as Rating } : n));
+    const after = layoutEgoGraph(changed, { previous });
+    expect(after.get('p000')).not.toEqual(previous.get('p000'));
+    expect(after.get('p000')!.importance).toBe(5);
+  });
+});
+
+describe('after a drag', () => {
+  it('settles within ~150 ticks of release', () => {
+    const sim = new LiveSimulation(network(30));
+    sim.settle();
+    sim.dragStart('p003', 400, 0);
+    sim.step(30);
+    sim.dragEnd('p003');
+    let ticks = 0;
+    while (sim.active && ticks < 1000) {
+      sim.step();
+      ticks++;
+    }
+    expect(ticks).toBeLessThan(150);
+  });
+
+  it('flush() ends a drag in progress and returns settled positions', () => {
+    const sim = new LiveSimulation(network(30));
+    sim.dragStart('p003', 400, 0);
+    sim.step(10);
+    const pos = sim.flush();
+    expect(sim.active).toBe(false);
+    expect(pos.size).toBe(30);
+    expect(Math.hypot(pos.get('p003')!.x, pos.get('p003')!.y)).toBeLessThan(400);
+  });
+});

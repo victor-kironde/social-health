@@ -64,8 +64,12 @@ export function useLiveSimulation(
     if (sim.active) run();
     else settledRef.current?.(sim.positions());
     return () => {
-      if (frame.current !== null) cancelAnimationFrame(frame.current);
-      frame.current = null;
+      // Leaving mid-motion (or mid-drag): settle and report, so the result is still saved.
+      if (frame.current !== null) {
+        cancelAnimationFrame(frame.current);
+        frame.current = null;
+        settledRef.current?.(sim.flush());
+      }
     };
   }, [sim, xy, run]);
 

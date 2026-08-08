@@ -1,7 +1,9 @@
-import { ME, createEgoSimulation, knownCount, toPositions, type LayoutInput, type Point, type SimNode } from '../layout';
+import { ME, createEgoSimulation, knownCount, toPositions, type LayoutInput, type PlacedPoint, type SimNode } from '../layout';
 
 /** Alpha the simulation is kept at while a node is being dragged. */
 const DRAG_ALPHA = 0.3;
+/** Faster cooling after a release (~100 ticks from DRAG_ALPHA) than d3's default (~250). */
+const RELEASE_DECAY = 0.055;
 
 /**
  * A continuously running version of the ego layout, stepped one tick per
@@ -17,7 +19,7 @@ export class LiveSimulation {
   private readonly byId: Map<string, SimNode>;
   private dragging: string | null = null;
 
-  constructor(inputs: LayoutInput[], opts: { previous?: Map<string, Point>; seed?: number } = {}) {
+  constructor(inputs: LayoutInput[], opts: { previous?: Map<string, PlacedPoint>; seed?: number } = {}) {
     const { simulation, simNodes } = createEgoSimulation(inputs, opts);
     this.simulation = simulation;
     this.nodes = simNodes.filter((n) => n.id !== ME);
@@ -82,10 +84,20 @@ export class LiveSimulation {
     this.dragging = null;
     n.fx = null;
     n.fy = null;
-    this.simulation.alphaTarget(0);
+    this.simulation.alphaTarget(0).alphaDecay(RELEASE_DECAY);
   }
 
-  positions(): Map<string, Point> {
+  /**
+   * Ends any drag, settles whatever motion remains, and returns the final
+   * positions: for saving when the view closes before the graph came to rest.
+   */
+  flush(): Map<string, PlacedPoint> {
+    if (this.dragging) this.dragEnd(this.dragging);
+    if (this.active) this.settle();
+    return this.positions();
+  }
+
+  positions(): Map<string, PlacedPoint> {
     return toPositions(this.nodes);
   }
 }
