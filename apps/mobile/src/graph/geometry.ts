@@ -70,3 +70,89 @@ export function fitScale(positions: Iterable<Point>, size: { width: number; heig
   const half = Math.min(size.width, size.height) / 2;
   return half / (extent + margin || 1);
 }
+
+/**
+ * Control point for a tie's quadratic curve: the midpoint pushed away from
+ * the centre by a quarter of the tie's length, so ties bow outward around
+ * the user rather than cutting through the middle of the graph.
+ */
+export function tieControl(ax: number, ay: number, bx: number, by: number): Point {
+  'worklet';
+  const mx = (ax + bx) / 2;
+  const my = (ay + by) / 2;
+  const len = Math.hypot(bx - ax, by - ay) || 1;
+  const r = Math.hypot(mx, my);
+  // Midpoint at the centre (diametrically opposite people): bow sideways instead.
+  const nx = r < 1e-6 ? -(by - ay) / len : mx / r;
+  const ny = r < 1e-6 ? (bx - ax) / len : my / r;
+  const bow = 0.25 * len;
+  return { x: mx + nx * bow, y: my + ny * bow };
+}
+
+export function distToSegment(px: number, py: number, ax: number, ay: number, bx: number, by: number): number {
+  'worklet';
+  const dx = bx - ax;
+  const dy = by - ay;
+  const len2 = dx * dx + dy * dy;
+  const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / len2));
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+}
+
+/** Distance to a quadratic Bézier, approximated by `steps` straight pieces. */
+export function distToQuad(
+  px: number,
+  py: number,
+  ax: number,
+  ay: number,
+  cx: number,
+  cy: number,
+  bx: number,
+  by: number,
+  steps = 16,
+): number {
+  'worklet';
+  let best = Infinity;
+  let x0 = ax;
+  let y0 = ay;
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps;
+    const u = 1 - t;
+    const x1 = u * u * ax + 2 * u * t * cx + t * t * bx;
+    const y1 = u * u * ay + 2 * u * t * cy + t * t * by;
+    best = Math.min(best, distToSegment(px, py, x0, y0, x1, y1));
+    x0 = x1;
+    y0 = y1;
+  }
+  return best;
+}
+
+/**
+ * The edge nearest to `p` within `tolerance` (graph units), or null. Curved
+ * edges are measured along their tie curve. `posOf` resolves endpoint ids.
+ */
+export function hitTestEdge(
+  p: Point,
+  edges: { id: string; source: string; target: string; curved: boolean }[],
+  posOf: (id: string) => Point | undefined,
+  tolerance: number,
+): string | null {
+  let best: string | null = null;
+  let bestDist = tolerance;
+  for (const e of edges) {
+    const a = posOf(e.source);
+    const b = posOf(e.target);
+    if (!a || !b) continue;
+    let d: number;
+    if (e.curved) {
+      const c = tieControl(a.x, a.y, b.x, b.y);
+      d = distToQuad(p.x, p.y, a.x, a.y, c.x, c.y, b.x, b.y);
+    } else {
+      d = distToSegment(p.x, p.y, a.x, a.y, b.x, b.y);
+    }
+    if (d <= bestDist) {
+      best = e.id;
+      bestDist = d;
+    }
+  }
+  return best;
+}

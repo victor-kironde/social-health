@@ -3,7 +3,7 @@ import { randomUUID } from 'expo-crypto';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { PlacedPoint } from '../graph/layout';
 import { appendToLog, emptyLog, logFromRows, type StoredEvent } from './codec';
-import { appendEvents, loadGraphPositions, loadRows, saveGraphPositions } from './db';
+import { appendEvents, loadGraphLayout, loadRows, saveGraphLayout, type SavedLayout } from './db';
 import { newInteractionEvents, type NewInteractionInput } from './interactions';
 import { editPersonEvents, newPersonEvents, type NewPersonInput, type PersonDraft } from './people';
 
@@ -15,8 +15,8 @@ interface Store {
   logInteraction(input: NewInteractionInput): Promise<void>;
   updatePerson(personId: string, before: { displayName: string; rel: RelationshipSnapshot }, draft: PersonDraft): Promise<void>;
   /** Remembered graph layout. A cache: mutated in place, never triggers a re-render. */
-  graphPositions: Map<string, PlacedPoint>;
-  saveGraphPositions(positions: Map<string, PlacedPoint>): void;
+  graphLayout: SavedLayout;
+  saveGraphLayout(positions: Map<string, PlacedPoint>, tieSignature: string): void;
 }
 
 const StoreContext = createContext<Store | null>(null);
@@ -25,12 +25,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [log, setLog] = useState<EventLog>(emptyLog);
   const [status, setStatus] = useState<Store['status']>('loading');
   const [error, setError] = useState<string | null>(null);
-  const graphPositions = useRef(new Map<string, PlacedPoint>()).current;
+  const graphLayout = useRef<SavedLayout>({ positions: new Map(), tieSignature: '' }).current;
 
   useEffect(() => {
-    Promise.all([loadRows(), loadGraphPositions()])
-      .then(([rows, positions]) => {
-        positions.forEach((p, id) => graphPositions.set(id, p));
+    Promise.all([loadRows(), loadGraphLayout()])
+      .then(([rows, layout]) => {
+        layout.positions.forEach((p, id) => graphLayout.positions.set(id, p));
+        graphLayout.tieSignature = layout.tieSignature;
         setLog(logFromRows(rows));
         setStatus('ready');
       })
@@ -38,7 +39,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         setError(String(e));
         setStatus('error');
       });
-  }, [graphPositions]);
+  }, [graphLayout]);
 
   /** Persist first, then update memory, so the UI never shows unsaved data. */
   const commit = useCallback(async (events: StoredEvent[]) => {
@@ -64,14 +65,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [commit],
   );
 
-  const saveGraphPositionsCb = useCallback(
-    (positions: Map<string, PlacedPoint>) => {
-      graphPositions.clear();
-      positions.forEach((p, id) => graphPositions.set(id, p));
+  const saveGraphLayoutCb = useCallback(
+    (positions: Map<string, PlacedPoint>, tieSignature: string) => {
+      graphLayout.positions.clear();
+      positions.forEach((p, id) => graphLayout.positions.set(id, p));
+      graphLayout.tieSignature = tieSignature;
       // Only a cache: if saving fails, the worst case is laying the graph out again.
-      saveGraphPositions(positions).catch((e: unknown) => console.warn('Could not save graph layout', e));
+      saveGraphLayout({ positions, tieSignature }).catch((e: unknown) => console.warn('Could not save graph layout', e));
     },
-    [graphPositions],
+    [graphLayout],
   );
 
   const value = useMemo(
@@ -82,10 +84,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       addPerson,
       logInteraction,
       updatePerson,
-      graphPositions,
-      saveGraphPositions: saveGraphPositionsCb,
+      graphLayout,
+      saveGraphLayout: saveGraphLayoutCb,
     }),
-    [log, status, error, addPerson, logInteraction, updatePerson, graphPositions, saveGraphPositionsCb],
+    [log, status, error, addPerson, logInteraction, updatePerson, graphLayout, saveGraphLayoutCb],
   );
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }

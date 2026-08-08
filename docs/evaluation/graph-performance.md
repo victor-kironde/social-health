@@ -80,3 +80,43 @@ adb shell dumpsys gfxinfo dev.kironde.socialgraph
 
 The lint exclusions work around a crash in Android lint while analysing
 `expo-modules-core`; they do not affect the APK.
+
+## Person-to-person links (phase 3)
+
+Same device and release-build protocol; the stress test now has ~250 links
+(friend groups of four within each category, plus weaker links between
+neighbouring groups). The stress test reports how long the layout took to
+settle and has a Links on/off switch for same-build comparisons.
+
+**Diagnosis.** The first version stroked each band of links as one Skia
+path. Settling went from ≤ 0.5% to 27–34% janky frames, and stayed janky
+until the layout came to rest. Frame statistics attributed it to the UI
+thread ("Slow UI thread"), with GPU time unchanged at 4–5 ms. Isolating it in
+the same build:
+
+| Variant (settling, first 6 s) | Janky |
+|---|---|
+| Links off | 0.23% |
+| Links simulated, not drawn | 0.71% |
+| Links as one stroked path per band (curves) | 33.4% |
+| Links as one stroked path per band (straight) | 33.4% |
+| Path built from one SVG string (curves) | 31.6–33.1% |
+| **Links as line segments, one `drawPoints` call per band** | **0.9–4.1%** |
+
+Stroking a large multi-segment path is expensive on the UI thread
+regardless of curvature or call count; independent line segments take
+Skia's fast path. Curves are now drawn as six segments each.
+
+**Result (3 trials):**
+
+| Phase | Janky (links) | Janky (no links, earlier) |
+|---|---|---|
+| Settling (first 6 s) | 0.93%, 1.20%, 4.11% | 0.23–0.46% |
+| Steady glow | 0.00%, 0.66%, 0.00% | 0.00–0.33% |
+| Interaction (drag/pan) | 4.09%, 5.12%, 9.89% | 0.00–0.50% |
+
+The layout takes ~10–13 s to settle on this phone with or without links
+(300 ticks at ~25–30 JS frames per second); the frames stay smooth because
+drawing runs on the UI thread. Dragging with links remains the weakest case
+(4–10% janky): each drag reheats the layout, so every link is redrawn per
+frame.

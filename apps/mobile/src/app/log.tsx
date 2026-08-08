@@ -13,9 +13,12 @@ const TYPES = Object.keys(INTERACTION_LABELS) as InteractionType[];
 export default function LogContact() {
   const t = useTheme();
   const { log, logInteraction } = useStore();
-  const { person } = useLocalSearchParams<{ person?: string }>();
+  // `person` (one id) or `people` (comma-separated ids) preselect who was there.
+  const { person, people: preselected } = useLocalSearchParams<{ person?: string; people?: string }>();
 
-  const [participants, setParticipants] = useState<string[]>(person ? [person] : []);
+  const [participants, setParticipants] = useState<string[]>(
+    preselected ? preselected.split(',').filter(Boolean) : person ? [person] : [],
+  );
   const [type, setType] = useState<InteractionType>('in_person');
   const [daysAgo, setDaysAgo] = useState(0);
   const [error, setError] = useState<string | null>(null);

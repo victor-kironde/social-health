@@ -148,3 +148,48 @@ describe('after a drag', () => {
     expect(Math.hypot(pos.get('p003')!.x, pos.get('p003')!.y)).toBeLessThan(400);
   });
 });
+
+describe('ties in the layout', () => {
+  const dist = (sim: LiveSimulation, a: string, b: string) =>
+    Math.hypot(at(sim, a).x - at(sim, b).x, at(sim, a).y - at(sim, b).y);
+
+  it('pulls tied people closer together than untied people on the same ring', () => {
+    // 30 people, all importance 3 (same ring); tie three pairs strongly.
+    const nodes = Array.from({ length: 30 }, (_, i) => ({ id: `q${String(i).padStart(2, '0')}`, importance: 3 as Rating }));
+    const links = [
+      { source: 'q00', target: 'q15', weight: 3 },
+      { source: 'q05', target: 'q20', weight: 3 },
+      { source: 'q10', target: 'q25', weight: 3 },
+    ];
+    const tied = new LiveSimulation(nodes, { links });
+    tied.settle();
+    const untied = new LiveSimulation(nodes);
+    untied.settle();
+    for (const l of links) expect(dist(tied, l.source, l.target)).toBeLessThan(dist(untied, l.source, l.target) / 2);
+  });
+
+  it('keeps importance rings ordered with ties present', () => {
+    const nodes = network(50);
+    const links = nodes.slice(0, 20).map((n, i) => ({ source: n.id, target: nodes[(i + 7) % 50]!.id, weight: 2 }));
+    const sim = new LiveSimulation(nodes, { links });
+    sim.settle();
+    const meanR = (imp: number) => {
+      const ids = nodes.filter((n) => n.importance === imp).map((n) => n.id);
+      return ids.reduce((s, id) => s + Math.hypot(at(sim, id).x, at(sim, id).y), 0) / ids.length;
+    };
+    for (let imp = 5; imp > 1; imp--) expect(meanR(imp)).toBeLessThan(meanR(imp - 1));
+  });
+
+  it('ignores links to people not in the graph', () => {
+    const sim = new LiveSimulation(network(5), { links: [{ source: 'p000', target: 'ghost', weight: 5 }] });
+    sim.settle();
+    expect(sim.xy().every(Number.isFinite)).toBe(true);
+  });
+
+  it('warm: a fully remembered layout relaxes when asked (ties changed)', () => {
+    const nodes = network(20);
+    const previous = layoutEgoGraph(nodes);
+    expect(new LiveSimulation(nodes, { previous }).active).toBe(false);
+    expect(new LiveSimulation(nodes, { previous, warm: true }).active).toBe(true);
+  });
+});

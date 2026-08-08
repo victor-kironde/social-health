@@ -68,3 +68,10 @@ export function lastContactText(days: number | null): string {
   const d = Math.floor(days);
   return d === 1 ? 'Last contact yesterday' : `Last contact ${d} days ago`;
 }
+
+/** "today", "yesterday", "5 days ago". */
+export function daysAgoText(days: number): string {
+  const d = Math.floor(days);
+  if (d <= 0) return 'today';
+  return d === 1 ? 'yesterday' : `${d} days ago`;
+}

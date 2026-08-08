@@ -1,8 +1,9 @@
-import { Canvas, Group, Picture, createPicture, type SkCanvas, type SkFont } from '@shopify/react-native-skia';
+import { Canvas, Group, Picture, Skia, createPicture, type SkCanvas, type SkFont } from '@shopify/react-native-skia';
+import { tieControl } from '../geometry';
 import { useEffect, useMemo } from 'react';
 import { useDerivedValue } from 'react-native-reanimated';
 import { NODE_RADIUS, type Point } from '../layout';
-import { ME_ID, encode, type GraphData, type GraphRendererProps, type GraphStyle } from '../model';
+import { ME_ID, edgeStroke, encode, type GraphData, type GraphRendererProps, type GraphStyle } from '../model';
 import { centreOffset, makeFonts, paint, type GraphFonts } from './skiaKit';
 
 /**
@@ -52,13 +53,17 @@ function drawGraph(
   for (const e of data.edges) {
     const a = e.source === ME_ID ? { x: 0, y: 0 } : positions.get(e.source)!;
     const b = positions.get(e.target)!;
-    canvas.drawLine(
-      a.x,
-      a.y,
-      b.x,
-      b.y,
-      paint(encode.edgeColour(e, style), { stroke: encode.edgeWidth(e.importance), alpha: encode.edgeOpacity(e.behind) }),
-    );
+    const st = edgeStroke(e, style);
+    const p = paint(st.colour, { stroke: st.width, alpha: st.opacity });
+    if (!st.curved) {
+      canvas.drawLine(a.x, a.y, b.x, b.y, p);
+      continue;
+    }
+    const ctl = tieControl(a.x, a.y, b.x, b.y);
+    const path = Skia.Path.Make();
+    path.moveTo(a.x, a.y);
+    path.quadTo(ctl.x, ctl.y, b.x, b.y);
+    canvas.drawPath(path, p);
   }
 
   for (const n of data.nodes) {

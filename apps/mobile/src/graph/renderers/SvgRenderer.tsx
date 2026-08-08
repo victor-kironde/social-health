@@ -1,9 +1,10 @@
 import { useEffect, useMemo } from 'react';
 import { StyleSheet } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
-import Svg, { Circle, G, Line, Text as SvgText } from 'react-native-svg';
+import Svg, { Circle, G, Line, Path, Text as SvgText } from 'react-native-svg';
+import { tieControl } from '../geometry';
 import { NODE_RADIUS } from '../layout';
-import { ME_ID, encode, type GraphRendererProps } from '../model';
+import { ME_ID, edgeStroke, encode, type GraphRendererProps } from '../model';
 
 /**
  * react-native-svg renderer: one native view per element. Simple and
@@ -24,18 +25,11 @@ export function SvgRenderer({ data, positions, size, fit, view, style, onRendere
           {data.edges.map((e) => {
             const a = e.source === ME_ID ? { x: 0, y: 0 } : positions.get(e.source)!;
             const b = positions.get(e.target)!;
-            return (
-              <Line
-                key={e.id}
-                x1={a.x}
-                y1={a.y}
-                x2={b.x}
-                y2={b.y}
-                stroke={encode.edgeColour(e, style)}
-                strokeWidth={encode.edgeWidth(e.importance)}
-                strokeOpacity={encode.edgeOpacity(e.behind)}
-              />
-            );
+            const st = edgeStroke(e, style);
+            const common = { stroke: st.colour, strokeWidth: st.width, strokeOpacity: st.opacity };
+            if (!st.curved) return <Line key={e.id} x1={a.x} y1={a.y} x2={b.x} y2={b.y} {...common} />;
+            const ctl = tieControl(a.x, a.y, b.x, b.y);
+            return <Path key={e.id} d={`M${a.x},${a.y} Q${ctl.x},${ctl.y} ${b.x},${b.y}`} fill="none" {...common} />;
           })}
         </G>
         <G>

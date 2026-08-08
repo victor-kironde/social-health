@@ -3,13 +3,15 @@ import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Easing, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
-import { fitScale, hitTest, hitTestXY, screenToGraph } from './geometry';
+import { fitScale, hitTest, hitTestEdge, hitTestXY, screenToGraph } from './geometry';
 import { NODE_RADIUS, type Point } from './layout';
-import type { GraphData, GraphRenderer, GraphStyle, LivePositions } from './model';
+import { ME_ID, type GraphData, type GraphRenderer, type GraphStyle, type LivePositions } from './model';
 
 const MIN_SCALE = 0.4;
 const MAX_SCALE = 4;
 const HIT_RADIUS = NODE_RADIUS * 1.4;
+/** How close (in screen pixels) a tap must be to an edge to select it. */
+const EDGE_TOLERANCE_PX = 14;
 
 export interface DragHandlers {
   dragStart(id: string, x: number, y: number): void;
@@ -34,8 +36,12 @@ export function GraphCanvas({
   pulse,
   reduceMotion = false,
   onNodePress,
+  onEdgePress,
+  onBackgroundPress,
   onZoomEnd,
   onRendered,
+  focus,
+  bottomInset = 0,
 }: {
   data: GraphData;
   /** Positions used to fit the view (every node that may be shown, so filtering keeps the fit stable). */
@@ -48,8 +54,14 @@ export function GraphCanvas({
   /** Snap rather than ease view changes. */
   reduceMotion?: boolean;
   onNodePress?: (id: string) => void;
+  onEdgePress?: (id: string) => void;
+  onBackgroundPress?: () => void;
   onZoomEnd?: (scale: number) => void;
   onRendered?: () => void;
+  /** A graph point to keep in view, e.g. the selected edge; the view pans to it if hidden. */
+  focus?: Point | null;
+  /** Height covered at the bottom (e.g. by a sheet), in pixels. */
+  bottomInset?: number;
 }) {
   const [size, setSize] = useState<{ width: number; height: number } | null>(null);
   const fit = useMemo(() => (size ? fitScale(positions.values(), size, NODE_RADIUS + 24) : 1), [positions, size]);
@@ -134,16 +146,64 @@ export function GraphCanvas({
       if (onZoomEnd) scheduleOnRN(onZoomEnd, scale.value);
     });
 
+  // Pan just enough to bring `focus` into the part of the canvas not covered by the inset.
+  useEffect(() => {
+    if (!focus || !size) return;
+    const k = scale.value * fitValue.value;
+    const margin = 32;
+    const top = margin;
+    const bottom = size.height - bottomInset - margin;
+    const sy = size.height / 2 + ty.value + k * focus.y;
+    const sx = size.width / 2 + tx.value + k * focus.x;
+    let dy = 0;
+    if (sy > bottom) dy = (top + bottom) / 2 - sy;
+    else if (sy < top) dy = top - sy;
+    let dx = 0;
+    if (sx < margin) dx = margin - sx;
+    else if (sx > size.width - margin) dx = size.width - margin - sx;
+    if (dx === 0 && dy === 0) return;
+    const nextTx = tx.value + dx;
+    const nextTy = ty.value + dy;
+    savedTx.value = nextTx;
+    savedTy.value = nextTy;
+    const timing = { duration: reduceMotion ? 0 : 350, easing: Easing.out(Easing.cubic) };
+    tx.value = withTiming(nextTx, timing);
+    ty.value = withTiming(nextTy, timing);
+    // Only when the focus or the covered area changes, not on every pan.
+  }, [focus?.x, focus?.y, bottomInset, size]);
+
+  // Where each node is right now (live or static), for edge hit testing on JS.
+  const liveIndex = useMemo(() => new Map(live?.ids.map((id, i) => [id, i]) ?? []), [live]);
+  const edgeTargets = useMemo(
+    () => data.edges.map((e) => ({ id: e.id, source: e.source, target: e.target, curved: e.kind === 'tie' })),
+    [data],
+  );
+
+  // Nodes take priority over edges; a tap on empty space clears any selection.
   const tap = Gesture.Tap()
     .maxDuration(300)
     .runOnJS(true)
     .onEnd((e, success) => {
-      if (!success || !size || !onNodePress) return;
+      if (!success || !size) return;
       const p = screenToGraph(e, size, { tx: tx.value, ty: ty.value, scale: scale.value }, fitValue.value);
-      const id = live
+      const nodeId = live
         ? live.ids[hitTestXY(p.x, p.y, live.xy.value, candidates, HIT_RADIUS)]
         : hitTest(p, positions, data.nodes.map((n) => n.id), HIT_RADIUS);
-      if (id) onNodePress(id);
+      if (nodeId) {
+        onNodePress?.(nodeId);
+        return;
+      }
+      const xyNow = live?.xy.value;
+      const posOf = (id: string): Point | undefined => {
+        if (id === ME_ID) return { x: 0, y: 0 };
+        if (!xyNow) return positions.get(id);
+        const i = liveIndex.get(id);
+        return i === undefined ? undefined : { x: xyNow[2 * i]!, y: xyNow[2 * i + 1]! };
+      };
+      const tolerance = EDGE_TOLERANCE_PX / (scale.value * fitValue.value);
+      const edgeId = hitTestEdge(p, edgeTargets, posOf, tolerance);
+      if (edgeId) onEdgePress?.(edgeId);
+      else onBackgroundPress?.();
     });
 
   const gesture = Gesture.Race(tap, Gesture.Simultaneous(pan, pinch));

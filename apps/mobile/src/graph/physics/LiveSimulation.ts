@@ -1,9 +1,20 @@
-import { ME, createEgoSimulation, knownCount, toPositions, type LayoutInput, type PlacedPoint, type SimNode } from '../layout';
+import {
+  ME,
+  createEgoSimulation,
+  knownCount,
+  toPositions,
+  type LayoutInput,
+  type LayoutLink,
+  type PlacedPoint,
+  type SimNode,
+} from '../layout';
 
 /** Alpha the simulation is kept at while a node is being dragged. */
 const DRAG_ALPHA = 0.3;
 /** Faster cooling after a release (~100 ticks from DRAG_ALPHA) than d3's default (~250). */
 const RELEASE_DECAY = 0.055;
+/** Gentle reheat for a remembered layout whose forces changed (new ties). */
+const WARM_ALPHA = 0.3;
 
 /**
  * A continuously running version of the ego layout, stepped one tick per
@@ -18,8 +29,19 @@ export class LiveSimulation {
   private readonly nodes: SimNode[];
   private readonly byId: Map<string, SimNode>;
   private dragging: string | null = null;
+  /** Ticks run so far (for instrumentation). */
+  ticks = 0;
 
-  constructor(inputs: LayoutInput[], opts: { previous?: Map<string, PlacedPoint>; seed?: number } = {}) {
+  constructor(
+    inputs: LayoutInput[],
+    opts: {
+      previous?: Map<string, PlacedPoint>;
+      seed?: number;
+      links?: LayoutLink[];
+      /** Relax even if every position is remembered (e.g. the ties changed since they were saved). */
+      warm?: boolean;
+    } = {},
+  ) {
     const { simulation, simNodes } = createEgoSimulation(inputs, opts);
     this.simulation = simulation;
     this.nodes = simNodes.filter((n) => n.id !== ME);
@@ -30,7 +52,8 @@ export class LiveSimulation {
     // cached one barely moves.
     const known = knownCount(inputs, opts.previous);
     const unknownShare = inputs.length ? 1 - known / inputs.length : 0;
-    simulation.alpha(known === inputs.length ? 0 : Math.max(0.1, unknownShare));
+    const atRest = known === inputs.length;
+    simulation.alpha(atRest ? (opts.warm ? WARM_ALPHA : 0) : Math.max(0.1, unknownShare));
   }
 
   /** True while still settling or while a node is held. */
@@ -40,6 +63,7 @@ export class LiveSimulation {
 
   step(ticks = 1): void {
     this.simulation.tick(ticks);
+    this.ticks += ticks;
   }
 
   /** Step until settled (for reduced motion), cooling fast like the one-shot layout. */

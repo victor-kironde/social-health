@@ -24,6 +24,11 @@ const MIGRATIONS: string[] = [
      y REAL NOT NULL,
      importance INTEGER NOT NULL
    );`,
+  // Small key/value store for the layout cache (e.g. which ties it was laid out with).
+  `CREATE TABLE IF NOT EXISTS graph_meta (
+     key TEXT PRIMARY KEY NOT NULL,
+     value TEXT NOT NULL
+   );`,
 ];
 
 export interface DbStatus {
@@ -89,18 +94,29 @@ export async function appendEvents(events: StoredEvent[]): Promise<void> {
   });
 }
 
-export async function loadGraphPositions(): Promise<Map<string, PlacedPoint>> {
+export interface SavedLayout {
+  positions: Map<string, PlacedPoint>;
+  /** tieSignature() of the ties the positions were laid out with. */
+  tieSignature: string;
+}
+
+export async function loadGraphLayout(): Promise<SavedLayout> {
   const db = await openDb();
   const rows = await db.getAllAsync<{ person_id: string; x: number; y: number; importance: number }>(
     'SELECT person_id, x, y, importance FROM graph_position;',
   );
-  return new Map(rows.map((r) => [r.person_id, { x: r.x, y: r.y, importance: r.importance as Rating }]));
+  const meta = await db.getFirstAsync<{ value: string }>("SELECT value FROM graph_meta WHERE key = 'tie_signature';");
+  return {
+    positions: new Map(rows.map((r) => [r.person_id, { x: r.x, y: r.y, importance: r.importance as Rating }])),
+    tieSignature: meta?.value ?? '',
+  };
 }
 
-/** Replaces the saved layout with `positions`, atomically. */
-export async function saveGraphPositions(positions: Map<string, PlacedPoint>): Promise<void> {
+/** Replaces the saved layout, atomically. */
+export async function saveGraphLayout({ positions, tieSignature }: SavedLayout): Promise<void> {
   const db = await openDb();
   await db.withTransactionAsync(async () => {
+    await db.runAsync("INSERT OR REPLACE INTO graph_meta (key, value) VALUES ('tie_signature', ?);", [tieSignature]);
     await db.runAsync('DELETE FROM graph_position;');
     for (const [id, p] of positions) {
       if (p.importance === undefined) continue;

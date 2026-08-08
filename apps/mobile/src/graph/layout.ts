@@ -1,5 +1,6 @@
 import {
   forceCollide,
+  forceLink,
   forceManyBody,
   forceRadial,
   forceSimulation,
@@ -51,6 +52,17 @@ function lcg(seed: number): () => number {
 
 export type SimNode = SimulationNodeDatum & { id: string; importance: Rating | null };
 
+/** A person-to-person attraction (from derived ties); weight ~1 = one recent contact as a pair. */
+export interface LayoutLink {
+  source: string;
+  target: string;
+  weight: number;
+}
+
+/** Ties pull gently (rings stay dominant); stronger ties pull more, capped. */
+const linkStrength = (weight: number) => 0.05 + 0.4 * Math.min(1, weight / 3);
+const LINK_DISTANCE = 70;
+
 /**
  * The shared ego-centred force model, used by both the one-shot layout and
  * the live simulation: the user is fixed at (0, 0), each person is pulled
@@ -61,9 +73,9 @@ export type SimNode = SimulationNodeDatum & { id: string; importance: Rating | n
  */
 export function createEgoSimulation(
   nodes: LayoutInput[],
-  opts: { previous?: Map<string, PlacedPoint>; seed?: number } = {},
+  opts: { previous?: Map<string, PlacedPoint>; seed?: number; links?: LayoutLink[] } = {},
 ): { simulation: Simulation<SimNode, undefined>; simNodes: SimNode[] } {
-  const { previous, seed = 42 } = opts;
+  const { previous, seed = 42, links = [] } = opts;
   const golden = Math.PI * (3 - Math.sqrt(5));
   const sorted = [...nodes].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   const simNodes: SimNode[] = [
@@ -89,6 +101,20 @@ export function createEgoSimulation(
     .force('collide', forceCollide<SimNode>(NODE_RADIUS + 12).iterations(2))
     .force('charge', forceManyBody<SimNode>().strength(-20).distanceMax(200))
     .stop();
+
+  const ids = new Set(sorted.map((n) => n.id));
+  const usable = links
+    .filter((l) => ids.has(l.source) && ids.has(l.target))
+    .map((l) => ({ source: l.source, target: l.target, weight: l.weight }));
+  if (usable.length) {
+    simulation.force(
+      'ties',
+      forceLink<SimNode, { source: string | SimNode; target: string | SimNode; weight: number }>(usable)
+        .id((d) => d.id)
+        .distance(LINK_DISTANCE)
+        .strength((l) => linkStrength(l.weight)),
+    );
+  }
   return { simulation, simNodes };
 }
 
@@ -104,11 +130,11 @@ export function knownCount(nodes: LayoutInput[], previous?: Map<string, PlacedPo
  */
 export function layoutEgoGraph(
   nodes: LayoutInput[],
-  opts: { previous?: Map<string, PlacedPoint>; ticks?: number; seed?: number } = {},
+  opts: { previous?: Map<string, PlacedPoint>; ticks?: number; seed?: number; links?: LayoutLink[]; warm?: boolean } = {},
 ): Map<string, PlacedPoint> {
-  const { previous } = opts;
+  const { previous, warm } = opts;
   const known = knownCount(nodes, previous);
-  if (previous && nodes.length > 0 && known === nodes.length) {
+  if (previous && nodes.length > 0 && known === nodes.length && !warm) {
     return new Map(nodes.map((n) => [n.id, { ...previous.get(n.id)!, importance: n.importance }]));
   }
   const ticks = opts.ticks ?? (known >= nodes.length * 0.8 ? 40 : 120);

@@ -1,9 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useSharedValue } from 'react-native-reanimated';
 import type { DragHandlers } from '../GraphCanvas';
-import type { LayoutInput, Point } from '../layout';
+import type { LayoutInput, LayoutLink, PlacedPoint, Point } from '../layout';
 import type { LivePositions } from '../model';
 import { LiveSimulation } from './LiveSimulation';
+
+export interface SettleStats {
+  /** Animation frames the loop ran, and simulation ticks taken, until rest. */
+  frames: number;
+  ticks: number;
+  ms: number;
+}
 
 export interface LiveControls extends DragHandlers {
   live: LivePositions;
@@ -22,20 +29,26 @@ export function useLiveSimulation(
   nodes: LayoutInput[],
   opts: {
     enabled: boolean;
-    previous?: Map<string, Point>;
+    previous?: Map<string, PlacedPoint>;
+    links?: LayoutLink[];
+    /** Relax a fully remembered layout (its ties changed since it was saved). */
+    warm?: boolean;
     reducedMotion: boolean;
-    onSettled?: (p: Map<string, Point>) => void;
+    onSettled?: (p: Map<string, PlacedPoint>, stats?: SettleStats) => void;
   },
 ): LiveControls | null {
-  const { enabled, previous, reducedMotion } = opts;
+  const { enabled, previous, links, warm, reducedMotion } = opts;
   const settledRef = useRef(opts.onSettled);
   settledRef.current = opts.onSettled;
 
-  // A new simulation only when the set of people changes, not on every render.
-  const key = nodes.map((n) => `${n.id}:${n.importance}`).join('|');
+  // A new simulation only when the people or their ties change, not on every render.
+  const key =
+    nodes.map((n) => `${n.id}:${n.importance}`).join('|') +
+    '#' +
+    (links ?? []).map((l) => `${l.source}-${l.target}`).join('|');
   const sim = useMemo(() => {
     if (!enabled) return null;
-    const s = new LiveSimulation(nodes, { previous });
+    const s = new LiveSimulation(nodes, { previous, links, warm });
     if (reducedMotion) s.settle();
     return s;
   }, [key, enabled, reducedMotion]);
@@ -45,14 +58,18 @@ export function useLiveSimulation(
 
   const run = useCallback(() => {
     if (!sim || frame.current !== null) return;
+    const start = performance.now();
+    const startTicks = sim.ticks;
+    let frames = 0;
     const tick = () => {
       if (sim.active) {
         sim.step();
         xy.value = sim.xy();
+        frames++;
         frame.current = requestAnimationFrame(tick);
       } else {
         frame.current = null;
-        settledRef.current?.(sim.positions());
+        settledRef.current?.(sim.positions(), { frames, ticks: sim.ticks - startTicks, ms: performance.now() - start });
       }
     };
     frame.current = requestAnimationFrame(tick);

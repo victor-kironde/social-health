@@ -2,6 +2,7 @@ import type { Category, Rating, RelationshipContribution } from '@sg/score-engin
 import type { ComponentType } from 'react';
 import type { SharedValue } from 'react-native-reanimated';
 import type { Point } from './layout';
+import type { Tie } from './ties';
 
 /**
  * Renderer-independent description of the network graph. Anything that can
@@ -26,16 +27,29 @@ export interface GraphNode {
 
 export const RECENT_DAYS = 7;
 
-export interface GraphEdge {
+/** You to a person: encodes the relationship itself. */
+export interface EgoEdge {
   id: string;
-  source: string;
-  target: string;
-  /** 'ego' = you to a person. Person-to-person ties will be a second kind. */
   kind: 'ego';
+  source: typeof ME_ID;
+  target: string;
   importance: Rating;
   quality: Rating | null;
   behind: boolean;
 }
+
+/** Person to person, inferred from contacts logged with both (see ties.ts). */
+export interface TieEdge {
+  id: string;
+  kind: 'tie';
+  source: string;
+  target: string;
+  weight: number;
+  count: number;
+  lastTs: number;
+}
+
+export type GraphEdge = EgoEdge | TieEdge;
 
 export interface GraphData {
   nodes: GraphNode[];
@@ -57,6 +71,8 @@ export interface GraphStyle {
   colours: GraphColours;
   colourByQuality: boolean;
   showLabels: boolean;
+  /** Edge to highlight (tapped), if any. */
+  selectedEdgeId?: string | null;
 }
 
 /** Pan/zoom, updated on the UI thread by gestures. Renderers read, never write. */
@@ -102,8 +118,26 @@ export interface GraphRendererProps {
 export type GraphRenderer = ComponentType<GraphRendererProps>;
 
 /** Build the drawable graph from scored relationships. Pure; no drawing concerns. */
-export function buildGraph(relationships: RelationshipContribution[], names: Map<string, string>): GraphData {
+export function buildGraph(
+  relationships: RelationshipContribution[],
+  names: Map<string, string>,
+  ties: Tie[] = [],
+): GraphData {
   const behind = (r: RelationshipContribution) => r.onRhythm !== null && r.onRhythm < 0.5;
+  const shown = new Set(relationships.map((r) => r.personId));
+  const egoEdges: EgoEdge[] = relationships.map((r) => ({
+    id: `ego:${r.personId}`,
+    kind: 'ego',
+    source: ME_ID,
+    target: r.personId,
+    importance: r.importance,
+    quality: r.quality,
+    behind: behind(r),
+  }));
+  // Ties only between people currently shown (filters hide both ends' links).
+  const tieEdges: TieEdge[] = ties
+    .filter((t) => shown.has(t.a) && shown.has(t.b))
+    .map((t) => ({ id: `tie:${t.a}|${t.b}`, kind: 'tie', source: t.a, target: t.b, weight: t.weight, count: t.count, lastTs: t.lastTs }));
   return {
     nodes: relationships.map((r) => ({
       id: r.personId,
@@ -114,16 +148,46 @@ export function buildGraph(relationships: RelationshipContribution[], names: Map
       behind: behind(r),
       recent: !behind(r) && r.lastContactAgeDays !== null && r.lastContactAgeDays <= RECENT_DAYS,
     })),
-    edges: relationships.map((r) => ({
-      id: `ego:${r.personId}`,
-      source: ME_ID,
-      target: r.personId,
-      kind: 'ego' as const,
-      importance: r.importance,
-      quality: r.quality,
-      behind: behind(r),
-    })),
+    // Ties first so ego edges (the user's own relationships) draw on top.
+    edges: [...tieEdges, ...egoEdges],
   };
+}
+
+/** How to draw one edge; every renderer uses this so they agree. */
+export interface EdgeStroke {
+  colour: string;
+  width: number;
+  opacity: number;
+  /** Ties curve outward (see tieControl); ego edges are straight. */
+  curved: boolean;
+}
+
+export function edgeStroke(e: GraphEdge, s: GraphStyle): EdgeStroke {
+  const selected = s.selectedEdgeId === e.id;
+  if (e.kind === 'ego') {
+    return {
+      colour: selected ? s.colours.accent : encode.edgeColour(e, s),
+      width: encode.edgeWidth(e.importance) + (selected ? encode.selectedWidthBoost : 0),
+      opacity: selected ? 1 : encode.edgeOpacity(e.behind),
+      curved: false,
+    };
+  }
+  // Weights are snapped to a few bands so renderers can batch ties into one path per band.
+  const w = tieBand(e.weight);
+  return {
+    colour: selected ? s.colours.accent : s.colours.muted,
+    width: encode.tieWidth(w) + (selected ? encode.selectedWidthBoost : 0),
+    opacity: selected ? 1 : encode.tieOpacity(w),
+    curved: true,
+  };
+}
+
+/** Representative weight for a tie's visual band (weak, light, firm, strong). */
+export function tieBand(weight: number): number {
+  if (weight < 0.5) return 0.35;
+  if (weight < 1.5) return 1;
+  if (weight < 3) return 2;
+  return 3;
 }
 
 /** Shared visual rules, so every renderer encodes the data the same way. */
@@ -131,8 +195,12 @@ export const encode = {
   edgeWidth: (importance: Rating) => 0.75 + importance * 0.9,
   edgeOpacity: (behind: boolean) => (behind ? 0.35 : 0.9),
   nodeOpacity: (behind: boolean) => (behind ? 0.45 : 1),
-  edgeColour: (e: GraphEdge, s: GraphStyle) =>
+  edgeColour: (e: EgoEdge, s: GraphStyle) =>
     s.colourByQuality && e.quality !== null ? s.colours.quality[e.quality] : s.colours.edge,
+  /** Ties are secondary context: thin, muted, firmer when stronger. */
+  tieWidth: (weight: number) => 0.8 + 1.4 * Math.min(1, weight / 3),
+  tieOpacity: (weight: number) => 0.25 + 0.35 * Math.min(1, weight / 3),
+  selectedWidthBoost: 3,
   initial: (label: string) => label.charAt(0).toUpperCase(),
   shortLabel: (label: string) => (label.length > 14 ? `${label.slice(0, 13)}…` : label),
 };
