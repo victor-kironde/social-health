@@ -2,11 +2,13 @@ import type { Rating } from '@sg/score-engine';
 import { describe, expect, it } from 'vitest';
 import { NODE_RADIUS, layoutEgoGraph, ringRadius, type LayoutInput } from '../src/graph/layout';
 import {
+  distToPolyline,
   distToQuad,
   distToSegment,
   fitScale,
   hitTest,
   hitTestEdge,
+  routeEdge,
   screenToGraph,
   tieControl,
 } from '../src/graph/geometry';
@@ -139,22 +141,73 @@ describe('edge geometry', () => {
     expect(distToQuad(50, 0, 0, 0, 50, 50, 100, 0, 64)).toBeCloseTo(25, 0);
   });
 
-  it('hitTestEdge picks the nearest edge within tolerance, following curves', () => {
+  it('hitTestEdge follows the drawn route (curved)', () => {
     const pos = new Map([
       ['me', { x: 0, y: 0 }],
       ['a', { x: 100, y: 0 }],
       ['b', { x: 0, y: 100 }],
     ]);
     const edges = [
-      { id: 'ego:a', source: 'me', target: 'a', curved: false },
-      { id: 'tie:a|b', source: 'a', target: 'b', curved: true },
+      { id: 'ego:a', source: 'me', target: 'a', kind: 'ego' as const },
+      { id: 'tie:a|b', source: 'a', target: 'b', kind: 'tie' as const },
     ];
-    expect(hitTestEdge({ x: 50, y: 2 }, edges, (id) => pos.get(id), 6)).toBe('ego:a');
-    // A point on the bowed tie, well away from the straight chord a-b.
+    const posOf = (id: string) => pos.get(id);
+    expect(hitTestEdge({ x: 50, y: 2 }, edges, posOf, 6, 'curved')).toBe('ego:a');
     const c = tieControl(100, 0, 0, 100);
     const onCurve = { x: 0.25 * 100 + 0.5 * c.x, y: 0.25 * 100 + 0.5 * c.y };
-    expect(hitTestEdge(onCurve, edges, (id) => pos.get(id), 6)).toBe('tie:a|b');
-    expect(hitTestEdge({ x: 50, y: 50 }, edges, (id) => pos.get(id), 6)).toBeNull(); // the chord, not the curve
-    expect(hitTestEdge({ x: 300, y: 300 }, edges, (id) => pos.get(id), 6)).toBeNull();
+    expect(hitTestEdge(onCurve, edges, posOf, 6, 'curved')).toBe('tie:a|b');
+    expect(hitTestEdge({ x: 50, y: 50 }, edges, posOf, 6, 'curved')).toBeNull();
+    expect(hitTestEdge({ x: 300, y: 300 }, edges, posOf, 6, 'curved')).toBeNull();
+  });
+
+  it('hitTestEdge follows the drawn route (orthogonal)', () => {
+    const pos = new Map([
+      ['me', { x: 0, y: 0 }],
+      ['a', { x: 100, y: 40 }],
+    ]);
+    const edges = [{ id: 'ego:a', source: 'me', target: 'a', kind: 'ego' as const }];
+    // Mostly horizontal: along y = 0 to x = 100, then up to y = 40.
+    expect(hitTestEdge({ x: 60, y: 1 }, edges, (id) => pos.get(id), 4)).toBe('ego:a');
+    expect(hitTestEdge({ x: 101, y: 20 }, edges, (id) => pos.get(id), 4)).toBe('ego:a');
+    expect(hitTestEdge({ x: 50, y: 20 }, edges, (id) => pos.get(id), 4)).toBeNull(); // the diagonal is not drawn
+  });
+});
+
+describe('orthogonal routing', () => {
+  const segmentsAreAxisAligned = (pts: number[]) => {
+    for (let i = 2; i + 1 < pts.length; i += 2) {
+      const horizontal = pts[i + 1] === pts[i - 1];
+      const vertical = pts[i] === pts[i - 2];
+      if (!horizontal && !vertical) return false;
+    }
+    return true;
+  };
+
+  it('uses only horizontal and vertical segments, for any endpoints', () => {
+    const coords = [-150, -40, 0, 35, 120];
+    for (const ax of coords) for (const ay of coords) for (const bx of coords) for (const by of coords) {
+      for (const kind of ['ego', 'tie'] as const) {
+        const pts = routeEdge(kind, ax, ay, bx, by, 'orthogonal');
+        expect(segmentsAreAxisAligned(pts)).toBe(true);
+        expect(pts.slice(0, 2)).toEqual([ax, ay]);
+        expect(pts.slice(-2)).toEqual([bx, by]);
+      }
+    }
+  });
+
+  it('a line from the centre leaves along its dominant axis', () => {
+    expect(routeEdge('ego', 0, 0, 30, 100, 'orthogonal')).toEqual([0, 0, 0, 100, 30, 100]); // mostly vertical
+    expect(routeEdge('ego', 0, 0, 100, 30, 'orthogonal')).toEqual([0, 0, 100, 0, 100, 30]); // mostly horizontal
+  });
+
+  it('a tie turns at the corner farther from the centre', () => {
+    // Corners: (100, 120) at r ≈ 156 and (20, 10) at r ≈ 22.
+    expect(routeEdge('tie', 100, 10, 20, 120, 'orthogonal')).toEqual([100, 10, 100, 120, 20, 120]);
+  });
+
+  it('distToPolyline measures to the nearest segment', () => {
+    const pts = [0, 0, 100, 0, 100, 50];
+    expect(distToPolyline(50, 3, pts)).toBeCloseTo(3, 9);
+    expect(distToPolyline(104, 25, pts)).toBeCloseTo(4, 9);
   });
 });

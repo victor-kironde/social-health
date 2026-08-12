@@ -1,4 +1,4 @@
-import { PaintStyle, Skia, TileMode, matchFont, type SkFont, type SkPaint } from '@shopify/react-native-skia';
+import { PaintStyle, Skia, StrokeCap, StrokeJoin, TileMode, matchFont, type SkFont, type SkPaint } from '@shopify/react-native-skia';
 import { Platform } from 'react-native';
 
 /** Shared Skia helpers for the Skia-based renderers. */
@@ -19,7 +19,7 @@ export function makeFonts(): GraphFonts {
   };
 }
 
-export function paint(colour: string, opts: { stroke?: number; alpha?: number } = {}): SkPaint {
+export function paint(colour: string, opts: { stroke?: number; alpha?: number; square?: boolean } = {}): SkPaint {
   const p = Skia.Paint();
   p.setAntiAlias(true);
   p.setColor(Skia.Color(colour));
@@ -28,6 +28,11 @@ export function paint(colour: string, opts: { stroke?: number; alpha?: number } 
     p.setStrokeWidth(opts.stroke);
   }
   if (opts.alpha !== undefined) p.setAlphaf(opts.alpha);
+  // Square caps and mitred joins keep right-angled routes crisp at the corners.
+  if (opts.square) {
+    p.setStrokeCap(StrokeCap.Square);
+    p.setStrokeJoin(StrokeJoin.Miter);
+  }
   return p;
 }
 

@@ -257,7 +257,7 @@ export default function GraphScreen() {
         <Text style={[styles.legendText, { color: t.muted }]}>
           Closer and thicker = more important · faded = behind usual rhythm
           {isLive ? ' · glowing = in touch this week' : ''}
-          {graph.edges.some((e) => e.kind === 'tie') ? ' · curves = seen together' : ''}
+          {graph.edges.some((e) => e.kind === 'tie') ? ' · thin grey lines = seen together' : ''}
           {colourByQuality ? ' · line colour = how the relationship is going' : ''}
         </Text>
         <Text style={[styles.legendText, { color: t.muted }]}>

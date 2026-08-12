@@ -175,7 +175,7 @@ export function GraphCanvas({
   // Where each node is right now (live or static), for edge hit testing on JS.
   const liveIndex = useMemo(() => new Map(live?.ids.map((id, i) => [id, i]) ?? []), [live]);
   const edgeTargets = useMemo(
-    () => data.edges.map((e) => ({ id: e.id, source: e.source, target: e.target, curved: e.kind === 'tie' })),
+    () => data.edges.map((e) => ({ id: e.id, source: e.source, target: e.target, kind: e.kind })),
     [data],
   );
 
@@ -201,7 +201,7 @@ export function GraphCanvas({
         return i === undefined ? undefined : { x: xyNow[2 * i]!, y: xyNow[2 * i + 1]! };
       };
       const tolerance = EDGE_TOLERANCE_PX / (scale.value * fitValue.value);
-      const edgeId = hitTestEdge(p, edgeTargets, posOf, tolerance);
+      const edgeId = hitTestEdge(p, edgeTargets, posOf, tolerance, style.routing);
       if (edgeId) onEdgePress?.(edgeId);
       else onBackgroundPress?.();
     });

@@ -1,5 +1,5 @@
 import { Canvas, Group, Picture, PointMode, createPicture, type SkPaint } from '@shopify/react-native-skia';
-import { tieControl } from '../geometry';
+import { routeEdge } from '../geometry';
 import { useEffect, useMemo } from 'react';
 import { useDerivedValue } from 'react-native-reanimated';
 import { NODE_RADIUS } from '../layout';
@@ -37,8 +37,6 @@ interface TieGroup {
 }
 
 const TAU = Math.PI * 2;
-/** Straight pieces per drawn tie curve (enough to look smooth at normal zoom). */
-const TIE_SEGMENTS = 6;
 /** Halo radius; the node itself covers the inner NODE_RADIUS. */
 const GLOW_RADIUS = NODE_RADIUS * 1.75;
 
@@ -57,6 +55,7 @@ export function LiveSkiaRenderer(props: GraphRendererProps) {
 function LiveSkia({ data, size, view, style, onRendered, live, pulse }: GraphRendererProps & { live: NonNullable<GraphRendererProps['live']> }) {
   const fonts = useMemo(makeFonts, []);
   const c = style.colours;
+  const routing = style.routing ?? 'orthogonal';
 
   const specs = useMemo(() => {
     const index = new Map(live.ids.map((id, i) => [id, i]));
@@ -88,6 +87,7 @@ function LiveSkia({ data, size, view, style, onRendered, live, pulse }: GraphRen
         phase: (k * 0.618) % 1,
       });
     });
+    const square = routing === 'orthogonal';
     const edges: EdgeSpec[] = [];
     const tieGroups = new Map<string, TieGroup>();
     for (const e of data.edges) {
@@ -95,18 +95,19 @@ function LiveSkia({ data, size, view, style, onRendered, live, pulse }: GraphRen
       const s = e.source === ME_ID ? -1 : index.get(e.source);
       if (t === undefined || s === undefined) continue;
       const st = edgeStroke(e, style);
-      if (!st.curved) {
-        edges.push({ s, t, paint: paint(st.colour, { stroke: st.width, alpha: st.opacity }) });
+      const stroke = { stroke: st.width, alpha: st.opacity, square };
+      if (e.kind === 'ego') {
+        edges.push({ s, t, paint: paint(st.colour, stroke) });
         continue;
       }
       const key = `${st.colour}|${st.width}|${st.opacity}`;
       let g = tieGroups.get(key);
-      if (!g) tieGroups.set(key, (g = { paint: paint(st.colour, { stroke: st.width, alpha: st.opacity }), ends: [] }));
+      if (!g) tieGroups.set(key, (g = { paint: paint(st.colour, stroke), ends: [] }));
       g.ends.push(s, t);
     }
     const me = { fill: paint(c.accent), text: paint(c.onAccent), dx: centreOffset('You', fonts.me) };
     return { nodes, edges, ties: [...tieGroups.values()], me };
-  }, [data, live.ids, style, c, fonts]);
+  }, [data, live.ids, style, c, fonts, routing]);
 
   useEffect(() => onRendered?.(), [specs, onRendered]);
 
@@ -114,28 +115,16 @@ function LiveSkia({ data, size, view, style, onRendered, live, pulse }: GraphRen
     const xy = live.xy.value;
     return createPicture((canvas) => {
       // Ties underneath: one path per stroke group.
+      // Ties underneath: every segment of every tie in a band, in one drawPoints call.
+      // Independent line segments take Skia's fast path; one big stroked path does not.
       for (const g of specs.ties) {
-        // Each curve as TIE_SEGMENTS short lines, all in one drawPoints call: lines
-        // take Skia's fast path, whereas stroking one big multi-curve path is slow.
         const pts: { x: number; y: number }[] = [];
         for (let k = 0; k < g.ends.length; k += 2) {
           const a = g.ends[k]!;
           const b = g.ends[k + 1]!;
-          const ax = xy[2 * a]!;
-          const ay = xy[2 * a + 1]!;
-          const bx = xy[2 * b]!;
-          const by = xy[2 * b + 1]!;
-          const ctl = tieControl(ax, ay, bx, by);
-          let px = ax;
-          let py = ay;
-          for (let i = 1; i <= TIE_SEGMENTS; i++) {
-            const t = i / TIE_SEGMENTS;
-            const u = 1 - t;
-            const qx = u * u * ax + 2 * u * t * ctl.x + t * t * bx;
-            const qy = u * u * ay + 2 * u * t * ctl.y + t * t * by;
-            pts.push({ x: px, y: py }, { x: qx, y: qy });
-            px = qx;
-            py = qy;
+          const route = routeEdge('tie', xy[2 * a]!, xy[2 * a + 1]!, xy[2 * b]!, xy[2 * b + 1]!, routing);
+          for (let i = 2; i + 1 < route.length; i += 2) {
+            pts.push({ x: route[i - 2]!, y: route[i - 1]! }, { x: route[i]!, y: route[i + 1]! });
           }
         }
         canvas.drawPoints(PointMode.Lines, pts, g.paint);
@@ -143,7 +132,10 @@ function LiveSkia({ data, size, view, style, onRendered, live, pulse }: GraphRen
       for (const e of specs.edges) {
         const sx = e.s < 0 ? 0 : xy[2 * e.s]!;
         const sy = e.s < 0 ? 0 : xy[2 * e.s + 1]!;
-        canvas.drawLine(sx, sy, xy[2 * e.t]!, xy[2 * e.t + 1]!, e.paint);
+        const route = routeEdge('ego', sx, sy, xy[2 * e.t]!, xy[2 * e.t + 1]!, routing);
+        for (let i = 2; i + 1 < route.length; i += 2) {
+          canvas.drawLine(route[i - 2]!, route[i - 1]!, route[i]!, route[i + 1]!, e.paint);
+        }
       }
     });
   });

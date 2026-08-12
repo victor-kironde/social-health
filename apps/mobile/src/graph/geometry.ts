@@ -126,15 +126,68 @@ export function distToQuad(
   return best;
 }
 
+/** How edges are routed between their endpoints. */
+export type EdgeRouting = 'orthogonal' | 'curved';
+
+/** Straight pieces used to approximate a curved tie. */
+const CURVE_SEGMENTS = 6;
+
 /**
- * The edge nearest to `p` within `tolerance` (graph units), or null. Curved
- * edges are measured along their tie curve. `posOf` resolves endpoint ids.
+ * The polyline an edge is drawn along, as flat [x0, y0, x1, y1, ...].
+ *
+ * orthogonal (default): only horizontal and vertical segments with right
+ * angles. A line from the user leaves the centre along its dominant axis and
+ * turns once; a tie turns once at the corner farther from the centre, which
+ * keeps ties out of the middle of the graph.
+ * curved: ego edges straight, ties bowed outward (tieControl), sampled.
+ */
+export function routeEdge(
+  kind: 'ego' | 'tie',
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+  routing: EdgeRouting,
+): number[] {
+  'worklet';
+  if (routing === 'curved') {
+    if (kind === 'ego') return [ax, ay, bx, by];
+    const c = tieControl(ax, ay, bx, by);
+    const pts = [ax, ay];
+    for (let i = 1; i <= CURVE_SEGMENTS; i++) {
+      const t = i / CURVE_SEGMENTS;
+      const u = 1 - t;
+      pts.push(u * u * ax + 2 * u * t * c.x + t * t * bx, u * u * ay + 2 * u * t * c.y + t * t * by);
+    }
+    return pts;
+  }
+  if (kind === 'ego') {
+    return Math.abs(by - ay) > Math.abs(bx - ax) ? [ax, ay, ax, by, bx, by] : [ax, ay, bx, ay, bx, by];
+  }
+  // The two possible corners: (ax, by) and (bx, ay). Use the one farther from the centre.
+  return Math.hypot(ax, by) >= Math.hypot(bx, ay) ? [ax, ay, ax, by, bx, by] : [ax, ay, bx, ay, bx, by];
+}
+
+/** Distance from p to a flat polyline [x0, y0, x1, y1, ...]. */
+export function distToPolyline(px: number, py: number, pts: number[]): number {
+  'worklet';
+  let best = Infinity;
+  for (let i = 2; i + 1 < pts.length; i += 2) {
+    best = Math.min(best, distToSegment(px, py, pts[i - 2]!, pts[i - 1]!, pts[i]!, pts[i + 1]!));
+  }
+  return best;
+}
+
+/**
+ * The edge nearest to `p` within `tolerance` (graph units), or null, measured
+ * along the same route the edge is drawn on. `posOf` resolves endpoint ids.
  */
 export function hitTestEdge(
   p: Point,
-  edges: { id: string; source: string; target: string; curved: boolean }[],
+  edges: { id: string; source: string; target: string; kind: 'ego' | 'tie' }[],
   posOf: (id: string) => Point | undefined,
   tolerance: number,
+  routing: EdgeRouting = 'orthogonal',
 ): string | null {
   let best: string | null = null;
   let bestDist = tolerance;
@@ -142,13 +195,7 @@ export function hitTestEdge(
     const a = posOf(e.source);
     const b = posOf(e.target);
     if (!a || !b) continue;
-    let d: number;
-    if (e.curved) {
-      const c = tieControl(a.x, a.y, b.x, b.y);
-      d = distToQuad(p.x, p.y, a.x, a.y, c.x, c.y, b.x, b.y);
-    } else {
-      d = distToSegment(p.x, p.y, a.x, a.y, b.x, b.y);
-    }
+    const d = distToPolyline(p.x, p.y, routeEdge(e.kind, a.x, a.y, b.x, b.y, routing));
     if (d <= bestDist) {
       best = e.id;
       bestDist = d;

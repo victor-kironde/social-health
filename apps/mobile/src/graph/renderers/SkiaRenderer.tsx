@@ -1,5 +1,5 @@
 import { Canvas, Group, Picture, Skia, createPicture, type SkCanvas, type SkFont } from '@shopify/react-native-skia';
-import { tieControl } from '../geometry';
+import { routeEdge } from '../geometry';
 import { useEffect, useMemo } from 'react';
 import { useDerivedValue } from 'react-native-reanimated';
 import { NODE_RADIUS, type Point } from '../layout';
@@ -50,20 +50,16 @@ function drawGraph(
 ) {
   const c = style.colours;
 
+  const routing = style.routing ?? 'orthogonal';
   for (const e of data.edges) {
     const a = e.source === ME_ID ? { x: 0, y: 0 } : positions.get(e.source)!;
     const b = positions.get(e.target)!;
     const st = edgeStroke(e, style);
-    const p = paint(st.colour, { stroke: st.width, alpha: st.opacity });
-    if (!st.curved) {
-      canvas.drawLine(a.x, a.y, b.x, b.y, p);
-      continue;
-    }
-    const ctl = tieControl(a.x, a.y, b.x, b.y);
+    const pts = routeEdge(e.kind, a.x, a.y, b.x, b.y, routing);
     const path = Skia.Path.Make();
-    path.moveTo(a.x, a.y);
-    path.quadTo(ctl.x, ctl.y, b.x, b.y);
-    canvas.drawPath(path, p);
+    path.moveTo(pts[0]!, pts[1]!);
+    for (let i = 2; i + 1 < pts.length; i += 2) path.lineTo(pts[i]!, pts[i + 1]!);
+    canvas.drawPath(path, paint(st.colour, { stroke: st.width, alpha: st.opacity, square: routing === 'orthogonal' }));
   }
 
   for (const n of data.nodes) {

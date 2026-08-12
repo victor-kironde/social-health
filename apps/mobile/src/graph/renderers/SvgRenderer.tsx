@@ -1,8 +1,8 @@
 import { useEffect, useMemo } from 'react';
 import { StyleSheet } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
-import Svg, { Circle, G, Line, Path, Text as SvgText } from 'react-native-svg';
-import { tieControl } from '../geometry';
+import Svg, { Circle, G, Polyline, Text as SvgText } from 'react-native-svg';
+import { routeEdge } from '../geometry';
 import { NODE_RADIUS } from '../layout';
 import { ME_ID, edgeStroke, encode, type GraphRendererProps } from '../model';
 
@@ -12,6 +12,7 @@ import { ME_ID, edgeStroke, encode, type GraphRendererProps } from '../model';
  */
 export function SvgRenderer({ data, positions, size, fit, view, style, onRendered }: GraphRendererProps) {
   const c = style.colours;
+  const routing = style.routing ?? 'orthogonal';
 
   // Pan/zoom as a native view transform about the centre; the SVG itself never re-renders.
   const animatedStyle = useAnimatedStyle(() => ({
@@ -26,10 +27,19 @@ export function SvgRenderer({ data, positions, size, fit, view, style, onRendere
             const a = e.source === ME_ID ? { x: 0, y: 0 } : positions.get(e.source)!;
             const b = positions.get(e.target)!;
             const st = edgeStroke(e, style);
-            const common = { stroke: st.colour, strokeWidth: st.width, strokeOpacity: st.opacity };
-            if (!st.curved) return <Line key={e.id} x1={a.x} y1={a.y} x2={b.x} y2={b.y} {...common} />;
-            const ctl = tieControl(a.x, a.y, b.x, b.y);
-            return <Path key={e.id} d={`M${a.x},${a.y} Q${ctl.x},${ctl.y} ${b.x},${b.y}`} fill="none" {...common} />;
+            const pts = routeEdge(e.kind, a.x, a.y, b.x, b.y, routing);
+            return (
+              <Polyline
+                key={e.id}
+                points={pts.join(' ')}
+                fill="none"
+                stroke={st.colour}
+                strokeWidth={st.width}
+                strokeOpacity={st.opacity}
+                strokeLinecap={routing === 'orthogonal' ? 'square' : 'butt'}
+                strokeLinejoin="miter"
+              />
+            );
           })}
         </G>
         <G>

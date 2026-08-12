@@ -1,6 +1,7 @@
 import type { Category, Rating, RelationshipContribution } from '@sg/score-engine';
 import type { ComponentType } from 'react';
 import type { SharedValue } from 'react-native-reanimated';
+import type { EdgeRouting } from './geometry';
 import type { Point } from './layout';
 import type { Tie } from './ties';
 
@@ -73,6 +74,8 @@ export interface GraphStyle {
   showLabels: boolean;
   /** Edge to highlight (tapped), if any. */
   selectedEdgeId?: string | null;
+  /** How edges are routed; defaults to right-angled ('orthogonal'). */
+  routing?: EdgeRouting;
 }
 
 /** Pan/zoom, updated on the UI thread by gestures. Renderers read, never write. */
@@ -158,8 +161,6 @@ export interface EdgeStroke {
   colour: string;
   width: number;
   opacity: number;
-  /** Ties curve outward (see tieControl); ego edges are straight. */
-  curved: boolean;
 }
 
 export function edgeStroke(e: GraphEdge, s: GraphStyle): EdgeStroke {
@@ -169,7 +170,6 @@ export function edgeStroke(e: GraphEdge, s: GraphStyle): EdgeStroke {
       colour: selected ? s.colours.accent : encode.edgeColour(e, s),
       width: encode.edgeWidth(e.importance) + (selected ? encode.selectedWidthBoost : 0),
       opacity: selected ? 1 : encode.edgeOpacity(e.behind),
-      curved: false,
     };
   }
   // Weights are snapped to a few bands so renderers can batch ties into one path per band.
@@ -178,7 +178,6 @@ export function edgeStroke(e: GraphEdge, s: GraphStyle): EdgeStroke {
     colour: selected ? s.colours.accent : s.colours.muted,
     width: encode.tieWidth(w) + (selected ? encode.selectedWidthBoost : 0),
     opacity: selected ? 1 : encode.tieOpacity(w),
-    curved: true,
   };
 }
 
