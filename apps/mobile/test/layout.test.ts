@@ -195,6 +195,21 @@ describe('orthogonal routing', () => {
     }
   });
 
+  it('every edge turns exactly once (or not at all when its ends line up)', () => {
+    const coords = [-150, -40, 0, 35, 120];
+    for (const ax of coords) for (const ay of coords) for (const bx of coords) for (const by of coords) {
+      for (const kind of ['ego', 'tie'] as const) {
+        const pts = routeEdge(kind, ax, ay, bx, by, 'orthogonal');
+        expect(pts).toHaveLength(6); // start, one corner, end
+        const aligned = ax === bx || ay === by;
+        const corner = { x: pts[2]!, y: pts[3]! };
+        const cornerIsEndpoint = (corner.x === ax && corner.y === ay) || (corner.x === bx && corner.y === by);
+        // A real bend unless the ends line up, in which case the "corner" sits on the straight line.
+        if (!aligned) expect(cornerIsEndpoint).toBe(false);
+      }
+    }
+  });
+
   it('a line from the centre leaves along its dominant axis', () => {
     expect(routeEdge('ego', 0, 0, 30, 100, 'orthogonal')).toEqual([0, 0, 0, 100, 30, 100]); // mostly vertical
     expect(routeEdge('ego', 0, 0, 100, 30, 'orthogonal')).toEqual([0, 0, 100, 0, 100, 30]); // mostly horizontal
