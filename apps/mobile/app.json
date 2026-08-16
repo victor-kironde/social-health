@@ -31,7 +31,8 @@
         }
       ],
       "expo-secure-store",
-      "expo-router"
+      "expo-router",
+      "expo-sharing"
     ],
     "scheme": "socialgraph",
     "experiments": {

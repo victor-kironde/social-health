@@ -3,7 +3,8 @@ import * as SecureStore from 'expo-secure-store';
 import * as SQLite from 'expo-sqlite';
 import type { Rating } from '@sg/score-engine';
 import type { PlacedPoint } from '../graph/layout';
-import { toRow, type EventRow, type StoredEvent } from './codec';
+import { fromRow, toRow, type EventRow, type StoredEvent } from './codec';
+import { eraseFromLog } from './erase';
 
 const KEY_NAME = 'db-key-v1';
 const DB_NAME = 'social-graph.db';
@@ -69,6 +70,8 @@ export function openDb(): Promise<SQLite.SQLiteDatabase> {
     const db = await SQLite.openDatabaseAsync(DB_NAME);
     // Raw hex key: skips PBKDF2 since the key is already random, not a password.
     await db.execAsync(`PRAGMA key = "x'${key}'";`);
+    // Overwrite deleted content in place, so erased records do not linger in free pages.
+    await db.execAsync('PRAGMA secure_delete = ON;');
     await migrate(db);
     return db;
   })();
@@ -92,6 +95,46 @@ export async function appendEvents(events: StoredEvent[]): Promise<void> {
       await db.runAsync('INSERT INTO event (id, kind, ts, body) VALUES (?, ?, ?, ?);', [r.id, r.kind, r.ts, r.body]);
     }
   });
+}
+
+/** Every stored event, oldest first (for export). */
+export async function loadEvents(): Promise<StoredEvent[]> {
+  const rows = await loadRows();
+  return rows
+    .sort((a, b) => a.ts - b.ts || (a.id < b.id ? -1 : 1))
+    .map(fromRow)
+    .filter((e): e is StoredEvent => e !== null);
+}
+
+/** Erases one person (see erase.ts) and their saved graph position, atomically. */
+export async function erasePerson(personId: string): Promise<void> {
+  const db = await openDb();
+  const { remove, replace } = eraseFromLog(await loadEvents(), personId);
+  await db.withTransactionAsync(async () => {
+    for (const id of remove) await db.runAsync('DELETE FROM event WHERE id = ?;', [id]);
+    for (const e of replace) await db.runAsync('UPDATE event SET body = ? WHERE id = ?;', [toRow(e).body, e.id]);
+    await db.runAsync('DELETE FROM graph_position WHERE person_id = ?;', [personId]);
+  });
+}
+
+/**
+ * Deletes the database file and then its key. Without the key, any copy or
+ * leftover of the file is unreadable (crypto-shredding). The next openDb()
+ * starts a fresh, empty database with a new key.
+ */
+export async function deleteEverything(): Promise<void> {
+  if (dbPromise) {
+    const db = await dbPromise.catch(() => null);
+    dbPromise = null;
+    await db?.closeAsync();
+  }
+  await SQLite.deleteDatabaseAsync(DB_NAME);
+  await SecureStore.deleteItemAsync(KEY_NAME);
+}
+
+export async function schemaVersion(): Promise<number> {
+  const db = await openDb();
+  return (await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version;'))?.user_version ?? 0;
 }
 
 export interface SavedLayout {

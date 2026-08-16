@@ -21,10 +21,11 @@ export function Button({
   title: string;
   onPress: () => void;
   disabled?: boolean;
-  variant?: 'primary' | 'secondary';
+  variant?: 'primary' | 'secondary' | 'danger';
 }) {
   const t = useTheme();
   const primary = variant === 'primary';
+  const danger = variant === 'danger';
   return (
     <Pressable
       accessibilityRole="button"
@@ -33,11 +34,15 @@ export function Button({
       onPress={onPress}
       style={({ pressed }) => [
         styles.button,
-        primary ? { backgroundColor: t.accent } : { borderColor: t.border, borderWidth: 1 },
+        primary
+          ? { backgroundColor: t.accent }
+          : danger
+            ? { backgroundColor: t.danger }
+            : { borderColor: t.border, borderWidth: 1 },
         (pressed || disabled) && { opacity: disabled ? 0.5 : 0.8 },
       ]}
     >
-      <Text style={[styles.buttonText, { color: primary ? t.onAccent : t.text }]}>{title}</Text>
+      <Text style={[styles.buttonText, { color: primary ? t.onAccent : danger ? '#ffffff' : t.text }]}>{title}</Text>
     </Pressable>
   );
 }

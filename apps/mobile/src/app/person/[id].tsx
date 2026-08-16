@@ -1,7 +1,7 @@
 import { DEFAULT_CONFIG, computeScore, type RelationshipContribution } from '@sg/score-engine';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { draftFromSnapshot, editPersonEvents, validatePerson, type PersonDraft } from '../../data/people';
 import { useStore } from '../../data/store';
 import { Button, Card, Label } from '../../ui/components';
@@ -40,7 +40,7 @@ function PersonEditor({
   rel: RelationshipContribution;
 }) {
   const t = useTheme();
-  const { log, updatePerson } = useStore();
+  const { log, updatePerson, deletePerson } = useStore();
   const [draft, setDraft] = useState<PersonDraft>(() => draftFromSnapshot(name, rel));
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -68,6 +68,26 @@ function PersonEditor({
       setError(`Could not save: ${String(e)}`);
       setSaving(false);
     }
+  }
+
+  function confirmDelete() {
+    Alert.alert(`Delete ${name}?`, 'Everything recorded about them will be permanently removed.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          setSaving(true);
+          try {
+            await deletePerson(personId);
+            router.back();
+          } catch (e) {
+            setError(`Could not delete: ${String(e)}`);
+            setSaving(false);
+          }
+        },
+      },
+    ]);
   }
 
   return (
@@ -123,6 +143,14 @@ function PersonEditor({
         showState
       />
       <Button title={saving ? 'Saving…' : 'Save changes'} onPress={save} disabled={!dirty || saving} />
+
+      <View style={{ marginTop: 24 }}>
+        <Text style={{ color: t.muted, marginBottom: 8, lineHeight: 20 }}>
+          Archiving keeps their history. Deleting removes {name} and every record about them, including from contacts
+          you logged with others. It cannot be undone.
+        </Text>
+        <Button title={`Delete ${name}`} variant="danger" onPress={confirmDelete} disabled={saving} />
+      </View>
     </ScrollView>
   );
 }

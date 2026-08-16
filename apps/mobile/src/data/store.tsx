@@ -3,7 +3,15 @@ import { randomUUID } from 'expo-crypto';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { PlacedPoint } from '../graph/layout';
 import { appendToLog, emptyLog, logFromRows, type StoredEvent } from './codec';
-import { appendEvents, loadGraphLayout, loadRows, saveGraphLayout, type SavedLayout } from './db';
+import {
+  appendEvents,
+  deleteEverything,
+  erasePerson,
+  loadGraphLayout,
+  loadRows,
+  saveGraphLayout,
+  type SavedLayout,
+} from './db';
 import { newInteractionEvents, type NewInteractionInput } from './interactions';
 import { editPersonEvents, newPersonEvents, type NewPersonInput, type PersonDraft } from './people';
 
@@ -17,6 +25,10 @@ interface Store {
   /** Remembered graph layout. A cache: mutated in place, never triggers a re-render. */
   graphLayout: SavedLayout;
   saveGraphLayout(positions: Map<string, PlacedPoint>, tieSignature: string): void;
+  /** Erases a person and everything recorded about them (see erase.ts). */
+  deletePerson(personId: string): Promise<void>;
+  /** Deletes the whole database and its key; the app starts again empty. */
+  deleteAllData(): Promise<void>;
 }
 
 const StoreContext = createContext<Store | null>(null);
@@ -76,6 +88,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [graphLayout],
   );
 
+  const deletePerson = useCallback(
+    async (personId: string) => {
+      await erasePerson(personId);
+      graphLayout.positions.delete(personId);
+      // Erasure rewrites history, so rebuild the log from what is now stored.
+      setLog(logFromRows(await loadRows()));
+    },
+    [graphLayout],
+  );
+
+  const deleteAllData = useCallback(async () => {
+    await deleteEverything();
+    graphLayout.positions.clear();
+    graphLayout.tieSignature = '';
+    setLog(emptyLog());
+  }, [graphLayout]);
+
   const value = useMemo(
     () => ({
       log,
@@ -86,8 +115,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       updatePerson,
       graphLayout,
       saveGraphLayout: saveGraphLayoutCb,
+      deletePerson,
+      deleteAllData,
     }),
-    [log, status, error, addPerson, logInteraction, updatePerson, graphLayout, saveGraphLayoutCb],
+    [
+      log,
+      status,
+      error,
+      addPerson,
+      logInteraction,
+      updatePerson,
+      graphLayout,
+      saveGraphLayoutCb,
+      deletePerson,
+      deleteAllData,
+    ],
   );
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }
