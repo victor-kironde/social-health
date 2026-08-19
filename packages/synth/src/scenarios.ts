@@ -132,3 +132,63 @@ export function diverse(): EventLog {
   });
   return b.build();
 }
+
+/** Four close friends with some logged contact (a little behind) and the call log connected. */
+function friendsWithCalls(addCalls: (b: ScenarioBuilder) => void): EventLog {
+  const b = new ScenarioBuilder(AS_OF);
+  ['ana', 'ben', 'cleo', 'dev'].forEach((id) => {
+    b.person(id, { category: 'friend', importance: 5, rhythm: 'monthly' });
+    b.contactEvery(id, 30, { fromDaysAgo: 365, toDaysAgo: 20 });
+  });
+  b.connectCalls();
+  addCalls(b);
+  return b.build();
+}
+
+/** Regular calls with everyone. */
+export function callsRegular(): EventLog {
+  return friendsWithCalls((b) => ['ana', 'ben', 'cleo', 'dev'].forEach((id) => b.callEvery(id, 14, { toDaysAgo: 2 })));
+}
+
+/** Call log connected, but no calls. */
+export function callsNone(): EventLog {
+  return friendsWithCalls(() => {});
+}
+
+/** Four recent calls, one with each friend. */
+export function callsSpread(): EventLog {
+  return friendsWithCalls((b) => ['ana', 'ben', 'cleo', 'dev'].forEach((id, i) => b.call(id, 3 + i)));
+}
+
+/** The same four calls, all with one friend. */
+export function callsConcentrated(): EventLog {
+  return friendsWithCalls((b) => [0, 1, 2, 3].forEach((i) => b.call('ana', 3 + i)));
+}
+
+/** Frequent calls but nothing logged by hand. */
+export function callsOnly(): EventLog {
+  const b = new ScenarioBuilder(AS_OF);
+  ['ana', 'ben'].forEach((id) => {
+    b.person(id, { category: 'friend', importance: 5, rhythm: 'monthly' });
+    b.callEvery(id, 7, { toDaysAgo: 1 });
+  });
+  return b.build();
+}
+
+/** Close-knit network on rhythm, with every relationship rated (and support reported) at `rating`. */
+export function rated(rating: 2 | 5): EventLog {
+  const b = new ScenarioBuilder(AS_OF);
+  ['mum', 'sister', 'ana', 'ben'].forEach((id, i) => {
+    b.person(id, { category: i < 2 ? 'family' : 'friend', importance: 5, rhythm: 'monthly', quality: rating });
+    b.contactEvery(id, 30, { toDaysAgo: 3 + i });
+    b.support(id, 10, rating);
+  });
+  return b.build();
+}
+
+/** Regular calls with everyone, but every call under a minute. */
+export function callsBrief(): EventLog {
+  return friendsWithCalls((b) => ['ana', 'ben', 'cleo', 'dev'].forEach((id) => {
+    for (let d = 2; d <= 365; d += 14) b.call(id, d, 30);
+  }));
+}

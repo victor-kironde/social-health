@@ -99,3 +99,13 @@ describe('model v0.2 orderings (calls and frecency)', () => {
     expect(callsOnly).toBeLessThan(60); // rhythm and coverage still need logged contact
   });
 });
+
+describe('model v0.2 orderings (ratings and call length)', () => {
+  it('O14 the same contact pattern with good, supportive relationships beats strained, unsupportive ones', () => {
+    expect(total(s.rated(5))).toBeGreaterThan(total(s.rated(2)));
+  });
+
+  it('O15 regular proper calls beat the same number of very brief calls', () => {
+    expect(total(s.callsRegular())).toBeGreaterThan(total(s.callsBrief()));
+  });
+});
