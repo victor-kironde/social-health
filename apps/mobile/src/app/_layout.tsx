@@ -34,6 +34,8 @@ export default function RootLayout() {
               }}
             />
             <Stack.Screen name="settings" options={{ title: 'Settings' }} />
+            <Stack.Screen name="welcome" options={{ title: 'Welcome' }} />
+            <Stack.Screen name="import" options={{ title: 'Import from contacts', presentation: 'modal' }} />
             <Stack.Screen name="graph" options={{ title: 'Network graph' }} />
             <Stack.Screen name="person/new" options={{ title: 'Add person', presentation: 'modal' }} />
             <Stack.Screen name="person/[id]" options={{ title: '' }} />

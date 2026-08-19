@@ -25,6 +25,8 @@ interface Store {
   /** Remembered graph layout. A cache: mutated in place, never triggers a re-render. */
   graphLayout: SavedLayout;
   saveGraphLayout(positions: Map<string, PlacedPoint>, tieSignature: string): void;
+  /** Adds several people at once (e.g. from contacts) with default settings, atomically. */
+  importPeople(names: string[]): Promise<void>;
   /** Erases a person and everything recorded about them (see erase.ts). */
   deletePerson(personId: string): Promise<void>;
   /** Deletes the whole database and its key; the app starts again empty. */
@@ -88,6 +90,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [graphLayout],
   );
 
+  const importPeople = useCallback(
+    (names: string[]) => {
+      const now = Date.now();
+      return commit(
+        names.flatMap((displayName) =>
+          newPersonEvents({ displayName, category: 'friend', importance: 3, quality: null }, now, randomUUID),
+        ),
+      );
+    },
+    [commit],
+  );
+
   const deletePerson = useCallback(
     async (personId: string) => {
       await erasePerson(personId);
@@ -115,6 +129,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       updatePerson,
       graphLayout,
       saveGraphLayout: saveGraphLayoutCb,
+      importPeople,
       deletePerson,
       deleteAllData,
     }),
@@ -127,6 +142,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       updatePerson,
       graphLayout,
       saveGraphLayoutCb,
+      importPeople,
       deletePerson,
       deleteAllData,
     ],

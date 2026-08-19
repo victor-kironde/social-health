@@ -3,7 +3,8 @@ import { Directory, File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { loadEvents, schemaVersion } from './db';
 import { buildExportPayload } from './erase';
-import { encryptExport } from './exportCrypto';
+import { DEFAULT_ITERATIONS, encryptExport } from './exportCrypto';
+import { nativeDeriveKey } from './nativeKdf';
 
 const PREFIX = 'social-graph-export';
 
@@ -32,7 +33,7 @@ export async function exportData(password: string | null): Promise<{ encryptMs: 
   const payload = buildExportPayload(await loadEvents(), await schemaVersion(), Date.now());
   const start = performance.now();
   const contents = password
-    ? JSON.stringify(await encryptExport(payload, password, getRandomBytes), null, 1)
+    ? JSON.stringify(await encryptExport(payload, password, getRandomBytes, DEFAULT_ITERATIONS, nativeDeriveKey), null, 1)
     : payload;
   const encryptMs = performance.now() - start;
 

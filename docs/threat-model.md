@@ -48,6 +48,7 @@ its mitigation and residual risk.
 | T7 | Export left behind in the app's cache | 2, 3 | Previous export files are deleted each time Settings opens and before each new export. | An export stays in the private cache until then (encrypted unless the user chose otherwise). |
 | T8 | Deleted records recoverable from the database file | 2 | Person deletion rewrites shared contacts and deletes the rest; `PRAGMA secure_delete = ON` overwrites freed space. **Delete all** removes the database file and then the key (crypto-shredding: any remnant is unreadable without it). | Flash wear-levelling may keep old encrypted blocks, which stay unreadable without the deleted key. |
 | T9 | Recorded people's interests | 6 | Data never leaves the phone unless the user exports it; only the user sees it; ties are inferred only from contacts the user logged, never collected from others; erasure removes a person completely. | The user is processing others' personal data. Local, personal use falls under the GDPR household exemption; any future sync or sharing would not. |
+| T11 | Contacts access exposing the user's whole address book | 3, 6 | Permission is requested only when the user chooses to import, never at start-up. Only the display-name field is read (no numbers, emails, photos or contact ids); nobody is pre-selected; only ticked names are stored, in the encrypted database. Duplicates of people already added are blocked. | While granted, the OS lets the app read contacts; the user can revoke it in system settings. Google Play requires a declared reason for READ_CONTACTS. |
 | T10 | Over-reliance on the score or graph causing distress | user | Descriptive (never prescriptive) wording, no streaks or leaderboards, gentler wording for new users, harmful relationships excluded from the score, "in memoriam" state. | The score can still feel judgemental; ethics review and user testing needed. |
 
 ## Design decision: app lock gates the screen, not the key
@@ -76,14 +77,20 @@ encryption against T2.
 ## Export key derivation cost
 
 PBKDF2 iterations trade export time against resistance to offline password
-guessing. The derivation is pure JavaScript under Hermes (no JIT), so it is
-much slower on the phone than in a browser. The iteration count was chosen
-from measurements on the target phone (see table) to keep an export to a
-few seconds.
+guessing. The first implementation was pure JavaScript (@noble/hashes):
+under Hermes, which has no JIT, 310,000 iterations took **81.5 s** on the
+target phone, which is unusable. Key derivation now runs natively (OpenSSL
+through react-native-quick-crypto) at OWASP's recommended 600,000
+iterations; the pure-JS version remains for tests and other platforms. Both
+produce identical keys (checked against a Node-computed known answer in unit
+tests and on the device via Engine preview → Export encryption check), so
+files are interchangeable, and the iteration count stored in each file keeps
+older exports readable.
 
-| Iterations | Time on phone (release build) |
-|---|---|
-| _to be measured_ | |
+| Implementation | Iterations | Time on phone (release build) |
+|---|---|---|
+| Pure JS (Hermes) | 310,000 | 81.5 s |
+| Native (OpenSSL) | 600,000 | _see device check_ |
 
 ## Not yet addressed
 

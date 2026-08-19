@@ -13,8 +13,20 @@ import { sha256 } from '@noble/hashes/sha2.js';
 
 export const EXPORT_FORMAT = 'social-graph-export';
 export const MIN_PASSWORD_LENGTH = 10;
-/** Chosen from timing on the target phone; see docs/threat-model.md. */
-export const DEFAULT_ITERATIONS = 310_000;
+/**
+ * OWASP's 2023 recommendation for PBKDF2-HMAC-SHA256. Needs the native key
+ * derivation in the app (pure JS under Hermes took ~80 s for 310k on the
+ * target phone); see docs/threat-model.md.
+ */
+export const DEFAULT_ITERATIONS = 600_000;
+
+/** PBKDF2-HMAC-SHA256 to a 32-byte key. Pluggable so the app can use a native implementation. */
+export type DeriveKey = (password: Uint8Array, salt: Uint8Array, iterations: number) => Promise<Uint8Array>;
+
+/** Pure-JS PBKDF2 (@noble/hashes): portable, used in tests and Node. Too slow under Hermes. */
+export const jsDeriveKey: DeriveKey = (password, salt, iterations) =>
+  // asyncTick lets the UI breathe during the (deliberately slow) derivation.
+  pbkdf2Async(sha256, password, salt, { c: iterations, dkLen: 32, asyncTick: 25 });
 
 export interface EncryptedExport {
   format: typeof EXPORT_FORMAT;
@@ -97,16 +109,13 @@ function header(file: Pick<EncryptedExport, 'format' | 'version' | 'kdf' | 'ciph
   return utf8.encode(JSON.stringify({ format: file.format, version: file.version, kdf: file.kdf, cipher: file.cipher }));
 }
 
-function deriveKey(password: string, salt: Uint8Array, iterations: number): Promise<Uint8Array> {
-  // asyncTick lets the UI breathe during the (deliberately slow) derivation.
-  return pbkdf2Async(sha256, utf8.encode(password), salt, { c: iterations, dkLen: 32, asyncTick: 25 });
-}
 
 export async function encryptExport(
   plaintext: string,
   password: string,
   random: (n: number) => Uint8Array,
   iterations = DEFAULT_ITERATIONS,
+  derive: DeriveKey = jsDeriveKey,
 ): Promise<EncryptedExport> {
   const problem = passwordProblem(password);
   if (problem) throw new Error(problem);
@@ -118,15 +127,19 @@ export async function encryptExport(
     kdf: { name: 'PBKDF2-SHA256' as const, iterations, salt: toBase64(salt) },
     cipher: { name: 'AES-256-GCM' as const, nonce: toBase64(nonce) },
   };
-  const key = await deriveKey(password, salt, iterations);
+  const key = await derive(utf8.encode(password), salt, iterations);
   const sealed = gcm(key, nonce, header(meta)).encrypt(utf8.encode(plaintext));
   return { ...meta, data: toBase64(sealed) };
 }
 
-export async function decryptExport(file: EncryptedExport, password: string): Promise<string> {
+export async function decryptExport(
+  file: EncryptedExport,
+  password: string,
+  derive: DeriveKey = jsDeriveKey,
+): Promise<string> {
   if (file.format !== EXPORT_FORMAT || file.version !== 1) throw new Error('This is not a Social Graph export file.');
   if (file.kdf.name !== 'PBKDF2-SHA256' || file.cipher.name !== 'AES-256-GCM') throw new Error('Unsupported export file.');
-  const key = await deriveKey(password, fromBase64(file.kdf.salt), file.kdf.iterations);
+  const key = await derive(utf8.encode(password), fromBase64(file.kdf.salt), file.kdf.iterations);
   try {
     const plain = gcm(key, fromBase64(file.cipher.nonce), header(file)).decrypt(fromBase64(file.data));
     return fromUtf8.decode(plain);

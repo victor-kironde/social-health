@@ -2,9 +2,11 @@ import { DAY, DEFAULT_CONFIG, computeScore, explain, type EventLog } from '@sg/s
 import * as scenarios from '@sg/synth/scenarios';
 import { Link } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { dbStatus, type DbStatus } from '../data/db';
-import { Card, ChoiceChips, Label } from '../ui/components';
+import { Button, Card, ChoiceChips, Label } from '../ui/components';
+import { DEFAULT_ITERATIONS } from '../data/exportCrypto';
+import { kdfSelfTest } from '../data/nativeKdf';
 import { ScoreBreakdown } from '../ui/ScoreBreakdown';
 import { useTheme } from '../ui/theme';
 
@@ -24,6 +26,7 @@ export default function Preview() {
   const t = useTheme();
   const [selected, setSelected] = useState('Close-knit');
   const [db, setDb] = useState<DbStatus | { error: string } | null>(null);
+  const [kdf, setKdf] = useState<{ correct: boolean; ms: number } | { error: string } | null>(null);
 
   useEffect(() => {
     dbStatus()
@@ -51,6 +54,29 @@ export default function Preview() {
                 ? `SQLCipher ${db.cipherVersion} active · schema v${db.schemaVersion} · ${db.eventCount} events`
                 : 'Not encrypted: SQLCipher is not active'}
         </Text>
+      </Card>
+
+      <Card>
+        <Label>Export encryption check</Label>
+        <Text style={{ color: t.text }}>
+          {kdf === null
+            ? `Checks the phone's key derivation against a known answer and times ${DEFAULT_ITERATIONS.toLocaleString()} iterations.`
+            : 'error' in kdf
+              ? `Error: ${kdf.error}`
+              : `${kdf.correct ? 'Correct' : 'WRONG RESULT'} · ${DEFAULT_ITERATIONS.toLocaleString()} iterations in ${(kdf.ms / 1000).toFixed(2)} s`}
+        </Text>
+        <View style={{ marginTop: 8 }}>
+          <Button
+            title="Run check"
+            variant="secondary"
+            onPress={() => {
+              setKdf(null);
+              kdfSelfTest(DEFAULT_ITERATIONS)
+                .then(setKdf)
+                .catch((e: unknown) => setKdf({ error: String(e) }));
+            }}
+          />
+        </View>
       </Card>
 
       <ChoiceChips

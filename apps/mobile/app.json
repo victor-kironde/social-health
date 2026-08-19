@@ -32,7 +32,14 @@
       ],
       "expo-secure-store",
       "expo-router",
-      "expo-sharing"
+      "expo-sharing",
+      "react-native-quick-crypto",
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Allow $(PRODUCT_NAME) to read contact names so you can choose people to add."
+        }
+      ]
     ],
     "scheme": "socialgraph",
     "experiments": {

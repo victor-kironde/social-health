@@ -110,6 +110,16 @@ export default function Settings() {
       </Card>
 
       <Card>
+        <Label>People</Label>
+        <Text style={{ color: t.muted, lineHeight: 20 }}>
+          Add people from your phone’s contacts. You choose who; only names are copied.
+        </Text>
+        <View style={styles.gap}>
+          <Button title="Import from contacts" variant="secondary" onPress={() => router.push('/import')} />
+        </View>
+      </Card>
+
+      <Card>
         <Label>Export your data</Label>
         <Text style={{ color: t.muted, lineHeight: 20 }}>
           Everything you have recorded, in one file you can keep. Encrypted with a password you choose; without it the file cannot be read, and the password cannot be recovered.

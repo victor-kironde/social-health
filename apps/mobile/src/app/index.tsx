@@ -1,7 +1,8 @@
 import { DAY, DEFAULT_CONFIG, computeScore, explain, type RelationshipContribution } from '@sg/score-engine';
 import { Link, router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { hasOnboarded } from '../data/onboarding';
 import { useStore } from '../data/store';
 import { Button, Card, Label } from '../ui/components';
 import { CATEGORY_LABELS, IMPORTANCE_LABELS, RHYTHM_LABELS, STATE_LABELS, lastContactText } from '../ui/labels';
@@ -13,6 +14,17 @@ const RETIRED = new Set(['archived', 'in_memoriam']);
 export default function Home() {
   const t = useTheme();
   const { log, status, error } = useStore();
+
+  // First run: with nobody added yet and the welcome not seen, show it once.
+  useEffect(() => {
+    if (status !== 'ready' || log.people.length > 0) return;
+    hasOnboarded()
+      .then((done) => {
+        if (!done) router.push('/welcome');
+      })
+      .catch(() => undefined);
+    // Only when loading finishes.
+  }, [status]);
   const [showRetired, setShowRetired] = useState(false);
 
   const { result, explanations, isNewUser } = useMemo(() => {

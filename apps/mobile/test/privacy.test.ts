@@ -1,10 +1,12 @@
-import { randomBytes } from 'node:crypto';
+import { pbkdf2Sync, randomBytes } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { logFromRows, toRow, type StoredEvent } from '../src/data/codec';
 import { DEFAULT_SECURITY, RELOCK_GRACE_MS, parseSettings, shouldRelock } from '../src/security/policy';
 import { DATA_FORMAT, buildExportPayload, eraseFromLog } from '../src/data/erase';
+import { KDF_SELF_TEST } from '../src/data/kdfVector';
 import {
   WrongPasswordError,
+  jsDeriveKey,
   decryptExport,
   encryptExport,
   fromBase64,
@@ -25,6 +27,22 @@ describe('base64', () => {
       expect(b64).toBe(Buffer.from(bytes).toString('base64'));
       expect([...fromBase64(b64)]).toEqual([...bytes]);
     }
+  });
+});
+
+describe('key derivation', () => {
+  it('pure-JS PBKDF2 matches Node and the on-device known answer', async () => {
+    const enc = new TextEncoder();
+    const v = KDF_SELF_TEST;
+    const js = await jsDeriveKey(enc.encode(v.password), enc.encode(v.salt), v.iterations);
+    expect(Buffer.from(js).toString('hex')).toBe(v.expectedHex);
+    expect(pbkdf2Sync(v.password, v.salt, v.iterations, 32, 'sha256').toString('hex')).toBe(v.expectedHex);
+  });
+
+  it('files made with one PBKDF2 implementation open with another', async () => {
+    const nodeDerive = async (p: Uint8Array, salt: Uint8Array, c: number) => new Uint8Array(pbkdf2Sync(p, salt, c, 32, 'sha256'));
+    const file = await encryptExport('interop', PASSWORD, random, FAST, nodeDerive);
+    expect(await decryptExport(file, PASSWORD)).toBe('interop'); // decrypted with the default (pure JS)
   });
 });
 
