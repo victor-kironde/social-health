@@ -1,5 +1,6 @@
 import {
   DAY,
+  type CallRecord,
   type Category,
   type EventLog,
   type InteractionType,
@@ -94,6 +95,26 @@ export class ScenarioBuilder {
 
   support(personId: string, daysAgo: number, support: Rating): this {
     this.log.supportReports.push({ id: this.nextId('s'), personId, ts: this.at(daysAgo), support });
+    return this;
+  }
+
+  /** Connect the call-log source (an empty list until calls are added). */
+  connectCalls(): this {
+    this.log.calls ??= [];
+    return this;
+  }
+
+  call(personId: string, daysAgo: number, durationSec = 300, direction: CallRecord['direction'] = 'outgoing'): this {
+    this.connectCalls();
+    this.log.calls!.push({ id: this.nextId('c'), personId, ts: this.at(daysAgo), durationSec, direction });
+    return this;
+  }
+
+  /** A call every `everyDays`, from `fromDaysAgo` down to `toDaysAgo` (inclusive). */
+  callEvery(personId: string, everyDays: number, range: { fromDaysAgo?: number; toDaysAgo?: number } = {}, durationSec = 300): this {
+    const from = range.fromDaysAgo ?? 365;
+    const to = range.toDaysAgo ?? 0;
+    for (let d = to; d <= from; d += everyDays) this.call(personId, d, durationSec);
     return this;
   }
 

@@ -1,6 +1,6 @@
 import type { ModelConfig } from './types';
 
-export const MODEL_VERSION = '0.1.0';
+export const MODEL_VERSION = '0.2.0';
 
 /**
  * Initial parameters. These are configurable model assumptions, not
@@ -8,7 +8,8 @@ export const MODEL_VERSION = '0.1.0';
  */
 export const DEFAULT_CONFIG: ModelConfig = {
   version: MODEL_VERSION,
-  componentWeights: { rhythm: 0.4, coverage: 0.3, quality: 0.2, diversity: 0.1 },
+  // v0.2: passive call metadata (0.25) and frecency (0.10) added; the rest rescaled to sum to 1.
+  componentWeights: { rhythm: 0.25, coverage: 0.2, quality: 0.1, diversity: 0.1, calls: 0.25, frecency: 0.1 },
   interactionWeights: { in_person: 1, video: 0.7, voice: 0.5, message: 0.2 },
   saturation: 1,
   rhythmDays: { weekly: 7, fortnightly: 14, monthly: 30, quarterly: 91, yearly: 365 },
@@ -27,6 +28,8 @@ export const DEFAULT_CONFIG: ModelConfig = {
   occasionalHalfLifeDays: 365,
   confidence: { windowDays: 28, expectedActiveDays: 4, lowBelow: 0.5 },
   smoothing: { samples: 3, spacingDays: 7 },
+  calls: { shortCallSec: 60, shortCallWeight: 0.3 },
+  frecencyHalfLifeDays: 30,
 };
 
 export function validateConfig(config: ModelConfig): string[] {
@@ -46,5 +49,7 @@ export function validateConfig(config: ModelConfig): string[] {
   if (config.coverageGrace <= 0) errors.push('coverageGrace must be positive');
   if (config.occasionalHalfLifeDays <= 0) errors.push('occasionalHalfLifeDays must be positive');
   if (config.smoothing.samples < 1) errors.push('smoothing.samples must be >= 1');
+  if (config.calls.shortCallWeight < 0 || config.calls.shortCallWeight > 1) errors.push('calls.shortCallWeight must be in [0, 1]');
+  if (config.frecencyHalfLifeDays <= 0) errors.push('frecencyHalfLifeDays must be positive');
   return errors;
 }

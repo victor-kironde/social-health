@@ -5,6 +5,8 @@ const LABELS: Record<ComponentName, string> = {
   coverage: 'Coverage of important relationships',
   quality: 'Quality and support',
   diversity: 'Balance across categories',
+  calls: 'Calls',
+  frecency: 'Recent and frequent contact',
 };
 
 const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);

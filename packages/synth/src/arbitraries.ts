@@ -55,6 +55,19 @@ export function arbEventLog(): fc.Arbitrary<EventLog> {
           fc.record({ from: arbTs, lengthDays: fc.integer({ min: 1, max: 60 }), open: fc.boolean() }),
           { maxLength: 2 },
         ),
+        // Call-log source: sometimes not connected (undefined), sometimes connected with calls.
+        calls: fc.option(
+          fc.array(
+            fc.record({
+              personId: arbId,
+              ts: arbTs,
+              durationSec: fc.integer({ min: 0, max: 3600 }),
+              direction: fc.constantFrom<'incoming' | 'outgoing' | 'missed'>('incoming', 'outgoing', 'missed'),
+            }),
+            { maxLength: 20 },
+          ),
+          { nil: undefined },
+        ),
       })
       .map((r): EventLog => {
         const relationshipEvents: RelationshipEvent[] = [
@@ -84,6 +97,7 @@ export function arbEventLog(): fc.Arbitrary<EventLog> {
             from: p.from,
             to: p.open ? null : Math.min(ARB_AS_OF, p.from + p.lengthDays * DAY),
           })),
+          ...(r.calls ? { calls: r.calls.map((c, i) => ({ id: `c${i}`, ...c })) } : {}),
         };
       });
   });

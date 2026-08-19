@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_CONFIG, computeScore, type EventLog } from '@sg/score-engine';
-import { AS_OF, scenarios as s } from '../src';
+import { AS_OF, ScenarioBuilder, scenarios as s } from '../src';
 
 const total = (log: EventLog) => computeScore(log, DEFAULT_CONFIG, AS_OF).total;
 
@@ -62,5 +62,40 @@ describe('confidence', () => {
 
   it('C2 the same gap without a pause is flagged as low data', () => {
     expect(computeScore(s.busyPeriod(false), DEFAULT_CONFIG, AS_OF).lowData).toBe(true);
+  });
+});
+
+describe('model v0.2 orderings (calls and frecency)', () => {
+  function friends(build: (b: ScenarioBuilder) => void) {
+    const b = new ScenarioBuilder(AS_OF);
+    ['ana', 'ben', 'cleo', 'dev'].forEach((id) => {
+      b.person(id, { category: 'friend', importance: 5, rhythm: 'monthly' });
+      b.contactEvery(id, 30, { fromDaysAgo: 365, toDaysAgo: 20 }); // some logged contact, a bit behind
+    });
+    b.connectCalls();
+    build(b);
+    return b.build();
+  }
+
+  it('O11 regular calls with everyone beat the same network with no calls', () => {
+    const called = friends((b) => ['ana', 'ben', 'cleo', 'dev'].forEach((id) => b.callEvery(id, 14, { toDaysAgo: 2 })));
+    const silent = friends(() => {});
+    expect(total(called)).toBeGreaterThan(total(silent));
+  });
+
+  it('O12 calls spread across people beat the same number of calls with one person', () => {
+    const spread = friends((b) => ['ana', 'ben', 'cleo', 'dev'].forEach((id, i) => b.call(id, 3 + i)));
+    const oneOnly = friends((b) => [0, 1, 2, 3].forEach((i) => b.call('ana', 3 + i)));
+    expect(total(spread)).toBeGreaterThan(total(oneOnly));
+  });
+
+  it('O13 calls alone cannot make up for no contact being logged at all', () => {
+    const b = new ScenarioBuilder(AS_OF);
+    ['ana', 'ben'].forEach((id) => {
+      b.person(id, { category: 'friend', importance: 5, rhythm: 'monthly' });
+      b.callEvery(id, 7, { toDaysAgo: 1 });
+    });
+    const callsOnly = total(b.build());
+    expect(callsOnly).toBeLessThan(60); // rhythm and coverage still need logged contact
   });
 });

@@ -60,6 +60,19 @@ export interface Pause {
   to: Timestamp | null;
 }
 
+/**
+ * A phone call taken from the device's call log (passive metadata): when,
+ * how long and which direction. Never the number or content; already
+ * matched to a person on the device.
+ */
+export interface CallRecord {
+  id: string;
+  personId: string;
+  ts: Timestamp;
+  durationSec: number;
+  direction: 'incoming' | 'outgoing' | 'missed';
+}
+
 export interface EventLog {
   people: Person[];
   relationshipEvents: RelationshipEvent[];
@@ -67,6 +80,12 @@ export interface EventLog {
   supportReports: SupportReport[];
   loggingActivity: LoggingActivity[];
   pauses: Pause[];
+  /**
+   * Call-log metadata. Undefined = the source is not connected (the calls
+   * component is then left out and its weight redistributed); an array,
+   * even empty, = connected.
+   */
+  calls?: CallRecord[];
 }
 
 export interface ModelConfig {
@@ -91,9 +110,13 @@ export interface ModelConfig {
   occasionalHalfLifeDays: number;
   confidence: { windowDays: number; expectedActiveDays: number; lowBelow: number };
   smoothing: { samples: number; spacingDays: number };
+  /** Call metadata: answered calls count fully, very short ones partly, missed ones not at all. */
+  calls: { shortCallSec: number; shortCallWeight: number };
+  /** Frecency (frequency x recency) half-life, shared by everyone so rankings are comparable. */
+  frecencyHalfLifeDays: number;
 }
 
-export type ComponentName = 'rhythm' | 'coverage' | 'quality' | 'diversity';
+export type ComponentName = 'rhythm' | 'coverage' | 'quality' | 'diversity' | 'calls' | 'frecency';
 
 export interface RelationshipSnapshot {
   personId: string;
@@ -115,6 +138,14 @@ export interface RelationshipContribution extends RelationshipSnapshot {
   onRhythm: number | null;
   /** Effective (pause-adjusted) days since last contact, or null if never. */
   lastContactAgeDays: number | null;
+  /** Decayed, saturated call level in [0, 1]; null when call data is not connected. */
+  callLevel: number | null;
+  /**
+   * Frecency: sum over every contact (logged or called) of weight x
+   * 0.5^(age / frecencyHalfLife). Unbounded; used to rank people by how much
+   * and how recently they have been in touch.
+   */
+  frecency: number;
 }
 
 export interface ScoreResult {

@@ -1,6 +1,7 @@
 import { resolveRelationships } from './state';
 import { DAY, effectiveAgeMs, mergePauses, pausedOverlap } from './time';
 import type {
+  CallRecord,
   ComponentName,
   EventLog,
   Interaction,
@@ -60,6 +61,20 @@ export function computeScore(log: EventLog, config: ModelConfig, asOf: Timestamp
     }
   }
 
+  // Calls are a separate, passive source: they feed their own component and
+  // frecency, not rhythm/coverage, so neither source can stand in for the other.
+  const callsByPerson = new Map<string, CallRecord[]>();
+  for (const c of log.calls ?? []) {
+    if (c.ts > asOf || !rels.has(c.personId)) continue;
+    const list = callsByPerson.get(c.personId);
+    if (list) list.push(c);
+    else callsByPerson.set(c.personId, [c]);
+  }
+  const callsConnected = log.calls !== undefined;
+  const callWeight = (c: CallRecord) =>
+    c.direction === 'missed' ? 0 : c.durationSec < config.calls.shortCallSec ? config.calls.shortCallWeight : 1;
+  const frecencyDecay = (age: number) => 0.5 ** (age / config.frecencyHalfLifeDays);
+
   const contributions: RelationshipContribution[] = [...rels.values()]
     .sort((a, b) => (a.personId < b.personId ? -1 : a.personId > b.personId ? 1 : 0))
     .map((rel) => {
@@ -68,11 +83,20 @@ export function computeScore(log: EventLog, config: ModelConfig, asOf: Timestamp
       const qualityMult = rel.quality === null ? 1 : config.qualityMultiplier[rel.quality];
 
       let energy = 0;
+      let frecency = 0;
       let lastAge: number | null = null;
       for (const x of byPerson.get(rel.personId) ?? []) {
         const age = ageDays(x.ts);
         energy += config.interactionWeights[x.type] * qualityMult * 0.5 ** (age / halfLife);
+        frecency += config.interactionWeights[x.type] * frecencyDecay(age);
         if (lastAge === null || age < lastAge) lastAge = age;
+      }
+
+      let callEnergy = 0;
+      for (const c of callsByPerson.get(rel.personId) ?? []) {
+        const age = ageDays(c.ts);
+        callEnergy += callWeight(c) * qualityMult * 0.5 ** (age / halfLife);
+        frecency += callWeight(c) * frecencyDecay(age);
       }
 
       const onRhythm =
@@ -89,6 +113,8 @@ export function computeScore(log: EventLog, config: ModelConfig, asOf: Timestamp
         level: 1 - Math.exp(-energy / config.saturation),
         onRhythm,
         lastContactAgeDays: lastAge,
+        callLevel: callsConnected ? 1 - Math.exp(-callEnergy / config.saturation) : null,
+        frecency,
       };
     });
 
@@ -107,6 +133,8 @@ export function computeScore(log: EventLog, config: ModelConfig, asOf: Timestamp
       log.supportReports,
       asOf,
     ),
+    calls: callsConnected ? weightedMean(withRhythm, (c) => c.callLevel ?? 0) : null,
+    frecency: weightedMean(withRhythm, (c) => frecencyRatio(c.frecency, c.expectedIntervalDays!, config)),
   };
 
   let num = 0;
@@ -128,6 +156,17 @@ export function computeScore(log: EventLog, config: ModelConfig, asOf: Timestamp
     lowData: confidence < config.confidence.lowBelow,
     relationships: contributions,
   };
+}
+
+/**
+ * Frecency relative to what steady contact at the expected rhythm would
+ * give: one full-weight contact every I days sums (geometric series) to
+ * 1 / (1 - 0.5^(I / H)) just after a contact. Capped at 1, so making up for
+ * neglect elsewhere by contacting one person a lot is impossible.
+ */
+function frecencyRatio(frecency: number, intervalDays: number, config: ModelConfig): number {
+  const steady = 1 / (1 - 0.5 ** (intervalDays / config.frecencyHalfLifeDays));
+  return Math.min(1, frecency / steady);
 }
 
 /**

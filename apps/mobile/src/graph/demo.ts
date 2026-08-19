@@ -22,6 +22,8 @@ export function demoNetwork(n: number): { relationships: RelationshipContributio
       level: (i % 10) / 10,
       onRhythm: i % 3 === 0 ? 0 : 1,
       lastContactAgeDays: i % 3 === 0 ? 90 : 5,
+      callLevel: null,
+      frecency: i % 3 === 0 ? 0.1 : 2,
     });
   }
   return { relationships, names, ties: demoTies(relationships) };

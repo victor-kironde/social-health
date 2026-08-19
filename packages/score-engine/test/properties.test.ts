@@ -130,6 +130,7 @@ describe('score properties', () => {
           supportReports: shuffle(log.supportReports.map((s) => ({ ...s, personId: rename(s.personId) }))),
           loggingActivity: shuffle(log.loggingActivity),
           pauses: shuffle(log.pauses),
+          ...(log.calls ? { calls: shuffle(log.calls.map((c) => ({ ...c, personId: rename(c.personId) }))) } : {}),
         };
         const a = score(log);
         const b = score(relabelled);
@@ -236,5 +237,116 @@ describe('score properties', () => {
     const r = score(empty);
     expect(r.total).toBe(0);
     expect(r.confidence).toBe(0);
+  });
+});
+
+describe('call metadata and frecency (model v0.2)', () => {
+  const withCall = (log: EventLog, c: Omit<NonNullable<EventLog['calls']>[number], 'id'>): EventLog => ({
+    ...log,
+    calls: [...(log.calls ?? []), { id: `added-call-${(log.calls ?? []).length}`, ...c }],
+  });
+  const arbDirection = fc.constantFrom<'incoming' | 'outgoing'>('incoming', 'outgoing');
+
+  it('P11 adding an answered call never lowers the score (source connected)', () => {
+    fc.assert(
+      fc.property(arbEventLog(), fc.integer({ min: 0, max: 400 }), fc.integer({ min: 0, max: 3600 }), arbDirection, fc.nat(), (log, daysAgo, durationSec, direction, pick) => {
+        const connected = { ...log, calls: log.calls ?? [] };
+        const personId = log.people[pick % log.people.length]!.id;
+        const after = withCall(connected, { personId, ts: ARB_AS_OF - daysAgo * DAY, durationSec, direction });
+        expect(score(after).total).toBeGreaterThanOrEqual(score(connected).total - EPS);
+      }),
+      RUNS,
+    );
+  });
+
+  it('P12 a missed call changes nothing', () => {
+    fc.assert(
+      fc.property(arbEventLog(), fc.integer({ min: 0, max: 400 }), fc.nat(), (log, daysAgo, pick) => {
+        const connected = { ...log, calls: log.calls ?? [] };
+        const personId = log.people[pick % log.people.length]!.id;
+        const after = withCall(connected, { personId, ts: ARB_AS_OF - daysAgo * DAY, durationSec: 0, direction: 'missed' });
+        expect(score(after).total).toBeCloseTo(score(connected).total, 9);
+      }),
+      RUNS,
+    );
+  });
+
+  it('P13 diminishing returns for repeated calls with one person', () => {
+    fc.assert(
+      fc.property(arbEventLog(), fc.integer({ min: 0, max: 60 }), fc.nat(), (log, daysAgo, pick) => {
+        const personId = log.people[pick % log.people.length]!.id;
+        let current: EventLog = { ...log, calls: log.calls ?? [] };
+        let prevTotal = score(current).total;
+        let prevGain = Infinity;
+        for (let k = 0; k < 4; k++) {
+          current = withCall(current, { personId, ts: ARB_AS_OF - daysAgo * DAY, durationSec: 600, direction: 'outgoing' });
+          const total = score(current).total;
+          expect(total - prevTotal).toBeLessThanOrEqual(prevGain + EPS);
+          prevGain = total - prevTotal;
+          prevTotal = total;
+        }
+      }),
+      RUNS,
+    );
+  });
+
+  it('P14 an unconnected call source is left out; a connected empty one counts as no calls', () => {
+    fc.assert(
+      fc.property(arbEventLog(), (log) => {
+        const { calls: _ignored, ...rest } = log;
+        const unconnected = score(rest as EventLog);
+        expect(unconnected.components.calls).toBeNull();
+        const connected = score({ ...rest, calls: [] } as EventLog);
+        if (connected.components.rhythm !== null) expect(connected.components.calls).toBe(0);
+      }),
+      RUNS,
+    );
+  });
+
+  it('P15 frecency cannot be inflated by contacting one person a lot', () => {
+    const people = Array.from({ length: 5 }, (_, i) => `f${i}`);
+    const log: EventLog = {
+      people: people.map((id) => ({ id, displayName: id })),
+      relationshipEvents: people.flatMap((personId, i) => [
+        { id: `c${i}`, personId, ts: ARB_AS_OF - 500 * DAY, field: 'category' as const, value: 'friend' as const },
+        { id: `r${i}`, personId, ts: ARB_AS_OF - 500 * DAY, field: 'rhythm' as const, value: 'monthly' as const },
+      ]),
+      // 200 contacts, all with f0.
+      interactions: Array.from({ length: 200 }, (_, k) => {
+        const ts = ARB_AS_OF - (k % 30) * DAY;
+        return { id: `x${k}`, ts, loggedAt: ts, type: 'in_person' as const, participants: ['f0'], source: 'manual' as const };
+      }),
+      supportReports: [],
+      loggingActivity: [],
+      pauses: [],
+    };
+    const r = score(log);
+    expect(r.components.frecency).toBeLessThanOrEqual(1 / people.length + EPS);
+  });
+
+  it('P16 frecency ranks frequent, recent contact above one old contact', () => {
+    const base: EventLog = {
+      people: [
+        { id: 'often', displayName: 'often' },
+        { id: 'once', displayName: 'once' },
+      ],
+      relationshipEvents: ['often', 'once'].map((personId, i) => ({
+        id: `c${i}`,
+        personId,
+        ts: ARB_AS_OF - 500 * DAY,
+        field: 'category' as const,
+        value: 'friend' as const,
+      })),
+      interactions: [
+        ...[1, 5, 9].map((d) => ({ id: `o${d}`, ts: ARB_AS_OF - d * DAY, loggedAt: ARB_AS_OF, type: 'voice' as const, participants: ['often'], source: 'manual' as const })),
+        { id: 'x', ts: ARB_AS_OF - 120 * DAY, loggedAt: ARB_AS_OF, type: 'in_person' as const, participants: ['once'], source: 'manual' as const },
+      ],
+      supportReports: [],
+      loggingActivity: [],
+      pauses: [],
+    };
+    const rels = score(base).relationships;
+    const f = (id: string) => rels.find((r) => r.personId === id)!.frecency;
+    expect(f('often')).toBeGreaterThan(f('once'));
   });
 });
