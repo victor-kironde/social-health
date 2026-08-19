@@ -3,6 +3,7 @@ import type { ComponentType } from 'react';
 import type { SharedValue } from 'react-native-reanimated';
 import type { EdgeRouting } from './geometry';
 import type { Point } from './layout';
+import type { NodeMetrics } from './metrics';
 import type { Tie } from './ties';
 
 /**
@@ -24,6 +25,10 @@ export interface GraphNode {
   behind: boolean;
   /** In touch within RECENT_DAYS: live renderers give these a gentle pulse. */
   recent: boolean;
+  /** Community from the tie graph (metrics.ts), or null for people with no ties. */
+  group: number | null;
+  /** Ties reach into another group: drawn with an extra outer ring. */
+  bridge: boolean;
 }
 
 export const RECENT_DAYS = 7;
@@ -66,6 +71,8 @@ export interface GraphColours {
   edge: string;
   category: Record<Category, string>;
   quality: Record<Rating, string>;
+  /** Categorical palette for communities, cycled. */
+  groups: string[];
 }
 
 export interface GraphStyle {
@@ -76,6 +83,8 @@ export interface GraphStyle {
   selectedEdgeId?: string | null;
   /** How edges are routed; defaults to right-angled ('orthogonal'). */
   routing?: EdgeRouting;
+  /** What the ring around each person shows. */
+  colourBy?: 'category' | 'group';
 }
 
 /** Pan/zoom, updated on the UI thread by gestures. Renderers read, never write. */
@@ -125,6 +134,7 @@ export function buildGraph(
   relationships: RelationshipContribution[],
   names: Map<string, string>,
   ties: Tie[] = [],
+  metrics?: Map<string, NodeMetrics>,
 ): GraphData {
   const behind = (r: RelationshipContribution) => r.onRhythm !== null && r.onRhythm < 0.5;
   const shown = new Set(relationships.map((r) => r.personId));
@@ -150,6 +160,8 @@ export function buildGraph(
       quality: r.quality,
       behind: behind(r),
       recent: !behind(r) && r.lastContactAgeDays !== null && r.lastContactAgeDays <= RECENT_DAYS,
+      group: (metrics?.get(r.personId)?.groupSize ?? 1) >= 2 ? metrics!.get(r.personId)!.group : null,
+      bridge: (metrics?.get(r.personId)?.groupsTouched ?? 1) >= 2,
     })),
     // Ties first so ego edges (the user's own relationships) draw on top.
     edges: [...tieEdges, ...egoEdges],
@@ -200,6 +212,13 @@ export const encode = {
   tieWidth: (weight: number) => 0.8 + 1.4 * Math.min(1, weight / 3),
   tieOpacity: (weight: number) => 0.25 + 0.35 * Math.min(1, weight / 3),
   selectedWidthBoost: 3,
+  /** Ring colour: the person's category, or their group (grey when they have no ties). */
+  ringColour: (n: GraphNode, s: GraphStyle) =>
+    s.colourBy === 'group'
+      ? n.group === null
+        ? s.colours.edge
+        : s.colours.groups[n.group % s.colours.groups.length]!
+      : s.colours.category[n.category],
   initial: (label: string) => label.charAt(0).toUpperCase(),
   shortLabel: (label: string) => (label.length > 14 ? `${label.slice(0, 13)}…` : label),
 };

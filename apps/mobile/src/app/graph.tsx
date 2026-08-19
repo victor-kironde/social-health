@@ -10,6 +10,7 @@ import { EdgeSheet } from '../graph/EdgeSheet';
 import { layoutEgoGraph, type Point } from '../graph/layout';
 import { ME_ID, buildGraph, type GraphStyle } from '../graph/model';
 import { useLiveSimulation, type SettleStats } from '../graph/physics/useLiveSimulation';
+import { networkMetrics } from '../graph/metrics';
 import { deriveTies, tieSignature } from '../graph/ties';
 import { DEFAULT_RENDERER, GRAPH_RENDERERS, type RendererId } from '../graph/renderers';
 import { ToggleChip } from '../ui/components';
@@ -35,6 +36,7 @@ export default function GraphScreen() {
   const [categories, setCategories] = useState<Set<Category>>(() => new Set(CATEGORIES));
   const [behindOnly, setBehindOnly] = useState(false);
   const [colourByQuality, setColourByQuality] = useState(true);
+  const [colourByGroup, setColourByGroup] = useState(false);
   const [zoomedIn, setZoomedIn] = useState(false);
   const [rendererId, setRendererId] = useState<RendererId>(DEFAULT_RENDERER);
   const isLive = GRAPH_RENDERERS[rendererId].live;
@@ -56,6 +58,12 @@ export default function GraphScreen() {
     return { relationships: rels, names: new Map(log.people.map((p) => [p.id, p.displayName])), ties, now };
   }, [log, demoSize, demoLinks]);
   const byId = useMemo(() => new Map(relationships.map((r) => [r.personId, r])), [relationships]);
+  // Network structure over everyone shown on the graph (filters only hide; they do not change it).
+  const metrics = useMemo(
+    () => networkMetrics(relationships.map((r) => r.personId), ties.map((t) => ({ a: t.a, b: t.b, weight: t.weight }))),
+    [relationships, ties],
+  );
+  const bridges = useMemo(() => [...metrics.nodes.values()].filter((m) => m.groupsTouched >= 2).length, [metrics]);
   const layoutInputs = useMemo(
     () => relationships.map((r) => ({ id: r.personId, importance: r.importance })),
     [relationships],
@@ -124,8 +132,8 @@ export default function GraphScreen() {
   const [renderMs, setRenderMs] = useState<number | null>(null);
   const graph = useMemo(() => {
     renderStart.current = performance.now();
-    return buildGraph(visible, names, ties);
-  }, [visible, names, ties]);
+    return buildGraph(visible, names, ties, metrics.nodes);
+  }, [visible, names, ties, metrics]);
   // A selection that is filtered out of view simply disappears.
   const selectedEdge = graph.edges.find((e) => e.id === selectedEdgeId) ?? null;
   const [sheetHeight, setSheetHeight] = useState(0);
@@ -150,8 +158,14 @@ export default function GraphScreen() {
   const onRendered = useCallback(() => setRenderMs(performance.now() - renderStart.current), []);
 
   const style: GraphStyle = useMemo(
-    () => ({ colours: t, colourByQuality, showLabels, selectedEdgeId: selectedEdge?.id ?? null }),
-    [t, colourByQuality, showLabels, selectedEdge?.id],
+    () => ({
+      colours: t,
+      colourByQuality,
+      showLabels,
+      selectedEdgeId: selectedEdge?.id ?? null,
+      colourBy: colourByGroup ? ('group' as const) : ('category' as const),
+    }),
+    [t, colourByQuality, showLabels, selectedEdge?.id, colourByGroup],
   );
   const openPerson = (id: string) => router.push({ pathname: '/person/[id]', params: { id } });
 
@@ -215,6 +229,9 @@ export default function GraphScreen() {
         )}
         <ToggleChip label="Behind rhythm only" on={behindOnly} onPress={() => setBehindOnly((v) => !v)} />
         <ToggleChip label="Colour by quality" on={colourByQuality} onPress={() => setColourByQuality((v) => !v)} />
+        {ties.length > 0 && (
+          <ToggleChip label="Colour by group" on={colourByGroup} onPress={() => setColourByGroup((v) => !v)} />
+        )}
       </ScrollView>
 
       <View style={styles.root}>
@@ -242,6 +259,7 @@ export default function GraphScreen() {
             key={selectedEdge.id}
             edge={selectedEdge}
             relationships={byId}
+            metrics={metrics.nodes}
             names={names}
             now={now}
             animate={!reducedMotion}
@@ -266,6 +284,11 @@ export default function GraphScreen() {
             : `${visible.length} of ${relationships.length} shown · tap a person to open, a line for details${isLive ? ' · drag to move' : ''}`}
           {showLabels ? '' : ' · pinch to zoom in for names'}
         </Text>
+        {ties.length > 0 && (
+          <Text style={[styles.legendText, { color: t.muted }]}>
+            {`Structure: ${metrics.groups} ${metrics.groups === 1 ? 'group' : 'groups'} · ${bridges} ${bridges === 1 ? 'person connects' : 'people connect'} groups (outer ring) · density ${metrics.density.toFixed(2)} · effective size ${metrics.effectiveSize.toFixed(1)} of ${metrics.size}`}
+          </Text>
+        )}
       </View>
     </View>
   );

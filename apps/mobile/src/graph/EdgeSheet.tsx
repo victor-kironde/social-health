@@ -12,6 +12,7 @@ import {
   lastContactText,
 } from '../ui/labels';
 import { useTheme } from '../ui/theme';
+import type { NodeMetrics } from './metrics';
 import type { GraphEdge } from './model';
 
 /**
@@ -21,6 +22,7 @@ import type { GraphEdge } from './model';
 export function EdgeSheet({
   edge,
   relationships,
+  metrics,
   names,
   now,
   animate,
@@ -31,6 +33,7 @@ export function EdgeSheet({
 }: {
   edge: GraphEdge;
   relationships: Map<string, RelationshipContribution>;
+  metrics?: Map<string, NodeMetrics>;
   names: Map<string, string>;
   now: number;
   animate: boolean;
@@ -61,6 +64,7 @@ export function EdgeSheet({
         <Text style={{ color: t.muted }}>
           {r.quality === null ? 'Quality not rated' : `Currently: ${QUALITY_LABELS[r.quality].toLowerCase()}`}
         </Text>
+        {metrics?.get(r.personId) && <Text style={{ color: t.muted }}>{networkPlace(metrics.get(r.personId)!)}</Text>}
         <View style={styles.actions}>
           <View style={styles.grow}>
             <Button title="Log contact" onPress={() => onLogContact([r.personId])} />
@@ -113,6 +117,14 @@ export function EdgeSheet({
       {body}
     </Animated.View>
   );
+}
+
+/** Plain-language summary of where someone sits in the network of ties. */
+function networkPlace(m: NodeMetrics): string {
+  if (m.degree === 0) return 'Not seen with anyone else you know';
+  const group = m.groupSize >= 2 ? `In a group of ${m.groupSize}` : 'Linked to others';
+  const bridge = m.groupsTouched >= 2 ? ` · connects ${m.groupsTouched} groups` : '';
+  return `${group} · seen with ${m.degree} ${m.degree === 1 ? 'person' : 'people'} you know${bridge}`;
 }
 
 const styles = StyleSheet.create({

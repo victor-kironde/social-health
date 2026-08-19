@@ -47,7 +47,10 @@ export function SvgRenderer({ data, positions, size, fit, view, style, onRendere
             const p = positions.get(n.id)!;
             return (
               <G key={n.id} opacity={encode.nodeOpacity(n.behind)}>
-                <Circle cx={p.x} cy={p.y} r={NODE_RADIUS} fill={c.card} stroke={c.category[n.category]} strokeWidth={4} />
+                <Circle cx={p.x} cy={p.y} r={NODE_RADIUS} fill={c.card} stroke={encode.ringColour(n, style)} strokeWidth={4} />
+                {n.bridge && (
+                  <Circle cx={p.x} cy={p.y} r={NODE_RADIUS + 6} fill="none" stroke={c.text} strokeWidth={1.5} strokeOpacity={0.7} />
+                )}
                 <SvgText x={p.x} y={p.y + 5} fontSize={14} fontWeight="600" fill={c.text} textAnchor="middle">
                   {encode.initial(n.label)}
                 </SvgText>

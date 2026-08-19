@@ -66,7 +66,8 @@ function drawGraph(
     const p = positions.get(n.id)!;
     const alpha = encode.nodeOpacity(n.behind);
     canvas.drawCircle(p.x, p.y, NODE_RADIUS, paint(c.card, { alpha }));
-    canvas.drawCircle(p.x, p.y, NODE_RADIUS, paint(c.category[n.category], { stroke: 4, alpha }));
+    canvas.drawCircle(p.x, p.y, NODE_RADIUS, paint(encode.ringColour(n, style), { stroke: 4, alpha }));
+    if (n.bridge) canvas.drawCircle(p.x, p.y, NODE_RADIUS + 6, paint(c.text, { stroke: 1.5, alpha: 0.7 * alpha }));
     drawCentredText(canvas, encode.initial(n.label), p.x, p.y + 5, fonts.initial, c.text, alpha);
     if (style.showLabels) {
       drawCentredText(canvas, encode.shortLabel(n.label), p.x, p.y + NODE_RADIUS + 13, fonts.label, c.muted, alpha);

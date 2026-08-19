@@ -23,6 +23,8 @@ const light = {
   /** Quality, harmful → very good. Unrated edges use `edge`. */
   quality: { 1: '#d92d20', 2: '#f79009', 3: '#a39e93', 4: '#66a80f', 5: '#2b8a3e' } as Record<Rating, string>,
   edge: '#b8bec9',
+  /** Okabe-Ito-inspired, colour-blind-safe set for communities. */
+  groups: ['#0072b2', '#e69f00', '#009e73', '#cc79a7', '#56b4e9', '#d55e00', '#7a6fd0', '#8f7a00'],
 };
 
 export type Theme = typeof light;
@@ -47,6 +49,7 @@ const dark: Theme = {
   },
   quality: { 1: '#f97066', 2: '#fdb022', 3: '#8f8a80', 4: '#94d82d', 5: '#51cf66' },
   edge: '#4a505c',
+  groups: ['#56b4e9', '#f0b840', '#3fc4a0', '#e39bc8', '#8fd0f5', '#ff8a50', '#a79ef0', '#d6c050'],
 };
 
 export function useTheme(): Theme {

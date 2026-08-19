@@ -19,6 +19,8 @@ interface NodeSpec {
   labelDx: number;
   labelPaint: SkPaint;
   glow: SkPaint | null;
+  /** Extra outer ring for people whose ties reach another group. */
+  bridgeRing: SkPaint | null;
   /** Per-node phase offset so pulses are not in lockstep. */
   phase: number;
 }
@@ -37,6 +39,8 @@ interface TieGroup {
 }
 
 const TAU = Math.PI * 2;
+/** Distance of the bridge ring outside the node. */
+const BRIDGE_GAP = 6;
 /** Halo radius; the node itself covers the inner NODE_RADIUS. */
 const GLOW_RADIUS = NODE_RADIUS * 1.75;
 
@@ -76,7 +80,8 @@ function LiveSkia({ data, size, view, style, onRendered, live, pulse }: GraphRen
       nodes.push({
         i,
         fill: paint(c.card, { alpha }),
-        ring: paint(c.category[n.category], { stroke: 4, alpha }),
+        ring: paint(encode.ringColour(n, style), { stroke: 4, alpha }),
+        bridgeRing: n.bridge ? paint(c.text, { stroke: 1.5, alpha: 0.7 * alpha }) : null,
         text: paint(c.text, { alpha }),
         initial,
         initialDx: centreOffset(initial, fonts.initial),
@@ -166,6 +171,7 @@ function LiveSkia({ data, size, view, style, onRendered, live, pulse }: GraphRen
         const y = xy[2 * n.i + 1]!;
         canvas.drawCircle(x, y, NODE_RADIUS, n.fill);
         canvas.drawCircle(x, y, NODE_RADIUS, n.ring);
+        if (n.bridgeRing) canvas.drawCircle(x, y, NODE_RADIUS + BRIDGE_GAP, n.bridgeRing);
         canvas.drawText(n.initial, x + n.initialDx, y + 5, n.text, fonts.initial);
         if (n.label) canvas.drawText(n.label, x + n.labelDx, y + NODE_RADIUS + 13, n.labelPaint, fonts.label);
       }
