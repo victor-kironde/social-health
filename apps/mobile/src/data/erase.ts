@@ -19,6 +19,7 @@ export function eraseFromLog(events: StoredEvent[], personId: string): { remove:
         break;
       case 'relationship':
       case 'support':
+      case 'call':
         if (e.body.personId === personId) remove.push(e.id);
         break;
       case 'interaction': {

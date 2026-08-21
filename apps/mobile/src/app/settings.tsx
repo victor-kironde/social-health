@@ -6,6 +6,7 @@ import { ActivityIndicator, Alert, ScrollView, StyleSheet, Switch, Text, TextInp
 import { schemaVersion } from '../data/db';
 import { cleanUpExports, exportData } from '../data/exportFile';
 import { MIN_PASSWORD_LENGTH, passwordProblem } from '../data/exportCrypto';
+import { usePrefs } from '../data/prefs';
 import { useStore } from '../data/store';
 import { useSecurity } from '../security/AppLock';
 import { RELOCK_GRACE_MS } from '../security/policy';
@@ -16,7 +17,9 @@ const CONFIRM_WORD = 'DELETE';
 
 export default function Settings() {
   const t = useTheme();
-  const { deleteAllData } = useStore();
+  const { log, deleteAllData, connectCallLog, syncCallLog, disconnectCallLog } = useStore();
+  const { prefs, setPrefs } = usePrefs();
+  const callsConnected = log.calls !== undefined;
   const { settings, deviceSecure, update } = useSecurity();
   const [schema, setSchema] = useState<number | null>(null);
 
@@ -63,6 +66,55 @@ export default function Settings() {
         { text: 'Export unencrypted', style: 'destructive', onPress: () => runExport(null) },
       ],
     );
+  }
+
+  const describeMatch = (m: { matched: number; people: number; skipped: number }) =>
+    `${m.matched} new ${m.matched === 1 ? 'call' : 'calls'} matched to ${m.people} ${m.people === 1 ? 'person' : 'people'}` +
+    (m.skipped ? `; ${m.skipped} skipped (no contact name, not in your network, or a name shared by two people).` : '.');
+
+  async function connectCalls() {
+    setBusy('Reading your call history…');
+    setMessage(null);
+    try {
+      const r = await connectCallLog();
+      setMessage(r === 'denied' ? 'Call history was not shared, so nothing was imported.' : describeMatch(r));
+    } catch (e) {
+      setMessage(`Could not read calls: ${String(e)}`);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function syncCalls() {
+    setBusy('Checking for new calls…');
+    setMessage(null);
+    try {
+      const r = await syncCallLog();
+      setMessage(r ? describeMatch(r) : 'Call history is not connected.');
+    } catch (e) {
+      setMessage(`Could not read calls: ${String(e)}`);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  function confirmDisconnectCalls() {
+    Alert.alert('Stop using call history?', 'Every imported call will be deleted from Social Graph. Your phone’s own call log is not affected.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete imported calls',
+        style: 'destructive',
+        onPress: async () => {
+          setBusy('Deleting imported calls…');
+          try {
+            await disconnectCallLog();
+            setMessage('Imported calls deleted.');
+          } finally {
+            setBusy(null);
+          }
+        },
+      },
+    ]);
   }
 
   async function runDeleteAll() {
@@ -117,6 +169,41 @@ export default function Settings() {
         <View style={styles.gap}>
           <Button title="Import from contacts" variant="secondary" onPress={() => router.push('/import')} />
         </View>
+      </Card>
+
+      <Card>
+        <Label>Phone calls</Label>
+        <Text style={{ color: t.muted, lineHeight: 20 }}>
+          Use your call history as part of the score: when calls happened, how long they lasted and who with, matched to
+          people you have added by their contact name. Phone numbers are never read. Turning this off deletes every
+          imported call.
+        </Text>
+        <Row
+          title="Use call history"
+          detail={
+            callsConnected
+              ? `${log.calls!.length} calls imported. New calls are added when the app opens.`
+              : 'Off. Only the contacts you log yourself count.'
+          }
+          value={callsConnected}
+          disabled={!!busy}
+          onChange={(v) => (v ? connectCalls() : confirmDisconnectCalls())}
+        />
+        {callsConnected && (
+          <View style={styles.gap}>
+            <Button title="Sync calls now" variant="secondary" onPress={syncCalls} disabled={!!busy} />
+          </View>
+        )}
+      </Card>
+
+      <Card>
+        <Label>Wellbeing</Label>
+        <Row
+          title="Show the Social Health Score"
+          detail="Turn off to keep your network and its explanations without a number."
+          value={prefs.showScore}
+          onChange={(v) => setPrefs({ ...prefs, showScore: v })}
+        />
       </Card>
 
       <Card>

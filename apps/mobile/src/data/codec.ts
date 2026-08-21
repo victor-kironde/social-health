@@ -1,4 +1,5 @@
 import type {
+  CallRecord,
   EventLog,
   Interaction,
   LoggingActivity,
@@ -19,7 +20,10 @@ export type StoredEvent =
   | { id: string; ts: Timestamp; kind: 'interaction'; body: Interaction }
   | { id: string; ts: Timestamp; kind: 'support'; body: SupportReport }
   | { id: string; ts: Timestamp; kind: 'logging'; body: LoggingActivity }
-  | { id: string; ts: Timestamp; kind: 'pause'; body: Pause };
+  | { id: string; ts: Timestamp; kind: 'pause'; body: Pause }
+  | { id: string; ts: Timestamp; kind: 'call'; body: CallRecord }
+  /** A passive data source being connected (e.g. the call log). Disconnecting deletes it. */
+  | { id: string; ts: Timestamp; kind: 'source'; body: { source: 'call_log' } };
 
 export interface EventRow {
   id: string;
@@ -51,6 +55,8 @@ export function fromRow(row: EventRow): StoredEvent | null {
     case 'support':
     case 'logging':
     case 'pause':
+    case 'call':
+    case 'source':
       return { id: row.id, ts: row.ts, kind: row.kind, body } as StoredEvent;
     default:
       return null;
@@ -66,6 +72,7 @@ export function appendToLog(log: EventLog, events: StoredEvent[]): EventLog {
     supportReports: [...log.supportReports],
     loggingActivity: [...log.loggingActivity],
     pauses: [...log.pauses],
+    ...(log.calls ? { calls: [...log.calls] } : {}),
   };
   for (const e of events) {
     switch (e.kind) {
@@ -90,6 +97,14 @@ export function appendToLog(log: EventLog, events: StoredEvent[]): EventLog {
         break;
       case 'pause':
         next.pauses.push(e.body);
+        break;
+      // Calls exist only while the call log is connected: disconnecting deletes every call
+      // and source event (see db.disconnectCallLog), so the fold does not depend on order.
+      case 'call':
+        (next.calls ??= []).push(e.body);
+        break;
+      case 'source':
+        if (e.body.source === 'call_log') next.calls ??= [];
         break;
     }
   }

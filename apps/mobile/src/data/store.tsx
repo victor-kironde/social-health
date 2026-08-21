@@ -3,8 +3,11 @@ import { randomUUID } from 'expo-crypto';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { PlacedPoint } from '../graph/layout';
 import { appendToLog, emptyLog, logFromRows, type StoredEvent } from './codec';
+import { collectCalls, requestCallLogPermission } from './callSync';
+import type { CallMatch } from './callImport';
 import {
   appendEvents,
+  deleteCallData,
   deleteEverything,
   erasePerson,
   loadGraphLayout,
@@ -27,6 +30,12 @@ interface Store {
   saveGraphLayout(positions: Map<string, PlacedPoint>, tieSignature: string): void;
   /** Adds several people at once (e.g. from contacts) with default settings, atomically. */
   importPeople(names: string[]): Promise<void>;
+  /** Asks for permission, then imports the last year of calls and keeps them in sync. */
+  connectCallLog(): Promise<CallMatch | 'denied'>;
+  /** Imports calls made since the last import (no-op when not connected). */
+  syncCallLog(): Promise<CallMatch | null>;
+  /** Deletes every imported call and stops using the call log. */
+  disconnectCallLog(): Promise<void>;
   /** Erases a person and everything recorded about them (see erase.ts). */
   deletePerson(personId: string): Promise<void>;
   /** Deletes the whole database and its key; the app starts again empty. */
@@ -40,6 +49,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<Store['status']>('loading');
   const [error, setError] = useState<string | null>(null);
   const graphLayout = useRef<SavedLayout>({ positions: new Map(), tieSignature: '' }).current;
+  const logRef = useRef(log);
+  logRef.current = log;
 
   useEffect(() => {
     Promise.all([loadRows(), loadGraphLayout()])
@@ -102,6 +113,32 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [commit],
   );
 
+  const callIds = () => new Set((logRef.current.calls ?? []).map((c) => c.id));
+
+  const connectCallLog = useCallback(async () => {
+    if (!(await requestCallLogPermission())) return 'denied' as const;
+    const match = await collectCalls(logRef.current, callIds(), true);
+    await commit(match.events);
+    return match;
+  }, [commit]);
+
+  const syncCallLog = useCallback(async () => {
+    if (!logRef.current.calls) return null;
+    const match = await collectCalls(logRef.current, callIds(), false);
+    if (match.events.length) await commit(match.events);
+    return match;
+  }, [commit]);
+
+  const disconnectCallLog = useCallback(async () => {
+    await deleteCallData();
+    setLog(logFromRows(await loadRows()));
+  }, []);
+
+  // Pick up new calls each time the app starts (silently: permission may have been revoked).
+  useEffect(() => {
+    if (status === 'ready') syncCallLog().catch(() => undefined);
+  }, [status, syncCallLog]);
+
   const deletePerson = useCallback(
     async (personId: string) => {
       await erasePerson(personId);
@@ -130,6 +167,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       graphLayout,
       saveGraphLayout: saveGraphLayoutCb,
       importPeople,
+      connectCallLog,
+      syncCallLog,
+      disconnectCallLog,
       deletePerson,
       deleteAllData,
     }),
@@ -143,6 +183,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       graphLayout,
       saveGraphLayoutCb,
       importPeople,
+      connectCallLog,
+      syncCallLog,
+      disconnectCallLog,
       deletePerson,
       deleteAllData,
     ],

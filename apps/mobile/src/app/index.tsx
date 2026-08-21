@@ -3,6 +3,7 @@ import { Link, router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { hasOnboarded } from '../data/onboarding';
+import { usePrefs } from '../data/prefs';
 import { useStore } from '../data/store';
 import { Button, Card, Label } from '../ui/components';
 import { CATEGORY_LABELS, IMPORTANCE_LABELS, RHYTHM_LABELS, STATE_LABELS, lastContactText } from '../ui/labels';
@@ -14,6 +15,7 @@ const RETIRED = new Set(['archived', 'in_memoriam']);
 export default function Home() {
   const t = useTheme();
   const { log, status, error } = useStore();
+  const { prefs } = usePrefs();
 
   // First run: with nobody added yet and the welcome not seen, show it once.
   useEffect(() => {
@@ -45,6 +47,9 @@ export default function Home() {
     b.importance - a.importance || (names.get(a.personId) ?? '').localeCompare(names.get(b.personId) ?? '');
   const people = result.relationships.filter((r) => !RETIRED.has(r.state)).sort(byImportance);
   const retired = result.relationships.filter((r) => RETIRED.has(r.state)).sort(byImportance);
+
+  // With the score hidden, keep explanations about people, not about points.
+  const shownExplanations = prefs.showScore ? explanations : explanations.filter((e) => e.kind !== 'component_change');
 
   if (status === 'loading') {
     return (
@@ -92,12 +97,15 @@ export default function Home() {
         </Card>
       ) : log.interactions.length === 0 ? (
         // No score yet: before any contact it would rest on ratings alone.
+        !prefs.showScore ? null : (
         <Card>
           <Label>Social Health Score</Label>
           <Text style={{ color: t.text, lineHeight: 20 }}>Log your first contact to see your score.</Text>
         </Card>
+        )
       ) : (
         <>
+          {prefs.showScore && (
           <Card>
             <Label>Social Health Score</Label>
             <Text style={[styles.score, { color: t.text }]}>{Math.round(result.total)}</Text>
@@ -110,6 +118,7 @@ export default function Home() {
             )}
             <ScoreBreakdown result={result} />
           </Card>
+          )}
 
           <Card>
             <Label>Last 30 days</Label>
@@ -118,10 +127,10 @@ export default function Home() {
               <Text style={{ color: t.muted, lineHeight: 20 }}>
                 Changes will show here once you have been logging for a few weeks.
               </Text>
-            ) : explanations.length === 0 ? (
+            ) : shownExplanations.length === 0 ? (
               <Text style={{ color: t.text }}>No notable changes.</Text>
             ) : (
-              explanations.map((e, i) => (
+              shownExplanations.map((e, i) => (
                 <Text key={i} style={[styles.explanation, { color: t.text }]}>
                   • {e.text}
                   {e.personIds?.length ? ` (${e.personIds.map((id) => names.get(id) ?? 'someone').join(', ')})` : ''}

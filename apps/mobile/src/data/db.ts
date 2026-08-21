@@ -132,6 +132,12 @@ export async function deleteEverything(): Promise<void> {
   await SecureStore.deleteItemAsync(KEY_NAME);
 }
 
+/** Disconnecting the call log deletes every imported call and the connection itself. */
+export async function deleteCallData(): Promise<void> {
+  const db = await openDb();
+  await db.runAsync("DELETE FROM event WHERE kind IN ('call', 'source');");
+}
+
 export async function schemaVersion(): Promise<number> {
   const db = await openDb();
   return (await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version;'))?.user_version ?? 0;
