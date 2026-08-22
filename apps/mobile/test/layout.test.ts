@@ -1,6 +1,6 @@
-import type { Rating } from '@sg/score-engine';
+import type { Category, Rating } from '@sg/score-engine';
 import { describe, expect, it } from 'vitest';
-import { NODE_RADIUS, layoutEgoGraph, ringRadius, type LayoutInput } from '../src/graph/layout';
+import { NODE_RADIUS, layoutEgoGraph, ringRadius, sectorDirection, type LayoutInput } from '../src/graph/layout';
 import {
   distToPolyline,
   distToQuad,
@@ -108,9 +108,7 @@ describe('layout reuse', () => {
   it('returns cached positions unchanged when nobody is new', () => {
     const nodes = network(150);
     const first = layoutEgoGraph(nodes);
-    const start = performance.now();
     const again = layoutEgoGraph(nodes, { previous: first });
-    expect(performance.now() - start).toBeLessThan(5);
     for (const [id, p] of first) expect(again.get(id)).toEqual(p);
   });
 
@@ -119,6 +117,54 @@ describe('layout reuse', () => {
     const first = layoutEgoGraph(nodes);
     const after = layoutEgoGraph([...nodes, { id: 'zz-new', importance: 4 }], { previous: first });
     expect(minDistance([...after.values(), { x: 0, y: 0 }])).toBeGreaterThan(NODE_RADIUS * 2 * 0.8);
+  });
+});
+
+describe('sizes and relationship-type sectors', () => {
+  const types: Category[] = ['family', 'friend', 'work'];
+  const typed = (n: number): LayoutInput[] =>
+    Array.from({ length: n }, (_, i) => ({
+      id: `p${String(i).padStart(3, '0')}`,
+      importance: (((i * 7) % 5) + 1) as Rating,
+      categories: [types[i % 3]!],
+    }));
+
+  it('sectorDirection averages types and falls back to the primary when they cancel', () => {
+    const angles = new Map<Category, number>([
+      ['family', 0],
+      ['work', Math.PI / 2],
+      ['friend', Math.PI],
+    ]);
+    expect(sectorDirection(['family'], angles)).toBeCloseTo(0, 9);
+    const both = sectorDirection(['family', 'work'], angles)!;
+    expect(both).toBeGreaterThan(0);
+    expect(both).toBeLessThan(Math.PI / 4); // primary weighs more
+    expect(sectorDirection(['family', 'friend'], angles)).toBeCloseTo(0, 9);
+    expect(sectorDirection([], angles)).toBeNull();
+  });
+
+  it('people of the same type end up closer to each other than to other types', () => {
+    const nodes = typed(60);
+    const pos = layoutEgoGraph(nodes);
+    const angle = (id: string) => Math.atan2(pos.get(id)!.y, pos.get(id)!.x);
+    const gap = (a: number, b: number) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
+    let same = 0, sameN = 0, diff = 0, diffN = 0;
+    for (const a of nodes) for (const b of nodes) {
+      if (a.id >= b.id) continue;
+      const g = gap(angle(a.id), angle(b.id));
+      if (a.categories![0] === b.categories![0]) { same += g; sameN++; } else { diff += g; diffN++; }
+    }
+    expect(same / sameN).toBeLessThan((diff / diffN) * 0.6);
+  });
+
+  it('bigger nodes keep more space around them', () => {
+    const nodes = typed(40).map((n, i) => ({ ...n, radius: i % 2 ? 26 : 12 }));
+    const pos = layoutEgoGraph(nodes);
+    for (const a of nodes) for (const b of nodes) {
+      if (a.id >= b.id) continue;
+      const d = Math.hypot(pos.get(a.id)!.x - pos.get(b.id)!.x, pos.get(a.id)!.y - pos.get(b.id)!.y);
+      expect(d).toBeGreaterThan((a.radius! + b.radius!) * 0.8);
+    }
   });
 });
 

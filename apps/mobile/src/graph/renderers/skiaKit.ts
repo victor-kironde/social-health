@@ -9,6 +9,8 @@ export interface GraphFonts {
   initial: SkFont;
   label: SkFont;
   me: SkFont;
+  /** Set names and row captions. */
+  set: SkFont;
 }
 
 export function makeFonts(): GraphFonts {
@@ -16,6 +18,7 @@ export function makeFonts(): GraphFonts {
     initial: matchFont({ fontFamily: FAMILY, fontSize: 14, fontWeight: '600' }),
     label: matchFont({ fontFamily: FAMILY, fontSize: 10 }),
     me: matchFont({ fontFamily: FAMILY, fontSize: 13, fontWeight: '700' }),
+    set: matchFont({ fontFamily: FAMILY, fontSize: 12, fontWeight: '700' }),
   };
 }
 

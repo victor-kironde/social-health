@@ -1,25 +1,29 @@
-import { DEFAULT_CONFIG, computeScore, type Category } from '@sg/score-engine';
+import { DEFAULT_CONFIG, computeScore } from '@sg/score-engine';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Easing, cancelAnimation, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
+import { Easing, cancelAnimation, useDerivedValue, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 import { useStore } from '../data/store';
+import { ORDER_LABELS, TIER_LABELS, TIER_SET_LINK, layoutSignature, nodeRadii, orderTiers, tierLayout } from '../graph/arrange';
+import { DEFAULT_DISPLAY, activeFilterCount, applyFilters, type DisplayOptions } from '../graph/display';
+import { DisplayPanel } from '../graph/DisplayPanel';
 import { GraphCanvas } from '../graph/GraphCanvas';
 import { demoNetwork } from '../graph/demo';
 import { EdgeSheet } from '../graph/EdgeSheet';
 import { layoutEgoGraph, type Point } from '../graph/layout';
-import { ME_ID, buildGraph, type GraphStyle } from '../graph/model';
+import { ME_ID, buildGraph, type GraphStyle, type LivePositions } from '../graph/model';
 import { useLiveSimulation, type SettleStats } from '../graph/physics/useLiveSimulation';
 import { networkMetrics } from '../graph/metrics';
 import { deriveTies, tieSignature } from '../graph/ties';
 import { DEFAULT_RENDERER, GRAPH_RENDERERS, type RendererId } from '../graph/renderers';
 import { ToggleChip } from '../ui/components';
-import { CATEGORY_LABELS } from '../ui/labels';
+import { CATEGORY_LABELS, IMPORTANCE_LABELS } from '../ui/labels';
 import { useTheme } from '../ui/theme';
 import { useReduceMotion } from '../ui/useReduceMotion';
 
 const RETIRED = new Set(['archived', 'in_memoriam']);
-const CATEGORIES = Object.keys(CATEGORY_LABELS) as Category[];
+/** Rings <-> tiers transition, in ms. */
+const ARRANGE_MS = 700;
 /** Above this many people, names appear only once zoomed in. */
 const LABEL_LIMIT = 60;
 const LABEL_ZOOM = 1.6;
@@ -33,10 +37,9 @@ export default function GraphScreen() {
   const demoSize = demo ? Math.min(500, Math.max(1, Number(demo) || 150)) : null;
   const reducedMotion = useReduceMotion();
 
-  const [categories, setCategories] = useState<Set<Category>>(() => new Set(CATEGORIES));
-  const [behindOnly, setBehindOnly] = useState(false);
-  const [colourByQuality, setColourByQuality] = useState(true);
-  const [colourByGroup, setColourByGroup] = useState(false);
+  const [display, setDisplay] = useState<DisplayOptions>(DEFAULT_DISPLAY);
+  const [panelOpen, setPanelOpen] = useState(false);
+  const tiersOn = display.arrange === 'tiers';
   const [zoomedIn, setZoomedIn] = useState(false);
   const [rendererId, setRendererId] = useState<RendererId>(DEFAULT_RENDERER);
   const isLive = GRAPH_RENDERERS[rendererId].live;
@@ -64,13 +67,29 @@ export default function GraphScreen() {
     [relationships, ties],
   );
   const bridges = useMemo(() => [...metrics.nodes.values()].filter((m) => m.groupsTouched >= 2).length, [metrics]);
+  // Size from contact frequency; ring (and tiers row) from the chosen order; sector from relationship types.
+  const radii = useMemo(() => nodeRadii(relationships, display.sizeByFrequency), [relationships, display.sizeByFrequency]);
+  const tiers = useMemo(() => orderTiers(relationships, display.orderBy), [relationships, display.orderBy]);
   const layoutInputs = useMemo(
-    () => relationships.map((r) => ({ id: r.personId, importance: r.importance })),
-    [relationships],
+    () =>
+      relationships.map((r) => ({
+        id: r.personId,
+        importance: tiers.get(r.personId)!,
+        radius: radii.get(r.personId)!,
+        categories: [r.category, ...r.alsoCategories],
+      })),
+    [relationships, tiers, radii],
   );
   const links = useMemo(() => ties.map((t) => ({ source: t.a, target: t.b, weight: t.weight })), [ties]);
-  // A remembered layout built without the current ties should relax into them.
-  const signature = useMemo(() => tieSignature(ties), [ties]);
+  // A remembered layout built without the current ties, rings, sizes or types should relax into them.
+  const signature = useMemo(
+    () =>
+      layoutSignature([
+        tieSignature(ties),
+        ...layoutInputs.map((n) => `${n.id}:${n.importance}:${n.radius}:${n.categories.join('+')}`).sort(),
+      ]),
+    [ties, layoutInputs],
+  );
   const previous = demoSize ? undefined : graphLayout.positions;
   const warm = !demoSize && graphLayout.tieSignature !== signature;
 
@@ -118,37 +137,83 @@ export default function GraphScreen() {
     }, [isLive, reducedMotion, pulse]),
   );
 
-  const visible = useMemo(
-    () =>
-      relationships.filter(
-        (r) => categories.has(r.category) && (!behindOnly || (r.onRhythm !== null && r.onRhythm < 0.5)),
-      ),
-    [relationships, categories, behindOnly],
+  const visible = useMemo(() => applyFilters(relationships, display), [relationships, display]);
+  const showLabels = display.names && (visible.length <= LABEL_LIMIT || zoomedIn);
+
+  // Tiers: a list-like arrangement of the people shown, you at the top.
+  const tierLabels = display.orderBy === 'importance' ? IMPORTANCE_LABELS : TIER_LABELS[display.orderBy];
+  const tierView = useMemo(() => {
+    if (!tiersOn) return null;
+    const { positions: p, rows } = tierLayout(
+      visible.map((r) => ({
+        id: r.personId,
+        tier: tiers.get(r.personId)!,
+        categories: [r.category, ...r.alsoCategories],
+        label: names.get(r.personId) ?? '?',
+        radius: radii.get(r.personId)!,
+      })),
+      tierLabels,
+    );
+    let bottom = 0;
+    for (const q of p.values()) bottom = Math.max(bottom, q.y);
+    return { positions: p, rows, centre: { x: 0, y: bottom / 2 } };
+  }, [tiersOn, visible, tiers, names, radii, tierLabels]);
+
+  // Live renderers draw a blend of the physics positions and the tiers positions, so switching
+  // arrangement glides rather than jumps. People not in the tiers (filtered out) stay where they are.
+  const mix = useSharedValue(0);
+  const tierXY = useSharedValue<number[]>([]);
+  useEffect(() => {
+    if (!liveSim || !tierView) return;
+    tierXY.value = liveSim.live.ids.flatMap((id) => {
+      const q = tierView.positions.get(id);
+      return q ? [q.x, q.y] : [NaN, NaN];
+    });
+  }, [liveSim, tierView, tierXY]);
+  useEffect(() => {
+    const to = tiersOn ? 1 : 0;
+    mix.value = reducedMotion ? to : withTiming(to, { duration: ARRANGE_MS, easing: Easing.inOut(Easing.cubic) });
+  }, [tiersOn, reducedMotion, mix]);
+  const simXY = liveSim?.live.xy;
+  const mixedXY = useDerivedValue(() => {
+    const a = simXY ? simXY.value : [];
+    const k = mix.value;
+    const b = tierXY.value;
+    if (k === 0 || b.length !== a.length) return a;
+    const out = new Array<number>(a.length);
+    for (let i = 0; i < a.length; i++) {
+      const target = b[i]!;
+      out[i] = target !== target ? a[i]! : a[i]! + (target - a[i]!) * k; // NaN: not in the tiers
+    }
+    return out;
+  }, [simXY]);
+  const live: LivePositions | undefined = useMemo(
+    () => (liveSim ? { ids: liveSim.live.ids, xy: mixedXY } : undefined),
+    [liveSim, mixedXY],
   );
-  const showLabels = visible.length <= LABEL_LIMIT || zoomedIn;
 
   // Time from a new drawing being requested to the renderer committing it.
   const renderStart = useRef(performance.now());
   const [renderMs, setRenderMs] = useState<number | null>(null);
   const graph = useMemo(() => {
     renderStart.current = performance.now();
-    return buildGraph(visible, names, ties, metrics.nodes);
-  }, [visible, names, ties, metrics]);
+    return buildGraph(visible, names, ties, metrics.nodes, radii);
+  }, [visible, names, ties, metrics, radii]);
   // A selection that is filtered out of view simply disappears.
   const selectedEdge = graph.edges.find((e) => e.id === selectedEdgeId) ?? null;
   const [sheetHeight, setSheetHeight] = useState(0);
   // Midpoint of the selected edge, where it is right now, so the view can keep it above the sheet.
   const focus = useMemo(() => {
     if (!selectedEdge) return null;
-    const xy = liveSim?.live.xy.value;
-    const index = liveSim ? new Map(liveSim.live.ids.map((id, i) => [id, i])) : null;
+    const xy = live?.xy.value;
+    const index = live ? new Map(live.ids.map((id, i) => [id, i])) : null;
     const at = (id: string): Point | undefined => {
       if (id === ME_ID) return { x: 0, y: 0 };
       if (xy && index) {
         const i = index.get(id);
         return i === undefined ? undefined : { x: xy[2 * i]!, y: xy[2 * i + 1]! };
       }
-      return positions.get(id);
+      return (tierView?.positions ?? positions).get(id);
     };
     const a = at(selectedEdge.source);
     const b = at(selectedEdge.target);
@@ -160,12 +225,18 @@ export default function GraphScreen() {
   const style: GraphStyle = useMemo(
     () => ({
       colours: t,
-      colourByQuality,
+      colourByQuality: display.colourByQuality,
       showLabels,
       selectedEdgeId: selectedEdge?.id ?? null,
-      colourBy: colourByGroup ? ('group' as const) : ('category' as const),
+      colourBy: display.colourByGroup && ties.length > 0 ? ('group' as const) : ('category' as const),
+      showSets: display.sets,
+      showEgoEdges: display.egoEdges,
+      showTies: display.ties,
+      rows: tierView?.rows,
+      setMaxLink: tierView ? TIER_SET_LINK : undefined,
+      categoryNames: CATEGORY_LABELS,
     }),
-    [t, colourByQuality, showLabels, selectedEdge?.id, colourByGroup],
+    [t, display, showLabels, selectedEdge?.id, ties.length, tierView],
   );
   const openPerson = (id: string) => router.push({ pathname: '/person/[id]', params: { id } });
 
@@ -177,14 +248,7 @@ export default function GraphScreen() {
     );
   }
 
-  const toggleCategory = (c: Category) =>
-    setCategories((prev) => {
-      const next = new Set(prev);
-      if (next.has(c)) next.delete(c);
-      else next.add(c);
-      return next;
-    });
-
+  const filters = activeFilterCount(display);
   const settleText = settleStats
     ? ` · settled in ${(settleStats.ms / 1000).toFixed(1)} s (${settleStats.ticks} ticks, ${settleStats.frames} frames)`
     : ' · settling…';
@@ -208,15 +272,14 @@ export default function GraphScreen() {
               }}
             />
           ))}
-        {CATEGORIES.map((c) => (
-          <ToggleChip
-            key={c}
-            label={CATEGORY_LABELS[c]}
-            dot={t.category[c]}
-            on={categories.has(c)}
-            onPress={() => toggleCategory(c)}
-          />
-        ))}
+        <ToggleChip
+          label={`Display & filters${filters ? ` (${filters})` : ''}`}
+          on={filters > 0}
+          onPress={() => setPanelOpen(true)}
+        />
+        <ToggleChip label="Rings" on={!tiersOn} onPress={() => setDisplay((d) => ({ ...d, arrange: 'rings' }))} />
+        <ToggleChip label="Tiers" on={tiersOn} onPress={() => setDisplay((d) => ({ ...d, arrange: 'tiers' }))} />
+        <ToggleChip label="Type areas" on={display.sets} onPress={() => setDisplay((d) => ({ ...d, sets: !d.sets }))} />
         {demoSize && (
           <ToggleChip
             label="Links"
@@ -227,11 +290,6 @@ export default function GraphScreen() {
             }}
           />
         )}
-        <ToggleChip label="Behind rhythm only" on={behindOnly} onPress={() => setBehindOnly((v) => !v)} />
-        <ToggleChip label="Colour by quality" on={colourByQuality} onPress={() => setColourByQuality((v) => !v)} />
-        {ties.length > 0 && (
-          <ToggleChip label="Colour by group" on={colourByGroup} onPress={() => setColourByGroup((v) => !v)} />
-        )}
       </ScrollView>
 
       <View style={styles.root}>
@@ -239,11 +297,13 @@ export default function GraphScreen() {
           // Remount on renderer change so the timing reflects a cold mount.
           key={rendererId}
           data={graph}
-          positions={positions}
+          positions={tierView?.positions ?? positions}
+          centre={tierView?.centre}
           renderer={GRAPH_RENDERERS[rendererId].component}
           style={style}
-          live={liveSim?.live}
-          drag={liveSim ?? undefined}
+          live={live}
+          // People can be dragged around the rings; tiers are a fixed list.
+          drag={tiersOn ? undefined : (liveSim ?? undefined)}
           pulse={isLive ? pulse : undefined}
           reduceMotion={reducedMotion}
           onRendered={onRendered}
@@ -271,17 +331,28 @@ export default function GraphScreen() {
         )}
       </View>
 
+      <DisplayPanel
+        visible={panelOpen}
+        options={display}
+        onChange={setDisplay}
+        onClose={() => setPanelOpen(false)}
+        hasTies={ties.length > 0}
+      />
+
       <View style={[styles.legend, { borderTopColor: t.border }]}>
         <Text style={[styles.legendText, { color: t.muted }]}>
-          Closer and thicker = more important · faded = behind usual rhythm
+          {tiersOn ? `Higher row` : 'Closer'} = {display.orderBy === 'importance' ? 'more important' : `higher ${ORDER_LABELS[display.orderBy].toLowerCase()}`}
+          {display.egoEdges ? ' · thicker line = more important' : ''}
+          {display.sizeByFrequency ? ' · bigger = more in touch' : ''}
+          {display.sets ? ' · shaded areas = relationship types (overlaps = several)' : ''} · faded = behind usual rhythm
           {isLive ? ' · glowing = in touch this week' : ''}
-          {graph.edges.some((e) => e.kind === 'tie') ? ' · thin grey lines = seen together' : ''}
-          {colourByQuality ? ' · line colour = how the relationship is going' : ''}
+          {display.ties && graph.edges.some((e) => e.kind === 'tie') ? ' · thin grey lines = seen together' : ''}
+          {display.colourByQuality && display.egoEdges ? ' · line colour = how the relationship is going' : ''}
         </Text>
         <Text style={[styles.legendText, { color: t.muted }]}>
           {demoSize
             ? `Stress test (${GRAPH_RENDERERS[rendererId].label}): ${visible.length} people · ${timing}`
-            : `${visible.length} of ${relationships.length} shown · tap a person to open, a line for details${isLive ? ' · drag to move' : ''}`}
+            : `${visible.length} of ${relationships.length} shown · tap a person to open, a line for details${isLive && !tiersOn ? ' · drag to move' : ''}`}
           {showLabels ? '' : ' · pinch to zoom in for names'}
         </Text>
         {ties.length > 0 && (

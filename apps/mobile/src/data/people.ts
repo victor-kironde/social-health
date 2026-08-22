@@ -13,6 +13,8 @@ import type { StoredEvent } from './codec';
 export interface NewPersonInput {
   displayName: string;
   category: Category;
+  /** Other relationship types (e.g. also a colleague). */
+  alsoCategories?: Category[];
   importance: Rating;
   /** Omit (or pass the category default) to follow the category default, so later default changes still apply. */
   rhythm?: Rhythm;
@@ -39,6 +41,8 @@ export function newPersonEvents(input: NewPersonInput, now: Timestamp, newId: ()
     changes.push({ field: 'rhythm', value: input.rhythm });
   }
   if (input.quality !== null) changes.push({ field: 'quality', value: input.quality });
+  const also = (input.alsoCategories ?? []).filter((c) => c !== input.category);
+  if (also.length) changes.push({ field: 'alsoCategories', value: [...new Set(also)].sort() });
 
   return [
     { id: newId(), ts: now, kind: 'person', body: { id: personId, displayName: input.displayName.trim() } },
@@ -53,6 +57,7 @@ export function newPersonEvents(input: NewPersonInput, now: Timestamp, newId: ()
 export interface PersonDraft {
   displayName: string;
   category: Category;
+  alsoCategories: Category[];
   importance: Rating;
   rhythm: Rhythm | null;
   quality: Rating | null;
@@ -63,6 +68,7 @@ export function draftFromSnapshot(displayName: string, rel: RelationshipSnapshot
   return {
     displayName,
     category: rel.category,
+    alsoCategories: rel.alsoCategories,
     importance: rel.importance,
     rhythm: rel.rhythm === DEFAULT_CONFIG.defaultRhythm[rel.category] ? null : rel.rhythm,
     quality: rel.quality,
@@ -96,6 +102,8 @@ export function editPersonEvents(
   }
   if (draft.quality !== rel.quality) changes.push({ field: 'quality', value: draft.quality });
   if (draft.state !== rel.state) changes.push({ field: 'state', value: draft.state });
+  const also = [...new Set(draft.alsoCategories.filter((c) => c !== draft.category))].sort();
+  if (also.join() !== [...rel.alsoCategories].sort().join()) changes.push({ field: 'alsoCategories', value: also });
 
   for (const change of changes) {
     const id = newId();

@@ -4,14 +4,50 @@ import {
   forceManyBody,
   forceRadial,
   forceSimulation,
+  forceX,
+  forceY,
   type Simulation,
   type SimulationNodeDatum,
 } from 'd3-force';
-import type { Rating } from '@sg/score-engine';
+import type { Category, Rating } from '@sg/score-engine';
 
 export interface LayoutInput {
   id: string;
   importance: Rating;
+  /** Drawn radius (e.g. sized by contact frequency); collision spacing uses it. Default NODE_RADIUS. */
+  radius?: number;
+  /** Relationship types, primary first. When given, people are pulled towards their types' sectors. */
+  categories?: Category[];
+}
+
+/** Fixed order of type sectors around the circle, so a type always sits in the same direction. */
+export const SECTOR_ORDER: Category[] = ['family', 'friend', 'work', 'neighbour', 'community'];
+/** Gentle pull towards the sector target: rings stay dominant, types group together. */
+const SECTOR_STRENGTH = 0.12;
+/** Primary type counts a little more than "also" types when averaging directions. */
+const PRIMARY_WEIGHT = 1.5;
+
+/** Angle of each type present, evenly spaced, starting at the top and going clockwise. */
+export function sectorAngles(present: Category[]): Map<Category, number> {
+  const types = SECTOR_ORDER.filter((c) => present.includes(c));
+  return new Map(types.map((c, k) => [c, -Math.PI / 2 + (2 * Math.PI * k) / types.length]));
+}
+
+/** Direction for someone with these types: weighted circular mean of their sectors. */
+export function sectorDirection(categories: Category[], angles: Map<Category, number>): number | null {
+  if (!categories.length) return null;
+  let x = 0;
+  let y = 0;
+  categories.forEach((c, i) => {
+    const a = angles.get(c);
+    if (a === undefined) return;
+    const w = i === 0 ? PRIMARY_WEIGHT : 1;
+    x += w * Math.cos(a);
+    y += w * Math.sin(a);
+  });
+  // Opposite types can cancel out; fall back to the primary type's direction.
+  if (Math.hypot(x, y) < 1e-6) return angles.get(categories[0]!) ?? null;
+  return Math.atan2(y, x);
 }
 
 export interface Point {
@@ -50,7 +86,14 @@ function lcg(seed: number): () => number {
   };
 }
 
-export type SimNode = SimulationNodeDatum & { id: string; importance: Rating | null };
+export type SimNode = SimulationNodeDatum & {
+  id: string;
+  importance: Rating | null;
+  radius: number;
+  /** Sector target (on the importance ring), when types are known. */
+  tx?: number;
+  ty?: number;
+};
 
 /** A person-to-person attraction (from derived ties); weight ~1 = one recent contact as a pair. */
 export interface LayoutLink {
@@ -78,16 +121,23 @@ export function createEgoSimulation(
   const { previous, seed = 42, links = [] } = opts;
   const golden = Math.PI * (3 - Math.sqrt(5));
   const sorted = [...nodes].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  const angles = sectorAngles([...new Set(nodes.flatMap((n) => n.categories ?? []))]);
   const simNodes: SimNode[] = [
-    { id: ME, importance: null, x: 0, y: 0, fx: 0, fy: 0 },
+    { id: ME, importance: null, radius: NODE_RADIUS + 4, x: 0, y: 0, fx: 0, fy: 0 },
     ...sorted.map((n, i) => {
       const prev = previous?.get(n.id);
       const r = ringRadius(n.importance);
+      const dir = n.categories ? sectorDirection(n.categories, angles) : null;
+      const target = dir === null ? undefined : { x: r * Math.cos(dir), y: r * Math.sin(dir) };
+      // Newcomers start near their target (small deterministic jitter so they do not stack).
+      const jitter = (i * golden) % (2 * Math.PI);
       return {
         id: n.id,
         importance: n.importance,
-        x: prev?.x ?? r * Math.cos(i * golden),
-        y: prev?.y ?? r * Math.sin(i * golden),
+        radius: n.radius ?? NODE_RADIUS,
+        ...(target ? { tx: target.x, ty: target.y } : {}),
+        x: prev?.x ?? (target ? target.x + 6 * Math.cos(jitter) : r * Math.cos(i * golden)),
+        y: prev?.y ?? (target ? target.y + 6 * Math.sin(jitter) : r * Math.sin(i * golden)),
       };
     }),
   ];
@@ -98,9 +148,15 @@ export function createEgoSimulation(
       'radial',
       forceRadial<SimNode>((d) => (d.importance === null ? 0 : ringRadius(d.importance))).strength(0.8),
     )
-    .force('collide', forceCollide<SimNode>(NODE_RADIUS + 12).iterations(2))
+    .force('collide', forceCollide<SimNode>((d) => d.radius + 12).iterations(2))
     .force('charge', forceManyBody<SimNode>().strength(-20).distanceMax(200))
     .stop();
+
+  if (simNodes.some((n) => n.tx !== undefined)) {
+    simulation
+      .force('sectorX', forceX<SimNode>((d) => d.tx ?? d.x ?? 0).strength((d) => (d.tx === undefined ? 0 : SECTOR_STRENGTH)))
+      .force('sectorY', forceY<SimNode>((d) => d.ty ?? d.y ?? 0).strength((d) => (d.ty === undefined ? 0 : SECTOR_STRENGTH)));
+  }
 
   const ids = new Set(sorted.map((n) => n.id));
   const usable = links

@@ -83,6 +83,7 @@ describe('draftFromSnapshot', () => {
     const rel: RelationshipSnapshot = {
       personId: 'a',
       category: 'friend',
+      alsoCategories: [],
       importance: 3,
       quality: null,
       rhythm: DEFAULT_CONFIG.defaultRhythm.friend,
@@ -90,5 +91,29 @@ describe('draftFromSnapshot', () => {
     };
     expect(draftFromSnapshot('Ana', rel).rhythm).toBeNull();
     expect(draftFromSnapshot('Ana', { ...rel, rhythm: 'weekly' }).rhythm).toBe('weekly');
+  });
+});
+
+describe('also part of (several relationship types)', () => {
+  it('stores other types, never repeating the primary one', () => {
+    const { rel } = roundTrip({ ...ana, alsoCategories: ['work', 'friend', 'work'] }, () => {});
+    expect(rel.category).toBe('friend');
+    expect(rel.alsoCategories).toEqual(['work']);
+  });
+
+  it('edits other types, and drops one that becomes the primary', () => {
+    const { rel } = roundTrip({ ...ana, alsoCategories: ['work'] }, (d) => {
+      d.category = 'work';
+      d.alsoCategories = ['work', 'family'];
+    });
+    expect(rel.category).toBe('work');
+    expect(rel.alsoCategories).toEqual(['family']);
+  });
+
+  it('records no change when the set is the same in another order', () => {
+    const { events } = roundTrip({ ...ana, alsoCategories: ['work', 'family'] }, (d) => {
+      d.alsoCategories = ['family', 'work'];
+    });
+    expect(events).toEqual([]);
   });
 });

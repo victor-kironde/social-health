@@ -9,7 +9,10 @@ import { ME_ID, type GraphData, type GraphRenderer, type GraphStyle, type LivePo
 
 const MIN_SCALE = 0.4;
 const MAX_SCALE = 4;
-const HIT_RADIUS = NODE_RADIUS * 1.4;
+/** Taps count a little outside a node, more so for small ones (minimum comfortable target). */
+const hitRadius = (r: number) => Math.max(r * 1.4, NODE_RADIUS * 1.2);
+/** Space kept around the outermost people (graph units): their size, type area and its name. */
+const FIT_MARGIN = NODE_RADIUS + 50;
 /** How close (in screen pixels) a tap must be to an edge to select it. */
 const EDGE_TOLERANCE_PX = 14;
 
@@ -42,6 +45,7 @@ export function GraphCanvas({
   onRendered,
   focus,
   bottomInset = 0,
+  centre,
 }: {
   data: GraphData;
   /** Positions used to fit the view (every node that may be shown, so filtering keeps the fit stable). */
@@ -62,15 +66,25 @@ export function GraphCanvas({
   focus?: Point | null;
   /** Height covered at the bottom (e.g. by a sheet), in pixels. */
   bottomInset?: number;
+  /** Graph point to centre the view on (default: you, at the origin); the view eases there when it changes. */
+  centre?: Point;
 }) {
   const [size, setSize] = useState<{ width: number; height: number } | null>(null);
-  const fit = useMemo(() => (size ? fitScale(positions.values(), size, NODE_RADIUS + 24) : 1), [positions, size]);
+  const cx = centre?.x ?? 0;
+  const cy = centre?.y ?? 0;
+  const fit = useMemo(() => {
+    if (!size) return 1;
+    const around = [{ x: -cx, y: -cy }, ...[...positions.values()].map((p) => ({ x: p.x - cx, y: p.y - cy }))];
+    return fitScale(around, size, FIT_MARGIN);
+  }, [positions, size, cx, cy]);
 
-  // Indices (into live.ids) of the nodes currently drawn, so hidden people cannot be hit.
-  const candidates = useMemo(() => {
-    if (!live) return [];
-    const visible = new Set(data.nodes.map((n) => n.id));
-    return live.ids.flatMap((id, i) => (visible.has(id) ? [i] : []));
+  // Indices (into live.ids) of the nodes currently drawn, so hidden people cannot be hit, and their hit radii.
+  const { candidates, radii, radiusOf } = useMemo(() => {
+    const r = new Map(data.nodes.map((n) => [n.id, hitRadius(n.radius)]));
+    const radiusOf = (id: string) => r.get(id) ?? hitRadius(NODE_RADIUS);
+    if (!live) return { candidates: [] as number[], radii: [] as number[], radiusOf };
+    const candidates = live.ids.flatMap((id, i) => (r.has(id) ? [i] : []));
+    return { candidates, radii: candidates.map((i) => r.get(live.ids[i]!)!), radiusOf };
   }, [live, data]);
 
   const scale = useSharedValue(1);
@@ -108,7 +122,7 @@ export function GraphCanvas({
       dragging.value = -1;
       if (!canDrag || !xy) return;
       const g = screenToGraph({ x: e.x, y: e.y }, sz, { tx: tx.value, ty: ty.value, scale: scale.value }, fitValue.value);
-      dragging.value = hitTestXY(g.x, g.y, xy.value, candidates, HIT_RADIUS);
+      dragging.value = hitTestXY(g.x, g.y, xy.value, candidates, 0, radii);
     })
     .onStart((e) => {
       if (dragging.value < 0 || !drag) return;
@@ -172,6 +186,22 @@ export function GraphCanvas({
     // Only when the focus or the covered area changes, not on every pan.
   }, [focus?.x, focus?.y, bottomInset, size]);
 
+  // A new centre (e.g. switching to tiers, which hang below you) re-centres the view, dropping any pan.
+  const lastCentre = useRef({ x: 0, y: 0 });
+  useEffect(() => {
+    if (!size || (lastCentre.current.x === cx && lastCentre.current.y === cy)) return;
+    lastCentre.current = { x: cx, y: cy };
+    const k = scale.value * fit;
+    // Locals, not savedTx.value: a shared value read straight after a JS write can be stale.
+    const nextTx = -k * cx;
+    const nextTy = -k * cy;
+    savedTx.value = nextTx;
+    savedTy.value = nextTy;
+    const timing = { duration: reduceMotion ? 0 : 700, easing: Easing.out(Easing.cubic) };
+    tx.value = withTiming(nextTx, timing);
+    ty.value = withTiming(nextTy, timing);
+  }, [cx, cy, fit, size]);
+
   // Where each node is right now (live or static), for edge hit testing on JS.
   const liveIndex = useMemo(() => new Map(live?.ids.map((id, i) => [id, i]) ?? []), [live]);
   const edgeTargets = useMemo(
@@ -187,8 +217,8 @@ export function GraphCanvas({
       if (!success || !size) return;
       const p = screenToGraph(e, size, { tx: tx.value, ty: ty.value, scale: scale.value }, fitValue.value);
       const nodeId = live
-        ? live.ids[hitTestXY(p.x, p.y, live.xy.value, candidates, HIT_RADIUS)]
-        : hitTest(p, positions, data.nodes.map((n) => n.id), HIT_RADIUS);
+        ? live.ids[hitTestXY(p.x, p.y, live.xy.value, candidates, 0, radii)]
+        : hitTest(p, positions, data.nodes.map((n) => n.id), radiusOf);
       if (nodeId) {
         onNodePress?.(nodeId);
         return;

@@ -4,3 +4,4 @@ coverage/
 .DS_Store
 *.log
 .idea/
+apps/mobile/modules/*/android/build/

@@ -41,9 +41,9 @@ export function useLiveSimulation(
   const settledRef = useRef(opts.onSettled);
   settledRef.current = opts.onSettled;
 
-  // A new simulation only when the people or their ties change, not on every render.
+  // A new simulation only when the people, their sizes, types or ties change, not on every render.
   const key =
-    nodes.map((n) => `${n.id}:${n.importance}`).join('|') +
+    nodes.map((n) => `${n.id}:${n.importance}:${n.radius ?? ''}:${(n.categories ?? []).join('+')}`).join('|') +
     '#' +
     (links ?? []).map((l) => `${l.source}-${l.target}`).join('|');
   const sim = useMemo(() => {

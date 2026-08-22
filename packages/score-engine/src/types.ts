@@ -19,7 +19,9 @@ export type RelationshipChange =
   | { field: 'importance'; value: Rating }
   | { field: 'quality'; value: Rating | null }
   | { field: 'rhythm'; value: Rhythm | null } // null = follow the category default
-  | { field: 'state'; value: RelationshipState };
+  | { field: 'state'; value: RelationshipState }
+  /** Further relationship types beyond the primary `category` (e.g. family who are also colleagues). */
+  | { field: 'alsoCategories'; value: Category[] };
 
 /**
  * Append-only record of a change to the owner's private view of a relationship.
@@ -120,7 +122,10 @@ export type ComponentName = 'rhythm' | 'coverage' | 'quality' | 'diversity' | 'c
 
 export interface RelationshipSnapshot {
   personId: string;
+  /** Primary type: used by the score (default rhythm, diversity). */
   category: Category;
+  /** Other types this person also belongs to; never includes `category`. Display and layout only. */
+  alsoCategories: Category[];
   importance: Rating;
   quality: Rating | null;
   rhythm: Rhythm;

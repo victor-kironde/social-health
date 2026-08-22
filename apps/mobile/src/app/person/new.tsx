@@ -11,6 +11,7 @@ export default function NewPerson() {
   const [draft, setDraft] = useState<PersonDraft>({
     displayName: '',
     category: 'friend',
+    alsoCategories: [],
     importance: 3,
     rhythm: null,
     quality: null,
@@ -23,6 +24,7 @@ export default function NewPerson() {
     const input = {
       displayName: draft.displayName,
       category: draft.category,
+      alsoCategories: draft.alsoCategories,
       importance: draft.importance,
       ...(draft.rhythm ? { rhythm: draft.rhythm } : {}),
       quality: draft.quality,

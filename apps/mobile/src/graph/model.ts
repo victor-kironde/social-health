@@ -1,8 +1,8 @@
 import type { Category, Rating, RelationshipContribution } from '@sg/score-engine';
 import type { ComponentType } from 'react';
-import type { SharedValue } from 'react-native-reanimated';
+import type { DerivedValue, SharedValue } from 'react-native-reanimated';
 import type { EdgeRouting } from './geometry';
-import type { Point } from './layout';
+import { NODE_RADIUS, type Point } from './layout';
 import type { NodeMetrics } from './metrics';
 import type { Tie } from './ties';
 
@@ -19,8 +19,12 @@ export interface GraphNode {
   id: string;
   label: string;
   category: Category;
+  /** Every relationship type, primary first: which background sets this person sits in. */
+  categories: Category[];
   importance: Rating;
   quality: Rating | null;
+  /** Drawn radius in graph units (sized by contact frequency, or uniform). */
+  radius: number;
   /** Behind their usual rhythm: drawn faded. */
   behind: boolean;
   /** In touch within RECENT_DAYS: live renderers give these a gentle pulse. */
@@ -85,6 +89,18 @@ export interface GraphStyle {
   routing?: EdgeRouting;
   /** What the ring around each person shows. */
   colourBy?: 'category' | 'group';
+  /** Shaded background areas per relationship type (overlapping for people with several). */
+  showSets?: boolean;
+  /** Lines from you to each person; default true. */
+  showEgoEdges?: boolean;
+  /** Lines between people seen together; default true. */
+  showTies?: boolean;
+  /** Captions for the tiers arrangement: text baseline at (x, y), left-aligned. */
+  rows?: { x: number; y: number; label: string }[];
+  /** Members of a set further apart than this (graph units) are drawn as separate patches. */
+  setMaxLink?: number;
+  /** Display names of relationship types, for labelling sets. */
+  categoryNames?: Record<Category, string>;
 }
 
 /** Pan/zoom, updated on the UI thread by gestures. Renderers read, never write. */
@@ -101,7 +117,7 @@ export interface LivePositions {
   /** Node ids; index i owns xy[2i], xy[2i + 1]. */
   ids: string[];
   /** Interleaved graph coordinates [x0, y0, x1, y1, ...]. */
-  xy: SharedValue<number[]>;
+  xy: DerivedValue<number[]>;
 }
 
 /**
@@ -135,6 +151,7 @@ export function buildGraph(
   names: Map<string, string>,
   ties: Tie[] = [],
   metrics?: Map<string, NodeMetrics>,
+  radii?: Map<string, number>,
 ): GraphData {
   const behind = (r: RelationshipContribution) => r.onRhythm !== null && r.onRhythm < 0.5;
   const shown = new Set(relationships.map((r) => r.personId));
@@ -156,8 +173,10 @@ export function buildGraph(
       id: r.personId,
       label: names.get(r.personId) ?? '?',
       category: r.category,
+      categories: [r.category, ...r.alsoCategories],
       importance: r.importance,
       quality: r.quality,
+      radius: radii?.get(r.personId) ?? NODE_RADIUS,
       behind: behind(r),
       recent: !behind(r) && r.lastContactAgeDays !== null && r.lastContactAgeDays <= RECENT_DAYS,
       group: (metrics?.get(r.personId)?.groupSize ?? 1) >= 2 ? metrics!.get(r.personId)!.group : null,

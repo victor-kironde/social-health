@@ -24,6 +24,7 @@ export function SvgRenderer({ data, positions, size, fit, view, style, onRendere
       <>
         <G>
           {data.edges.map((e) => {
+            if ((e.kind === 'ego' && style.showEgoEdges === false) || (e.kind === 'tie' && style.showTies === false)) return null;
             const a = e.source === ME_ID ? { x: 0, y: 0 } : positions.get(e.source)!;
             const b = positions.get(e.target)!;
             const st = edgeStroke(e, style);
@@ -47,15 +48,15 @@ export function SvgRenderer({ data, positions, size, fit, view, style, onRendere
             const p = positions.get(n.id)!;
             return (
               <G key={n.id} opacity={encode.nodeOpacity(n.behind)}>
-                <Circle cx={p.x} cy={p.y} r={NODE_RADIUS} fill={c.card} stroke={encode.ringColour(n, style)} strokeWidth={4} />
+                <Circle cx={p.x} cy={p.y} r={n.radius} fill={c.card} stroke={encode.ringColour(n, style)} strokeWidth={4} />
                 {n.bridge && (
-                  <Circle cx={p.x} cy={p.y} r={NODE_RADIUS + 6} fill="none" stroke={c.text} strokeWidth={1.5} strokeOpacity={0.7} />
+                  <Circle cx={p.x} cy={p.y} r={n.radius + 6} fill="none" stroke={c.text} strokeWidth={1.5} strokeOpacity={0.7} />
                 )}
                 <SvgText x={p.x} y={p.y + 5} fontSize={14} fontWeight="600" fill={c.text} textAnchor="middle">
                   {encode.initial(n.label)}
                 </SvgText>
                 {style.showLabels && (
-                  <SvgText x={p.x} y={p.y + NODE_RADIUS + 13} fontSize={10} fill={c.muted} textAnchor="middle">
+                  <SvgText x={p.x} y={p.y + n.radius + 13} fontSize={10} fill={c.muted} textAnchor="middle">
                     {encode.shortLabel(n.label)}
                   </SvgText>
                 )}

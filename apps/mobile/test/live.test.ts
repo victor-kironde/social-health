@@ -88,6 +88,12 @@ describe('hitTestXY', () => {
     expect(hitTestXY(20, 0, xy, [0, 2], 25)).toBe(0);
     expect(hitTestXY(60, 60, xy, [0, 1, 2], 25)).toBe(-1);
   });
+
+  it('uses each candidate\'s own radius when given', () => {
+    // 50 from a big node (radius 60) and 50 from a small one (radius 10): only the big one is hit.
+    expect(hitTestXY(50, 100, xy, [1, 2], 0, [10, 60])).toBe(2);
+    expect(hitTestXY(50, 100, xy, [1, 2], 0, [10, 10])).toBe(-1);
+  });
 });
 
 describe('remembered positions', () => {

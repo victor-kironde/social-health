@@ -1,7 +1,7 @@
 import { DEFAULT_CONFIG, type Rating, type RelationshipState } from '@sg/score-engine';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { MAX_NAME_LENGTH, type PersonDraft } from '../data/people';
-import { ChoiceChips, Label } from './components';
+import { ChoiceChips, Label, MultiChoiceChips } from './components';
 import { CATEGORY_LABELS, IMPORTANCE_LABELS, QUALITY_LABELS, RHYTHM_LABELS, STATE_LABELS } from './labels';
 import { useTheme } from './theme';
 
@@ -59,6 +59,18 @@ export function PersonFields({
       <View>
         <Label>Relationship</Label>
         <ChoiceChips options={options(CATEGORY_LABELS)} value={draft.category} onChange={(v) => set('category', v)} />
+      </View>
+
+      <View>
+        <Label>Also part of (optional)</Label>
+        <MultiChoiceChips
+          options={options(CATEGORY_LABELS).filter((o) => o.value !== draft.category)}
+          values={draft.alsoCategories.filter((c) => c !== draft.category)}
+          onChange={(v) => set('alsoCategories', v)}
+        />
+        <Text style={[styles.hint, { color: t.muted }]}>
+          For example, family who are also colleagues. Shown where the groups overlap on the graph.
+        </Text>
       </View>
 
       <View>

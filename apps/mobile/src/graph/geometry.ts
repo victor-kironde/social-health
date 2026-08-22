@@ -28,14 +28,19 @@ export function screenToGraph(
 }
 
 /** The id of the nearest node within `radius` of `p`, or null. */
-export function hitTest(p: Point, positions: Map<string, Point>, ids: Iterable<string>, radius: number): string | null {
+export function hitTest(
+  p: Point,
+  positions: Map<string, Point>,
+  ids: Iterable<string>,
+  radius: number | ((id: string) => number),
+): string | null {
   let best: string | null = null;
-  let bestDist = radius;
+  let bestDist = Infinity;
   for (const id of ids) {
     const q = positions.get(id);
     if (!q) continue;
     const d = Math.hypot(p.x - q.x, p.y - q.y);
-    if (d <= bestDist) {
+    if (d <= (typeof radius === 'number' ? radius : radius(id)) && d < bestDist) {
       best = id;
       bestDist = d;
     }
@@ -48,14 +53,22 @@ export function hitTest(p: Point, positions: Map<string, Point>, ids: Iterable<s
  * only `candidates` (indices). Returns the nearest index within `radius`, or
  * -1. Runs on the UI thread (worklet) as well as on JS.
  */
-export function hitTestXY(px: number, py: number, xy: number[], candidates: number[], radius: number): number {
+export function hitTestXY(
+  px: number,
+  py: number,
+  xy: number[],
+  candidates: number[],
+  radius: number,
+  /** Per-candidate hit radius (parallel to `candidates`); overrides `radius`. */
+  radii?: number[],
+): number {
   'worklet';
   let best = -1;
-  let bestDist = radius;
+  let bestDist = Infinity;
   for (let k = 0; k < candidates.length; k++) {
     const i = candidates[k]!;
     const d = Math.hypot(px - xy[2 * i]!, py - xy[2 * i + 1]!);
-    if (d <= bestDist) {
+    if (d <= (radii ? radii[k]! : radius) && d < bestDist) {
       best = i;
       bestDist = d;
     }

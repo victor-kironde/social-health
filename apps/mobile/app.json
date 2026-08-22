@@ -18,7 +18,10 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "dev.kironde.socialgraph",
-      "allowBackup": false
+      "allowBackup": false,
+      "blockedPermissions": [
+        "android.permission.WRITE_CONTACTS"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"

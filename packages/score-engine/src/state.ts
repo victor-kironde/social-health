@@ -18,7 +18,15 @@ export function resolveRelationships(
   for (const e of ordered) {
     let draft = drafts.get(e.personId);
     if (!draft) {
-      draft = { personId: e.personId, category: 'friend', importance: 3, quality: null, rhythm: null, state: 'active' };
+      draft = {
+        personId: e.personId,
+        category: 'friend',
+        alsoCategories: [],
+        importance: 3,
+        quality: null,
+        rhythm: null,
+        state: 'active',
+      };
       drafts.set(e.personId, draft);
     }
     switch (e.field) {
@@ -37,12 +45,20 @@ export function resolveRelationships(
       case 'state':
         draft.state = e.value;
         break;
+      case 'alsoCategories':
+        draft.alsoCategories = [...new Set(e.value)].sort();
+        break;
     }
   }
 
   const result = new Map<string, RelationshipSnapshot>();
   for (const [id, d] of drafts) {
-    result.set(id, { ...d, rhythm: d.rhythm ?? config.defaultRhythm[d.category] });
+    result.set(id, {
+      ...d,
+      // The primary type is never repeated among the others, whichever changed last.
+      alsoCategories: d.alsoCategories.filter((c) => c !== d.category),
+      rhythm: d.rhythm ?? config.defaultRhythm[d.category],
+    });
   }
   return result;
 }

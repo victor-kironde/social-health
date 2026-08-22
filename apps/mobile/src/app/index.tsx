@@ -6,7 +6,7 @@ import { hasOnboarded } from '../data/onboarding';
 import { usePrefs } from '../data/prefs';
 import { useStore } from '../data/store';
 import { Button, Card, Label } from '../ui/components';
-import { CATEGORY_LABELS, IMPORTANCE_LABELS, RHYTHM_LABELS, STATE_LABELS, lastContactText } from '../ui/labels';
+import { IMPORTANCE_LABELS, RHYTHM_LABELS, STATE_LABELS, lastContactText, typesLabel } from '../ui/labels';
 import { ScoreBreakdown } from '../ui/ScoreBreakdown';
 import { useTheme } from '../ui/theme';
 
@@ -79,7 +79,7 @@ export default function Home() {
     >
       <Text style={[styles.name, { color: t.text }]}>{names.get(r.personId) ?? 'Unknown'}</Text>
       <Text style={{ color: t.muted }}>
-        {CATEGORY_LABELS[r.category]} · {IMPORTANCE_LABELS[r.importance]} · {RHYTHM_LABELS[r.rhythm]}
+        {typesLabel(r.category, r.alsoCategories)} · {IMPORTANCE_LABELS[r.importance]} · {RHYTHM_LABELS[r.rhythm]}
         {r.state !== 'active' ? ` · ${STATE_LABELS[r.state]}` : ''}
       </Text>
       {!RETIRED.has(r.state) && <Text style={{ color: t.muted }}>{lastContactText(r.lastContactAgeDays)}</Text>}

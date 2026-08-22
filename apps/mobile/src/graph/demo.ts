@@ -13,6 +13,8 @@ export function demoNetwork(n: number): { relationships: RelationshipContributio
     relationships.push({
       personId: id,
       category: CATEGORIES[i % CATEGORIES.length]!,
+      // Every seventh person also has a second type, so the set intersections show up.
+      alsoCategories: i % 7 === 0 ? [CATEGORIES[(i + 2) % CATEGORIES.length]!] : [],
       importance: (((i * 7) % 5) + 1) as Rating,
       quality: i % 4 === 0 ? null : ((((i * 3) % 5) + 1) as Rating),
       rhythm: 'monthly',
@@ -21,9 +23,10 @@ export function demoNetwork(n: number): { relationships: RelationshipContributio
       expectedIntervalDays: 30,
       level: (i % 10) / 10,
       onRhythm: i % 3 === 0 ? 0 : 1,
-      lastContactAgeDays: i % 3 === 0 ? 90 : 5,
+      lastContactAgeDays: i % 3 === 0 ? 90 : i % 5 === 0 ? null : (i * 13) % 40,
       callLevel: null,
-      frecency: i % 3 === 0 ? 0.1 : 2,
+      // Spread of contact frequency so node sizes vary.
+      frecency: i % 3 === 0 ? 0.1 : i % 5 === 0 ? 0 : 0.5 + ((i * 37) % 11) / 2,
     });
   }
   return { relationships, names, ties: demoTies(relationships) };

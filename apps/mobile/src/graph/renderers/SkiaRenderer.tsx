@@ -52,6 +52,8 @@ function drawGraph(
 
   const routing = style.routing ?? 'orthogonal';
   for (const e of data.edges) {
+    if (e.kind === 'ego' && style.showEgoEdges === false) continue;
+    if (e.kind === 'tie' && style.showTies === false) continue;
     const a = e.source === ME_ID ? { x: 0, y: 0 } : positions.get(e.source)!;
     const b = positions.get(e.target)!;
     const st = edgeStroke(e, style);
@@ -65,12 +67,12 @@ function drawGraph(
   for (const n of data.nodes) {
     const p = positions.get(n.id)!;
     const alpha = encode.nodeOpacity(n.behind);
-    canvas.drawCircle(p.x, p.y, NODE_RADIUS, paint(c.card, { alpha }));
-    canvas.drawCircle(p.x, p.y, NODE_RADIUS, paint(encode.ringColour(n, style), { stroke: 4, alpha }));
-    if (n.bridge) canvas.drawCircle(p.x, p.y, NODE_RADIUS + 6, paint(c.text, { stroke: 1.5, alpha: 0.7 * alpha }));
+    canvas.drawCircle(p.x, p.y, n.radius, paint(c.card, { alpha }));
+    canvas.drawCircle(p.x, p.y, n.radius, paint(encode.ringColour(n, style), { stroke: 4, alpha }));
+    if (n.bridge) canvas.drawCircle(p.x, p.y, n.radius + 6, paint(c.text, { stroke: 1.5, alpha: 0.7 * alpha }));
     drawCentredText(canvas, encode.initial(n.label), p.x, p.y + 5, fonts.initial, c.text, alpha);
     if (style.showLabels) {
-      drawCentredText(canvas, encode.shortLabel(n.label), p.x, p.y + NODE_RADIUS + 13, fonts.label, c.muted, alpha);
+      drawCentredText(canvas, encode.shortLabel(n.label), p.x, p.y + n.radius + 13, fonts.label, c.muted, alpha);
     }
   }
 

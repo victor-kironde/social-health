@@ -75,3 +75,8 @@ export function daysAgoText(days: number): string {
   if (d <= 0) return 'today';
   return d === 1 ? 'yesterday' : `${d} days ago`;
 }
+
+/** "Family + Work": primary type first. */
+export function typesLabel(category: Category, also: Category[] = []): string {
+  return [category, ...also.filter((c) => c !== category)].map((c) => CATEGORY_LABELS[c]).join(' + ');
+}

@@ -4,12 +4,12 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Button } from '../ui/components';
 import {
-  CATEGORY_LABELS,
   IMPORTANCE_LABELS,
   QUALITY_LABELS,
   RHYTHM_LABELS,
   daysAgoText,
   lastContactText,
+  typesLabel,
 } from '../ui/labels';
 import { useTheme } from '../ui/theme';
 import type { NodeMetrics } from './metrics';
@@ -56,7 +56,7 @@ export function EdgeSheet({
       <>
         <Text style={[styles.title, { color: t.text }]}>{name(r.personId)}</Text>
         <Text style={{ color: t.muted }}>
-          {CATEGORY_LABELS[r.category]} · {IMPORTANCE_LABELS[r.importance]} · {RHYTHM_LABELS[r.rhythm]}
+          {typesLabel(r.category, r.alsoCategories)} · {IMPORTANCE_LABELS[r.importance]} · {RHYTHM_LABELS[r.rhythm]}
         </Text>
         <Text style={[styles.line, { color: t.text }]}>
           {lastContactText(r.lastContactAgeDays)} · {rhythm}
