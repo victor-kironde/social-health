@@ -30,6 +30,13 @@ const MIGRATIONS: string[] = [
      key TEXT PRIMARY KEY NOT NULL,
      value TEXT NOT NULL
    );`,
+  // Person photos: small square JPEGs (base64), kept in the encrypted database like everything
+  // else. Not part of the event log: a photo is not history, and replacing one keeps no copy.
+  `CREATE TABLE IF NOT EXISTS person_photo (
+     person_id TEXT PRIMARY KEY NOT NULL,
+     jpeg TEXT NOT NULL,
+     updated_at INTEGER NOT NULL
+   );`,
 ];
 
 export interface DbStatus {
@@ -114,7 +121,27 @@ export async function erasePerson(personId: string): Promise<void> {
     for (const id of remove) await db.runAsync('DELETE FROM event WHERE id = ?;', [id]);
     for (const e of replace) await db.runAsync('UPDATE event SET body = ? WHERE id = ?;', [toRow(e).body, e.id]);
     await db.runAsync('DELETE FROM graph_position WHERE person_id = ?;', [personId]);
+    await db.runAsync('DELETE FROM person_photo WHERE person_id = ?;', [personId]);
   });
+}
+
+/** Every person's photo (base64 JPEG), by person id. */
+export async function loadPhotos(): Promise<Map<string, string>> {
+  const db = await openDb();
+  const rows = await db.getAllAsync<{ person_id: string; jpeg: string }>('SELECT person_id, jpeg FROM person_photo;');
+  return new Map(rows.map((r) => [r.person_id, r.jpeg]));
+}
+
+/** Sets (or, with null, removes) a person's photo. */
+export async function savePhoto(personId: string, jpeg: string | null): Promise<void> {
+  const db = await openDb();
+  if (jpeg === null) await db.runAsync('DELETE FROM person_photo WHERE person_id = ?;', [personId]);
+  else {
+    await db.runAsync(
+      'INSERT INTO person_photo (person_id, jpeg, updated_at) VALUES (?, ?, ?) ON CONFLICT(person_id) DO UPDATE SET jpeg = excluded.jpeg, updated_at = excluded.updated_at;',
+      [personId, jpeg, Date.now()],
+    );
+  }
 }
 
 /**

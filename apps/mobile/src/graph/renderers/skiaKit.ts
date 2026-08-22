@@ -1,4 +1,17 @@
-import { PaintStyle, Skia, StrokeCap, StrokeJoin, TileMode, matchFont, type SkFont, type SkPaint } from '@shopify/react-native-skia';
+import {
+  FilterMode,
+  MipmapMode,
+  PaintStyle,
+  Skia,
+  StrokeCap,
+  StrokeJoin,
+  TileMode,
+  matchFont,
+  type SkCanvas,
+  type SkFont,
+  type SkImage,
+  type SkPaint,
+} from '@shopify/react-native-skia';
 import { Platform } from 'react-native';
 
 /** Shared Skia helpers for the Skia-based renderers. */
@@ -67,4 +80,51 @@ export function glowPaint(colour: string): SkPaint {
 /** Horizontal offset that centres `text` on x when drawn with `font`. */
 export function centreOffset(text: string, font: SkFont): number {
   return -font.measureText(text).width / 2;
+}
+
+/** Decoded photos, by content, so re-renders and renderer switches never decode twice. */
+const photoCache = new Map<string, SkImage | null>();
+
+function photoKey(personId: string, jpeg: string) {
+  return `${personId}:${jpeg.length}:${jpeg.slice(-24)}`;
+}
+
+/** A person's photo as a Skia image (null if it cannot be decoded). */
+export function photoImage(personId: string, jpeg: string): SkImage | null {
+  const key = photoKey(personId, jpeg);
+  if (!photoCache.has(key)) {
+    let image: SkImage | null = null;
+    try {
+      image = Skia.Image.MakeImageFromEncoded(Skia.Data.fromBase64(jpeg));
+    } catch {
+      image = null;
+    }
+    photoCache.set(key, image);
+  }
+  return photoCache.get(key) ?? null;
+}
+
+/** A photo to draw inside a person's circle: an image shader, so no per-frame clipping. */
+export interface PhotoSpec {
+  paint: SkPaint;
+  width: number;
+  height: number;
+}
+
+export function photoSpec(image: SkImage, alpha = 1): PhotoSpec {
+  const p = Skia.Paint();
+  p.setAntiAlias(true);
+  p.setShader(image.makeShaderOptions(TileMode.Clamp, TileMode.Clamp, FilterMode.Linear, MipmapMode.None));
+  p.setAlphaf(alpha);
+  return { paint: p, width: image.width(), height: image.height() };
+}
+
+/** Fills the circle (x, y, r) with the photo, scaled to fit. Safe to call from a worklet. */
+export function drawPhoto(canvas: SkCanvas, photo: PhotoSpec, x: number, y: number, r: number) {
+  'worklet';
+  canvas.save();
+  canvas.translate(x - r, y - r);
+  canvas.scale((2 * r) / photo.width, (2 * r) / photo.height);
+  canvas.drawCircle(photo.width / 2, photo.height / 2, photo.width / 2, photo.paint);
+  canvas.restore();
 }

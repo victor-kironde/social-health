@@ -25,6 +25,8 @@ export interface GraphNode {
   quality: Rating | null;
   /** Drawn radius in graph units (sized by contact frequency, or uniform). */
   radius: number;
+  /** Their photo (base64 JPEG, square), drawn inside the circle instead of the initial. */
+  photo?: string;
   /** Behind their usual rhythm: drawn faded. */
   behind: boolean;
   /** In touch within RECENT_DAYS: live renderers give these a gentle pulse. */
@@ -85,6 +87,8 @@ export interface GraphStyle {
   showLabels: boolean;
   /** Edge to highlight (tapped), if any. */
   selectedEdgeId?: string | null;
+  /** Person to highlight (tapped), if any. */
+  selectedNodeId?: string | null;
   /** How edges are routed; defaults to right-angled ('orthogonal'). */
   routing?: EdgeRouting;
   /** What the ring around each person shows. */
@@ -152,6 +156,7 @@ export function buildGraph(
   ties: Tie[] = [],
   metrics?: Map<string, NodeMetrics>,
   radii?: Map<string, number>,
+  photos?: Map<string, string>,
 ): GraphData {
   const behind = (r: RelationshipContribution) => r.onRhythm !== null && r.onRhythm < 0.5;
   const shown = new Set(relationships.map((r) => r.personId));
@@ -177,6 +182,7 @@ export function buildGraph(
       importance: r.importance,
       quality: r.quality,
       radius: radii?.get(r.personId) ?? NODE_RADIUS,
+      ...(photos?.has(r.personId) ? { photo: photos.get(r.personId)! } : {}),
       behind: behind(r),
       recent: !behind(r) && r.lastContactAgeDays !== null && r.lastContactAgeDays <= RECENT_DAYS,
       group: (metrics?.get(r.personId)?.groupSize ?? 1) >= 2 ? metrics!.get(r.personId)!.group : null,

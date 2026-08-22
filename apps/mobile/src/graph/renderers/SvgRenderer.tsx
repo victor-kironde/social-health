@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { StyleSheet } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
-import Svg, { Circle, G, Polyline, Text as SvgText } from 'react-native-svg';
+import Svg, { Circle, ClipPath, Defs, G, Image as SvgImage, Polyline, Text as SvgText } from 'react-native-svg';
 import { routeEdge } from '../geometry';
 import { NODE_RADIUS } from '../layout';
 import { ME_ID, edgeStroke, encode, type GraphRendererProps } from '../model';
@@ -48,13 +48,36 @@ export function SvgRenderer({ data, positions, size, fit, view, style, onRendere
             const p = positions.get(n.id)!;
             return (
               <G key={n.id} opacity={encode.nodeOpacity(n.behind)}>
-                <Circle cx={p.x} cy={p.y} r={n.radius} fill={c.card} stroke={encode.ringColour(n, style)} strokeWidth={4} />
+                {n.photo && (
+                  <Defs>
+                    <ClipPath id={`photo-${n.id}`}>
+                      <Circle cx={p.x} cy={p.y} r={n.radius} />
+                    </ClipPath>
+                  </Defs>
+                )}
+                <Circle cx={p.x} cy={p.y} r={n.radius} fill={c.card} />
+                {n.photo && (
+                  <SvgImage
+                    href={{ uri: `data:image/jpeg;base64,${n.photo}` }}
+                    x={p.x - n.radius}
+                    y={p.y - n.radius}
+                    width={2 * n.radius}
+                    height={2 * n.radius}
+                    clipPath={`url(#photo-${n.id})`}
+                  />
+                )}
+                <Circle cx={p.x} cy={p.y} r={n.radius} fill="none" stroke={encode.ringColour(n, style)} strokeWidth={4} />
+                {style.selectedNodeId === n.id && (
+                  <Circle cx={p.x} cy={p.y} r={n.radius + 10} fill="none" stroke={c.accent} strokeWidth={3} />
+                )}
                 {n.bridge && (
                   <Circle cx={p.x} cy={p.y} r={n.radius + 6} fill="none" stroke={c.text} strokeWidth={1.5} strokeOpacity={0.7} />
                 )}
-                <SvgText x={p.x} y={p.y + 5} fontSize={14} fontWeight="600" fill={c.text} textAnchor="middle">
-                  {encode.initial(n.label)}
-                </SvgText>
+                {!n.photo && (
+                  <SvgText x={p.x} y={p.y + 5} fontSize={14} fontWeight="600" fill={c.text} textAnchor="middle">
+                    {encode.initial(n.label)}
+                  </SvgText>
+                )}
                 {style.showLabels && (
                   <SvgText x={p.x} y={p.y + n.radius + 13} fontSize={10} fill={c.muted} textAnchor="middle">
                     {encode.shortLabel(n.label)}

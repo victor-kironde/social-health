@@ -20,6 +20,8 @@
       "package": "dev.kironde.socialgraph",
       "allowBackup": false,
       "blockedPermissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
         "android.permission.WRITE_CONTACTS"
       ]
     },
@@ -41,6 +43,14 @@
         "expo-contacts",
         {
           "contactsPermission": "Allow $(PRODUCT_NAME) to read contact names so you can choose people to add."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Choose a photo for a person in your network.",
+          "cameraPermission": false,
+          "microphonePermission": false
         }
       ]
     ],

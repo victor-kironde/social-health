@@ -3,10 +3,13 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Easing, cancelAnimation, useDerivedValue, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
+import { usePrefs } from '../data/prefs';
 import { useStore } from '../data/store';
 import { ORDER_LABELS, TIER_LABELS, TIER_SET_LINK, layoutSignature, nodeRadii, orderTiers, tierLayout } from '../graph/arrange';
 import { DEFAULT_DISPLAY, activeFilterCount, applyFilters, type DisplayOptions } from '../graph/display';
 import { DisplayPanel } from '../graph/DisplayPanel';
+import { PersonStatsCard } from '../graph/PersonStatsCard';
+import { personStats } from '../graph/personStats';
 import { GraphCanvas } from '../graph/GraphCanvas';
 import { demoNetwork } from '../graph/demo';
 import { EdgeSheet } from '../graph/EdgeSheet';
@@ -32,7 +35,8 @@ const PULSE_MS = 2800;
 
 export default function GraphScreen() {
   const t = useTheme();
-  const { log, graphLayout, saveGraphLayout } = useStore();
+  const { log, graphLayout, saveGraphLayout, photos } = useStore();
+  const { prefs } = usePrefs();
   const { demo } = useLocalSearchParams<{ demo?: string }>();
   const demoSize = demo ? Math.min(500, Math.max(1, Number(demo) || 150)) : null;
   const reducedMotion = useReduceMotion();
@@ -45,20 +49,29 @@ export default function GraphScreen() {
   const isLive = GRAPH_RENDERERS[rendererId].live;
 
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+  // The person whose stats are shown (one tap); a double tap opens their page instead.
+  const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
   // Stress test only: switch links off to compare, and report how long the layout took to settle.
   const [demoLinks, setDemoLinks] = useState(true);
   const [settleStats, setSettleStats] = useState<SettleStats | null>(null);
 
   // People (non-retired), and ties between them inferred from contacts logged with both.
-  const { relationships, names, ties, now } = useMemo(() => {
+  const { relationships, names, ties, now, total } = useMemo(() => {
     const now = Date.now();
     if (demoSize) {
       const d = demoNetwork(demoSize);
-      return { ...d, ties: demoLinks ? d.ties : [], now };
+      return { ...d, ties: demoLinks ? d.ties : [], now, total: null };
     }
-    const rels = computeScore(log, DEFAULT_CONFIG, now).relationships.filter((r) => !RETIRED.has(r.state));
+    const score = computeScore(log, DEFAULT_CONFIG, now);
+    const rels = score.relationships.filter((r) => !RETIRED.has(r.state));
     const ties = deriveTies(log.interactions, now, new Set(rels.map((r) => r.personId)));
-    return { relationships: rels, names: new Map(log.people.map((p) => [p.id, p.displayName])), ties, now };
+    return {
+      relationships: rels,
+      names: new Map(log.people.map((p) => [p.id, p.displayName])),
+      ties,
+      now,
+      total: score.total,
+    };
   }, [log, demoSize, demoLinks]);
   const byId = useMemo(() => new Map(relationships.map((r) => [r.personId, r])), [relationships]);
   // Network structure over everyone shown on the graph (filters only hide; they do not change it).
@@ -197,14 +210,26 @@ export default function GraphScreen() {
   const [renderMs, setRenderMs] = useState<number | null>(null);
   const graph = useMemo(() => {
     renderStart.current = performance.now();
-    return buildGraph(visible, names, ties, metrics.nodes, radii);
-  }, [visible, names, ties, metrics, radii]);
+    return buildGraph(visible, names, ties, metrics.nodes, radii, demoSize ? undefined : photos);
+  }, [visible, names, ties, metrics, radii, photos, demoSize]);
   // A selection that is filtered out of view simply disappears.
   const selectedEdge = graph.edges.find((e) => e.id === selectedEdgeId) ?? null;
+  const selectedPerson =
+    selectedPersonId && graph.nodes.some((n) => n.id === selectedPersonId) ? byId.get(selectedPersonId) ?? null : null;
+  const stats = useMemo(
+    () =>
+      selectedPerson
+        ? personStats(selectedPerson.personId, relationships, demoSize ? [] : log.interactions, demoSize ? undefined : log.calls, metrics.nodes, now)
+        : null,
+    [selectedPerson, relationships, log, metrics, now, demoSize],
+  );
   const [sheetHeight, setSheetHeight] = useState(0);
-  // Midpoint of the selected edge, where it is right now, so the view can keep it above the sheet.
+  // Bottom edge of the score and stats overlay, so a selected person is kept in sight below it.
+  const [overlayBottom, setOverlayBottom] = useState(0);
+  // The selected person, or the midpoint of the selected edge, where it is right now,
+  // so the view can keep it in sight (above the sheet).
   const focus = useMemo(() => {
-    if (!selectedEdge) return null;
+    if (!selectedEdge && !selectedPerson) return null;
     const xy = live?.xy.value;
     const index = live ? new Map(live.ids.map((id, i) => [id, i])) : null;
     const at = (id: string): Point | undefined => {
@@ -215,11 +240,12 @@ export default function GraphScreen() {
       }
       return (tierView?.positions ?? positions).get(id);
     };
-    const a = at(selectedEdge.source);
-    const b = at(selectedEdge.target);
+    if (selectedPerson) return at(selectedPerson.personId) ?? null;
+    const a = at(selectedEdge!.source);
+    const b = at(selectedEdge!.target);
     return a && b ? { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } : null;
-    // Recompute only when a different edge is selected.
-  }, [selectedEdge?.id]);
+    // Recompute only when a different edge or person is selected.
+  }, [selectedEdge?.id, selectedPerson?.personId]);
   const onRendered = useCallback(() => setRenderMs(performance.now() - renderStart.current), []);
 
   const style: GraphStyle = useMemo(
@@ -228,6 +254,7 @@ export default function GraphScreen() {
       colourByQuality: display.colourByQuality,
       showLabels,
       selectedEdgeId: selectedEdge?.id ?? null,
+      selectedNodeId: selectedPerson?.personId ?? null,
       colourBy: display.colourByGroup && ties.length > 0 ? ('group' as const) : ('category' as const),
       showSets: display.sets,
       showEgoEdges: display.egoEdges,
@@ -236,9 +263,17 @@ export default function GraphScreen() {
       setMaxLink: tierView ? TIER_SET_LINK : undefined,
       categoryNames: CATEGORY_LABELS,
     }),
-    [t, display, showLabels, selectedEdge?.id, ties.length, tierView],
+    [t, display, showLabels, selectedEdge?.id, selectedPerson?.personId, ties.length, tierView],
   );
   const openPerson = (id: string) => router.push({ pathname: '/person/[id]', params: { id } });
+  const selectPerson = (id: string) => {
+    setSelectedEdgeId(null);
+    setSelectedPersonId(id);
+  };
+  const selectEdge = (id: string) => {
+    setSelectedPersonId(null);
+    setSelectedEdgeId(id);
+  };
 
   if (relationships.length === 0) {
     return (
@@ -308,12 +343,45 @@ export default function GraphScreen() {
           reduceMotion={reducedMotion}
           onRendered={onRendered}
           onZoomEnd={(s) => setZoomedIn(s >= LABEL_ZOOM)}
-          onNodePress={demoSize ? undefined : openPerson}
-          onEdgePress={setSelectedEdgeId}
-          onBackgroundPress={() => setSelectedEdgeId(null)}
+          onNodePress={selectPerson}
+          onNodeDoublePress={demoSize ? undefined : openPerson}
+          onEdgePress={selectEdge}
+          onBackgroundPress={() => {
+            setSelectedEdgeId(null);
+            setSelectedPersonId(null);
+          }}
           focus={focus}
           bottomInset={selectedEdge ? sheetHeight : 0}
+          topInset={selectedPerson ? overlayBottom : 0}
         />
+        <View
+          style={styles.overlay}
+          pointerEvents="box-none"
+          onLayout={(e) => setOverlayBottom(e.nativeEvent.layout.y + e.nativeEvent.layout.height)}
+        >
+          {total !== null && prefs.showScore && (
+            <View style={[styles.score, { backgroundColor: t.card, borderColor: t.border }]} accessibilityLabel={`Social Health Score ${total}`}>
+              <Text style={[styles.scoreLabel, { color: t.muted }]}>Social Health</Text>
+              <Text style={[styles.scoreValue, { color: t.text }]}>{Math.round(total)}</Text>
+            </View>
+          )}
+          {selectedPerson && stats && (
+            <View style={styles.stats}>
+              <PersonStatsCard
+                key={selectedPerson.personId}
+                rel={selectedPerson}
+                name={names.get(selectedPerson.personId) ?? '?'}
+                photo={demoSize ? undefined : photos.get(selectedPerson.personId)}
+                stats={stats}
+                onOpen={demoSize ? undefined : () => openPerson(selectedPerson.personId)}
+                onLog={
+                  demoSize ? undefined : () => router.push({ pathname: '/log', params: { person: selectedPerson.personId } })
+                }
+                onClose={() => setSelectedPersonId(null)}
+              />
+            </View>
+          )}
+        </View>
         {selectedEdge && !demoSize && (
           <EdgeSheet
             key={selectedEdge.id}
@@ -352,7 +420,7 @@ export default function GraphScreen() {
         <Text style={[styles.legendText, { color: t.muted }]}>
           {demoSize
             ? `Stress test (${GRAPH_RENDERERS[rendererId].label}): ${visible.length} people · ${timing}`
-            : `${visible.length} of ${relationships.length} shown · tap a person to open, a line for details${isLive && !tiersOn ? ' · drag to move' : ''}`}
+            : `${visible.length} of ${relationships.length} shown · tap a person for details, double-tap to open, tap a line for links${isLive && !tiersOn ? ' · drag to move' : ''}`}
           {showLabels ? '' : ' · pinch to zoom in for names'}
         </Text>
         {ties.length > 0 && (
@@ -369,6 +437,17 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   filters: { paddingHorizontal: 16, paddingVertical: 8, gap: 8 },
+  overlay: { position: 'absolute', top: 8, right: 8, alignItems: 'flex-end', gap: 8, maxWidth: 260, width: '62%' },
+  score: {
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    alignItems: 'flex-end',
+  },
+  scoreLabel: { fontSize: 11 },
+  scoreValue: { fontSize: 26, fontWeight: '800', lineHeight: 30 },
+  stats: { alignSelf: 'stretch' },
   legend: { paddingHorizontal: 16, paddingVertical: 10, borderTopWidth: StyleSheet.hairlineWidth, gap: 2 },
   legendText: { fontSize: 12 },
 });

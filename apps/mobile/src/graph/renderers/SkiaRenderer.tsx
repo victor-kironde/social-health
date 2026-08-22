@@ -4,7 +4,7 @@ import { useEffect, useMemo } from 'react';
 import { useDerivedValue } from 'react-native-reanimated';
 import { NODE_RADIUS, type Point } from '../layout';
 import { ME_ID, edgeStroke, encode, type GraphData, type GraphRendererProps, type GraphStyle } from '../model';
-import { centreOffset, makeFonts, paint, type GraphFonts } from './skiaKit';
+import { centreOffset, drawPhoto, makeFonts, paint, photoImage, photoSpec, type GraphFonts } from './skiaKit';
 
 /**
  * Skia renderer: the whole graph is recorded once into an SkPicture and
@@ -67,10 +67,13 @@ function drawGraph(
   for (const n of data.nodes) {
     const p = positions.get(n.id)!;
     const alpha = encode.nodeOpacity(n.behind);
-    canvas.drawCircle(p.x, p.y, n.radius, paint(c.card, { alpha }));
+    const image = n.photo ? photoImage(n.id, n.photo) : null;
+    if (image) drawPhoto(canvas, photoSpec(image, alpha), p.x, p.y, n.radius);
+    else canvas.drawCircle(p.x, p.y, n.radius, paint(c.card, { alpha }));
     canvas.drawCircle(p.x, p.y, n.radius, paint(encode.ringColour(n, style), { stroke: 4, alpha }));
     if (n.bridge) canvas.drawCircle(p.x, p.y, n.radius + 6, paint(c.text, { stroke: 1.5, alpha: 0.7 * alpha }));
-    drawCentredText(canvas, encode.initial(n.label), p.x, p.y + 5, fonts.initial, c.text, alpha);
+    if (style.selectedNodeId === n.id) canvas.drawCircle(p.x, p.y, n.radius + 10, paint(c.accent, { stroke: 3 }));
+    if (!image) drawCentredText(canvas, encode.initial(n.label), p.x, p.y + 5, fonts.initial, c.text, alpha);
     if (style.showLabels) {
       drawCentredText(canvas, encode.shortLabel(n.label), p.x, p.y + n.radius + 13, fonts.label, c.muted, alpha);
     }

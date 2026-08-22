@@ -1,7 +1,8 @@
 import { DEFAULT_CONFIG, computeScore, type RelationshipContribution } from '@sg/score-engine';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { pickPersonPhoto, photoUri } from '../../data/photos';
 import { draftFromSnapshot, editPersonEvents, validatePerson, type PersonDraft } from '../../data/people';
 import { useStore } from '../../data/store';
 import { Button, Card, Label } from '../../ui/components';
@@ -40,7 +41,9 @@ function PersonEditor({
   rel: RelationshipContribution;
 }) {
   const t = useTheme();
-  const { log, updatePerson, deletePerson } = useStore();
+  const { log, updatePerson, deletePerson, photos, setPhoto } = useStore();
+  const photo = photos.get(personId);
+  const [photoBusy, setPhotoBusy] = useState(false);
   const [draft, setDraft] = useState<PersonDraft>(() => draftFromSnapshot(name, rel));
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -70,6 +73,25 @@ function PersonEditor({
     }
   }
 
+  async function choosePhoto() {
+    setPhotoBusy(true);
+    try {
+      const jpeg = await pickPersonPhoto();
+      if (jpeg) await setPhoto(personId, jpeg);
+    } catch (e) {
+      Alert.alert('Could not use that photo', String(e));
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
+
+  function confirmRemovePhoto() {
+    Alert.alert('Remove photo?', `${name} will be shown with their initial again.`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Remove', style: 'destructive', onPress: () => setPhoto(personId, null).catch(() => undefined) },
+    ]);
+  }
+
   function confirmDelete() {
     Alert.alert(`Delete ${name}?`, 'Everything recorded about them will be permanently removed.', [
       { text: 'Cancel', style: 'cancel' },
@@ -93,6 +115,23 @@ function PersonEditor({
   return (
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Stack.Screen options={{ title: name }} />
+
+      <View style={styles.photoRow}>
+        <Pressable onPress={choosePhoto} disabled={photoBusy} accessibilityRole="button" accessibilityLabel={photo ? 'Change photo' : 'Add photo'}>
+          {photo ? (
+            <Image source={{ uri: photoUri(photo) }} style={[styles.photo, { borderColor: t.category[rel.category] }]} />
+          ) : (
+            <View style={[styles.photo, { borderColor: t.category[rel.category], backgroundColor: t.card }]}>
+              <Text style={{ color: t.text, fontSize: 32, fontWeight: '700' }}>{name.charAt(0).toUpperCase()}</Text>
+            </View>
+          )}
+        </Pressable>
+        <View style={{ flex: 1, gap: 8 }}>
+          <Button title={photoBusy ? 'Opening…' : photo ? 'Change photo' : 'Add photo'} variant="secondary" onPress={choosePhoto} disabled={photoBusy} />
+          {photo && <Button title="Remove photo" variant="secondary" onPress={confirmRemovePhoto} disabled={photoBusy} />}
+          <Text style={{ color: t.muted, fontSize: 12 }}>Shown on your graph. Kept only in this app's encrypted storage.</Text>
+        </View>
+      </View>
 
       <Card>
         <Text style={{ color: t.text, fontSize: 16 }}>{lastContactText(rel.lastContactAgeDays)}</Text>
@@ -158,5 +197,7 @@ function PersonEditor({
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   content: { padding: 16, gap: 20 },
+  photoRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  photo: { width: 96, height: 96, borderRadius: 48, borderWidth: 3, alignItems: 'center', justifyContent: 'center' },
   historyRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, gap: 12 },
 });

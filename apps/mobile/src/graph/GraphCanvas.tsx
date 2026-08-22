@@ -39,12 +39,14 @@ export function GraphCanvas({
   pulse,
   reduceMotion = false,
   onNodePress,
+  onNodeDoublePress,
   onEdgePress,
   onBackgroundPress,
   onZoomEnd,
   onRendered,
   focus,
   bottomInset = 0,
+  topInset = 0,
   centre,
 }: {
   data: GraphData;
@@ -58,6 +60,8 @@ export function GraphCanvas({
   /** Snap rather than ease view changes. */
   reduceMotion?: boolean;
   onNodePress?: (id: string) => void;
+  /** A double tap on a person. When set, single taps wait briefly to rule out a second tap. */
+  onNodeDoublePress?: (id: string) => void;
   onEdgePress?: (id: string) => void;
   onBackgroundPress?: () => void;
   onZoomEnd?: (scale: number) => void;
@@ -66,6 +70,8 @@ export function GraphCanvas({
   focus?: Point | null;
   /** Height covered at the bottom (e.g. by a sheet), in pixels. */
   bottomInset?: number;
+  /** Height covered at the top (e.g. by a stats card), in pixels; the focus is kept below it. */
+  topInset?: number;
   /** Graph point to centre the view on (default: you, at the origin); the view eases there when it changes. */
   centre?: Point;
 }) {
@@ -165,7 +171,7 @@ export function GraphCanvas({
     if (!focus || !size) return;
     const k = scale.value * fitValue.value;
     const margin = 32;
-    const top = margin;
+    const top = topInset + margin;
     const bottom = size.height - bottomInset - margin;
     const sy = size.height / 2 + ty.value + k * focus.y;
     const sx = size.width / 2 + tx.value + k * focus.x;
@@ -184,7 +190,7 @@ export function GraphCanvas({
     tx.value = withTiming(nextTx, timing);
     ty.value = withTiming(nextTy, timing);
     // Only when the focus or the covered area changes, not on every pan.
-  }, [focus?.x, focus?.y, bottomInset, size]);
+  }, [focus?.x, focus?.y, bottomInset, topInset, size]);
 
   // A new centre (e.g. switching to tiers, which hang below you) re-centres the view, dropping any pan.
   const lastCentre = useRef({ x: 0, y: 0 });
@@ -209,16 +215,23 @@ export function GraphCanvas({
     [data],
   );
 
+  /** The person under a screen point, if any. */
+  const nodeAt = (e: { x: number; y: number }) => {
+    if (!size) return null;
+    const p = screenToGraph(e, size, { tx: tx.value, ty: ty.value, scale: scale.value }, fitValue.value);
+    const id = live
+      ? live.ids[hitTestXY(p.x, p.y, live.xy.value, candidates, 0, radii)]
+      : hitTest(p, positions, data.nodes.map((n) => n.id), radiusOf);
+    return { p, id: id ?? null };
+  };
+
   // Nodes take priority over edges; a tap on empty space clears any selection.
   const tap = Gesture.Tap()
     .maxDuration(300)
     .runOnJS(true)
     .onEnd((e, success) => {
       if (!success || !size) return;
-      const p = screenToGraph(e, size, { tx: tx.value, ty: ty.value, scale: scale.value }, fitValue.value);
-      const nodeId = live
-        ? live.ids[hitTestXY(p.x, p.y, live.xy.value, candidates, 0, radii)]
-        : hitTest(p, positions, data.nodes.map((n) => n.id), radiusOf);
+      const { p, id: nodeId } = nodeAt(e)!;
       if (nodeId) {
         onNodePress?.(nodeId);
         return;
@@ -236,7 +249,18 @@ export function GraphCanvas({
       else onBackgroundPress?.();
     });
 
-  const gesture = Gesture.Race(tap, Gesture.Simultaneous(pan, pinch));
+  const doubleTap = Gesture.Tap()
+    .numberOfTaps(2)
+    .maxDelay(250)
+    .runOnJS(true)
+    .onEnd((e, success) => {
+      if (!success) return;
+      const id = nodeAt(e)?.id;
+      if (id) onNodeDoublePress?.(id);
+    });
+
+  const taps = onNodeDoublePress ? Gesture.Exclusive(doubleTap, tap) : tap;
+  const gesture = Gesture.Race(taps, Gesture.Simultaneous(pan, pinch));
 
   const onLayout = (e: LayoutChangeEvent) => {
     const { width, height } = e.nativeEvent.layout;

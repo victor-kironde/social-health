@@ -11,8 +11,10 @@ import {
   deleteEverything,
   erasePerson,
   loadGraphLayout,
+  loadPhotos,
   loadRows,
   saveGraphLayout,
+  savePhoto,
   type SavedLayout,
 } from './db';
 import { newInteractionEvents, type NewInteractionInput } from './interactions';
@@ -36,6 +38,10 @@ interface Store {
   syncCallLog(): Promise<CallMatch | null>;
   /** Deletes every imported call and stops using the call log. */
   disconnectCallLog(): Promise<void>;
+  /** Person photos (base64 JPEG) by person id. */
+  photos: Map<string, string>;
+  /** Sets or (with null) removes a person's photo. */
+  setPhoto(personId: string, jpeg: string | null): Promise<void>;
   /** Erases a person and everything recorded about them (see erase.ts). */
   deletePerson(personId: string): Promise<void>;
   /** Deletes the whole database and its key; the app starts again empty. */
@@ -48,13 +54,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [log, setLog] = useState<EventLog>(emptyLog);
   const [status, setStatus] = useState<Store['status']>('loading');
   const [error, setError] = useState<string | null>(null);
+  const [photos, setPhotos] = useState<Map<string, string>>(() => new Map());
   const graphLayout = useRef<SavedLayout>({ positions: new Map(), tieSignature: '' }).current;
   const logRef = useRef(log);
   logRef.current = log;
 
   useEffect(() => {
-    Promise.all([loadRows(), loadGraphLayout()])
-      .then(([rows, layout]) => {
+    Promise.all([loadRows(), loadGraphLayout(), loadPhotos()])
+      .then(([rows, layout, savedPhotos]) => {
+        setPhotos(savedPhotos);
         layout.positions.forEach((p, id) => graphLayout.positions.set(id, p));
         graphLayout.tieSignature = layout.tieSignature;
         setLog(logFromRows(rows));
@@ -139,10 +147,25 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (status === 'ready') syncCallLog().catch(() => undefined);
   }, [status, syncCallLog]);
 
+  const setPhoto = useCallback(async (personId: string, jpeg: string | null) => {
+    await savePhoto(personId, jpeg);
+    setPhotos((prev) => {
+      const next = new Map(prev);
+      if (jpeg === null) next.delete(personId);
+      else next.set(personId, jpeg);
+      return next;
+    });
+  }, []);
+
   const deletePerson = useCallback(
     async (personId: string) => {
       await erasePerson(personId);
       graphLayout.positions.delete(personId);
+      setPhotos((prev) => {
+        const next = new Map(prev);
+        next.delete(personId);
+        return next;
+      });
       // Erasure rewrites history, so rebuild the log from what is now stored.
       setLog(logFromRows(await loadRows()));
     },
@@ -153,6 +176,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     await deleteEverything();
     graphLayout.positions.clear();
     graphLayout.tieSignature = '';
+    setPhotos(new Map());
     setLog(emptyLog());
   }, [graphLayout]);
 
@@ -170,6 +194,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       connectCallLog,
       syncCallLog,
       disconnectCallLog,
+      photos,
+      setPhoto,
       deletePerson,
       deleteAllData,
     }),
@@ -186,6 +212,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       connectCallLog,
       syncCallLog,
       disconnectCallLog,
+      photos,
+      setPhoto,
       deletePerson,
       deleteAllData,
     ],

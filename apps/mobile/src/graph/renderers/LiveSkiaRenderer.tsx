@@ -7,12 +7,14 @@ import { useDerivedValue } from 'react-native-reanimated';
 import { NODE_RADIUS, SECTOR_ORDER } from '../layout';
 import { ME_ID, edgeStroke, encode, type GraphRendererProps } from '../model';
 import { SkiaRenderer } from './SkiaRenderer';
-import { centreOffset, glowPaint, makeFonts, paint } from './skiaKit';
+import { centreOffset, drawPhoto, glowPaint, makeFonts, paint, photoImage, photoSpec, type PhotoSpec } from './skiaKit';
 
 /** Everything needed to draw one node, prepared on JS so the per-frame worklet only reads it. */
 interface NodeSpec {
   i: number;
   r: number;
+  /** Their photo, drawn instead of the initial. */
+  photo: PhotoSpec | null;
   fill: SkPaint;
   ring: SkPaint;
   text: SkPaint;
@@ -115,9 +117,11 @@ function LiveSkia({
       const alpha = encode.nodeOpacity(n.behind);
       const initial = encode.initial(n.label);
       const label = style.showLabels ? encode.shortLabel(n.label) : '';
+      const image = n.photo ? photoImage(n.id, n.photo) : null;
       nodes.push({
         i,
         r: n.radius,
+        photo: image ? photoSpec(image, alpha) : null,
         fill: paint(c.card, { alpha }),
         ring: paint(encode.ringColour(n, style), { stroke: 4, alpha }),
         bridgeRing: n.bridge ? paint(c.text, { stroke: 1.5, alpha: 0.7 * alpha }) : null,
@@ -188,7 +192,22 @@ function LiveSkia({
     }
 
     const rows = (style.rows ?? []).map((r) => ({ ...r, paint: paint(c.muted) }));
-    return { nodes, edges, ties: [...tieGroups.values()], me, sets, rows, setMaxLink: style.setMaxLink ?? SET_MAX_LINK };
+    const selectedNode = style.selectedNodeId ? data.nodes.find((n) => n.id === style.selectedNodeId) : undefined;
+    const selectedIndex = selectedNode ? index.get(selectedNode.id) : undefined;
+    const selected =
+      selectedNode && selectedIndex !== undefined
+        ? { i: selectedIndex, r: selectedNode.radius, paint: paint(c.accent, { stroke: 3 }) }
+        : null;
+    return {
+      nodes,
+      edges,
+      ties: [...tieGroups.values()],
+      me,
+      sets,
+      rows,
+      selected,
+      setMaxLink: style.setMaxLink ?? SET_MAX_LINK,
+    };
   }, [data, live.ids, style, c, fonts, routing]);
 
   // Relationship-type sets, underneath everything. Each set is drawn opaque into its own
@@ -267,11 +286,16 @@ function LiveSkia({
       for (const n of specs.nodes) {
         const x = xy[2 * n.i]!;
         const y = xy[2 * n.i + 1]!;
-        canvas.drawCircle(x, y, n.r, n.fill);
+        if (n.photo) drawPhoto(canvas, n.photo, x, y, n.r);
+        else canvas.drawCircle(x, y, n.r, n.fill);
         canvas.drawCircle(x, y, n.r, n.ring);
         if (n.bridgeRing) canvas.drawCircle(x, y, n.r + BRIDGE_GAP, n.bridgeRing);
-        canvas.drawText(n.initial, x + n.initialDx, y + 5, n.text, fonts.initial);
+        if (!n.photo) canvas.drawText(n.initial, x + n.initialDx, y + 5, n.text, fonts.initial);
         if (n.label) canvas.drawText(n.label, x + n.labelDx, y + n.r + 13, n.labelPaint, fonts.label);
+      }
+      if (specs.selected) {
+        const sel = specs.selected;
+        canvas.drawCircle(xy[2 * sel.i]!, xy[2 * sel.i + 1]!, sel.r + BRIDGE_GAP + 4, sel.paint);
       }
       for (const r of specs.rows) canvas.drawText(r.label, r.x, r.y, r.paint, fonts.set);
       // On top of everything: each set's name, just outside its member furthest from you, so names
