@@ -128,9 +128,14 @@ export function GraphCanvas({
 
   // Zoom state at the start of a pinch: scale, translation and the point between the fingers.
   const pinchStart = useSharedValue({ scale: 1, tx: 0, ty: 0, fx: 0, fy: 0 });
+  /** True while two fingers are pinching; the one-finger pan then leaves the view alone. */
+  const pinching = useSharedValue(false);
+  /** Set when a pinch starts during a pan, so the pan re-bases on the view the pinch leaves behind. */
+  const panRebase = useSharedValue(false);
 
   // One finger: drag a person, or pan the view. Two fingers belong to the pinch, which zooms and
-  // pans together, so a second finger never drags a person or makes the view jump.
+  // pans together. maxPointers only stops a pan from *starting* with two fingers: a pan that began
+  // with one finger stays active when a second lands, so it must also stand aside mid-pinch.
   const pan = Gesture.Pan()
     .minDistance(4)
     .maxPointers(1)
@@ -157,6 +162,16 @@ export function GraphCanvas({
         scheduleOnRN(drag.dragMove, ids[dragging.value]!, g.x, g.y);
         return;
       }
+      if (pinching.value) {
+        panRebase.value = true;
+        return;
+      }
+      if (panRebase.value) {
+        // Continue from where the pinch left the view, not from where this pan started.
+        savedTx.value = tx.value - e.translationX;
+        savedTy.value = ty.value - e.translationY;
+        panRebase.value = false;
+      }
       tx.value = savedTx.value + e.translationX;
       ty.value = savedTy.value + e.translationY;
     })
@@ -166,6 +181,7 @@ export function GraphCanvas({
       savedTy.value = ty.value;
     })
     .onFinalize(() => {
+      panRebase.value = false;
       // Runs after end, cancellation, or a touch that never became a pan.
       if (dragStarted.value && drag) scheduleOnRN(drag.dragEnd, ids[dragging.value]!);
       dragStarted.value = false;
@@ -175,9 +191,15 @@ export function GraphCanvas({
   // Zoom about the point between the fingers (it stays under them), and follow it as they move.
   const pinch = Gesture.Pinch()
     .onStart((e) => {
+      pinching.value = true;
+      // A pan that began before this pinch must not replay its finger's whole movement afterwards.
+      panRebase.value = true;
       pinchStart.value = { scale: scale.value, tx: tx.value, ty: ty.value, fx: e.focalX, fy: e.focalY };
     })
     .onUpdate((e) => {
+      // As a finger lifts, the last update's focal point is the remaining finger alone; following
+      // it would jump the view by half the distance between the fingers.
+      if (e.numberOfPointers < 2) return;
       const start = pinchStart.value;
       const next = Math.min(MAX_SCALE, Math.max(MIN_SCALE, start.scale * e.scale));
       const t = zoomAbout(start, { x: start.fx, y: start.fy }, { x: e.focalX, y: e.focalY }, next, sz);
@@ -190,6 +212,9 @@ export function GraphCanvas({
       savedTx.value = tx.value;
       savedTy.value = ty.value;
       if (onZoomEnd) scheduleOnRN(onZoomEnd, scale.value);
+    })
+    .onFinalize(() => {
+      pinching.value = false;
     });
 
   // Pan just enough to bring `focus` into the part of the canvas not covered by the inset.

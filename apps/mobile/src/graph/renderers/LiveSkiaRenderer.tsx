@@ -216,6 +216,8 @@ function LiveSkia({
   // translucent layer, so a set is one even shade and where two sets overlap they combine.
   const setsPicture = useDerivedValue(() => {
     const xy = live.xy.value;
+    // Positions arrive just after the first render; until then there is nothing to place.
+    if (xy.length < 2 * live.ids.length) return createPicture(() => {});
     return createPicture((canvas) => {
       for (const set of specs.sets) {
         canvas.saveLayer(set.layer);
@@ -238,6 +240,8 @@ function LiveSkia({
 
   const edgesPicture = useDerivedValue(() => {
     const xy = live.xy.value;
+    // Positions arrive just after the first render; until then there is nothing to place.
+    if (xy.length < 2 * live.ids.length) return createPicture(() => {});
     return createPicture((canvas) => {
       // Ties underneath: every segment of every tie in a band, in one drawPoints call.
       // Independent line segments take Skia's fast path; one big stroked path does not.
@@ -266,6 +270,8 @@ function LiveSkia({
 
   const glowPicture = useDerivedValue(() => {
     const xy = live.xy.value;
+    // Positions arrive just after the first render; until then there is nothing to place.
+    if (xy.length < 2 * live.ids.length) return createPicture(() => {});
     const phase = pulse ? pulse.value : 0;
     return createPicture((canvas) => {
       for (const n of specs.nodes) {
@@ -284,6 +290,8 @@ function LiveSkia({
 
   const nodesPicture = useDerivedValue(() => {
     const xy = live.xy.value;
+    // Positions arrive just after the first render; until then there is nothing to place.
+    if (xy.length < 2 * live.ids.length) return createPicture(() => {});
     return createPicture((canvas) => {
       for (const n of specs.nodes) {
         const x = xy[2 * n.i]!;
