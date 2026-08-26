@@ -4,7 +4,7 @@ import Svg, { Path } from 'react-native-svg';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Easing, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
-import { fitScale, hitTest, hitTestEdge, hitTestXY, screenToGraph } from './geometry';
+import { fitScale, hitTest, hitTestEdge, hitTestXY, screenToGraph, zoomAbout } from './geometry';
 import { NODE_RADIUS, type Point } from './layout';
 import { ME_ID, type GraphData, type GraphRenderer, type GraphStyle, type LivePositions } from './model';
 
@@ -126,8 +126,14 @@ export function GraphCanvas({
   const xy = live?.xy;
   const sz = size ?? { width: 1, height: 1 };
 
+  // Zoom state at the start of a pinch: scale, translation and the point between the fingers.
+  const pinchStart = useSharedValue({ scale: 1, tx: 0, ty: 0, fx: 0, fy: 0 });
+
+  // One finger: drag a person, or pan the view. Two fingers belong to the pinch, which zooms and
+  // pans together, so a second finger never drags a person or makes the view jump.
   const pan = Gesture.Pan()
     .minDistance(4)
+    .maxPointers(1)
     .onBegin((e) => {
       dragging.value = -1;
       if (!canDrag || !xy) return;
@@ -135,7 +141,12 @@ export function GraphCanvas({
       dragging.value = hitTestXY(g.x, g.y, xy.value, candidates, 0, radii);
     })
     .onStart((e) => {
-      if (dragging.value < 0 || !drag) return;
+      if (dragging.value < 0 || !drag) {
+        // Pan from wherever the view is now (a pinch or animation may have moved it).
+        savedTx.value = tx.value;
+        savedTy.value = ty.value;
+        return;
+      }
       const g = screenToGraph({ x: e.x, y: e.y }, sz, { tx: tx.value, ty: ty.value, scale: scale.value }, fitValue.value);
       dragStarted.value = true;
       scheduleOnRN(drag.dragStart, ids[dragging.value]!, g.x, g.y);
@@ -161,12 +172,23 @@ export function GraphCanvas({
       dragging.value = -1;
     });
 
+  // Zoom about the point between the fingers (it stays under them), and follow it as they move.
   const pinch = Gesture.Pinch()
+    .onStart((e) => {
+      pinchStart.value = { scale: scale.value, tx: tx.value, ty: ty.value, fx: e.focalX, fy: e.focalY };
+    })
     .onUpdate((e) => {
-      scale.value = Math.min(MAX_SCALE, Math.max(MIN_SCALE, savedScale.value * e.scale));
+      const start = pinchStart.value;
+      const next = Math.min(MAX_SCALE, Math.max(MIN_SCALE, start.scale * e.scale));
+      const t = zoomAbout(start, { x: start.fx, y: start.fy }, { x: e.focalX, y: e.focalY }, next, sz);
+      scale.value = next;
+      tx.value = t.tx;
+      ty.value = t.ty;
     })
     .onEnd(() => {
       savedScale.value = scale.value;
+      savedTx.value = tx.value;
+      savedTy.value = ty.value;
       if (onZoomEnd) scheduleOnRN(onZoomEnd, scale.value);
     });
 

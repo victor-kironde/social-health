@@ -1,6 +1,6 @@
 import type { Rating } from '@sg/score-engine';
 import { describe, expect, it } from 'vitest';
-import { hitTestXY } from '../src/graph/geometry';
+import { hitTestXY, screenToGraph, zoomAbout } from '../src/graph/geometry';
 import { layoutEgoGraph, ringRadius, type LayoutInput } from '../src/graph/layout';
 import { LiveSimulation } from '../src/graph/physics/LiveSimulation';
 
@@ -197,5 +197,32 @@ describe('ties in the layout', () => {
     const previous = layoutEgoGraph(nodes);
     expect(new LiveSimulation(nodes, { previous }).active).toBe(false);
     expect(new LiveSimulation(nodes, { previous, warm: true }).active).toBe(true);
+  });
+});
+
+describe('zoomAbout', () => {
+  const size = { width: 400, height: 800 };
+  const fit = 1.5;
+  const start = { scale: 1.2, tx: 30, ty: -40 };
+
+  it('keeps the graph point under the fingers fixed while zooming', () => {
+    const f = { x: 310, y: 120 };
+    const before = screenToGraph(f, size, start, fit);
+    for (const s of [0.5, 2, 4]) {
+      const t = zoomAbout(start, f, f, s, size);
+      const after = screenToGraph(f, size, { ...t, scale: s }, fit);
+      expect(after.x).toBeCloseTo(before.x, 9);
+      expect(after.y).toBeCloseTo(before.y, 9);
+    }
+  });
+
+  it('follows the fingers when they move', () => {
+    const from = { x: 100, y: 500 };
+    const to = { x: 160, y: 420 };
+    const before = screenToGraph(from, size, start, fit);
+    const t = zoomAbout(start, from, to, 3, size);
+    const after = screenToGraph(to, size, { ...t, scale: 3 }, fit);
+    expect(after.x).toBeCloseTo(before.x, 9);
+    expect(after.y).toBeCloseTo(before.y, 9);
   });
 });

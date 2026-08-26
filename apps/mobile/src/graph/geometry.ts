@@ -216,3 +216,22 @@ export function hitTestEdge(
   }
   return best;
 }
+
+/**
+ * Translation after zooming about a focal point (e.g. between two fingers), so the graph point that
+ * was under `from` at the start sits under `to` now. Screen = centre + t + scale * fit * p, which gives
+ * t' = to - centre - (scale / start.scale) * (from - centre - start.t).
+ */
+export function zoomAbout(
+  start: { scale: number; tx: number; ty: number },
+  from: Point,
+  to: Point,
+  scale: number,
+  size: { width: number; height: number },
+): { tx: number; ty: number } {
+  'worklet';
+  const k = scale / start.scale;
+  const cx = size.width / 2;
+  const cy = size.height / 2;
+  return { tx: to.x - cx - k * (from.x - cx - start.tx), ty: to.y - cy - k * (from.y - cy - start.ty) };
+}

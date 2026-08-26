@@ -75,6 +75,8 @@ const SET_MAX_LINK = 260;
 const SET_ALPHA = 0.22;
 /** Gap between a set's outermost member and its name. */
 const SET_LABEL_GAP = 10;
+/** Line height when several set names stack on one person. */
+const SET_LABEL_LINE = 14;
 
 /**
  * Live Skia renderer: draws from per-frame positions published by the live
@@ -300,7 +302,9 @@ function LiveSkia({
       for (const r of specs.rows) canvas.drawText(r.label, r.x, r.y, r.paint, fonts.set);
       // On top of everything: each set's name, just outside its member furthest from you, so names
       // spread out in the direction each type sits rather than piling up at the top. Only people whose
-      // main type it is count (when there are any), so two names never share one person.
+      // main type it is count (when there are any). Names that still land on the same person
+      // (e.g. one person who is the only member of two types) are stacked, not drawn over each other.
+      const anchors: number[] = [];
       for (const set of specs.sets) {
         let best = -1;
         let far = -1;
@@ -320,9 +324,13 @@ function LiveSkia({
         const y = xy[2 * i + 1]!;
         const len = Math.hypot(x, y) || 1;
         const out = set.radii[best]! + SET_PAD + SET_LABEL_GAP;
-        // Text baseline: nudge down a little below the centre line, further when pointing down.
+        let stacked = 0;
+        for (let a = 0; a < anchors.length; a++) if (anchors[a] === i) stacked++;
+        anchors.push(i);
+        // Text baseline: nudge down a little below the centre line, further when pointing down;
+        // each extra name on the same person goes one line further out.
         const lx = x + (x / len) * out;
-        const ly = y + (y / len) * out + (y > 0 ? 12 : 0);
+        const ly = y + (y / len) * out + (y > 0 ? 12 : 0) + (y > 0 ? 1 : -1) * SET_LABEL_LINE * stacked;
         canvas.drawText(set.name, lx + set.nameDx, ly, set.halo, fonts.set);
         canvas.drawText(set.name, lx + set.nameDx, ly, set.label, fonts.set);
       }
