@@ -14,6 +14,7 @@ export function PersonStatsCard({
   onOpen,
   onLog,
   onClose,
+  translucent = false,
 }: {
   rel: RelationshipContribution;
   name: string;
@@ -22,6 +23,8 @@ export function PersonStatsCard({
   onOpen?: () => void;
   onLog?: () => void;
   onClose: () => void;
+  /** See-through background, for floating over the graph. */
+  translucent?: boolean;
 }) {
   const t = useTheme();
   const rhythm =
@@ -56,7 +59,8 @@ export function PersonStatsCard({
   ];
 
   return (
-    <View style={[styles.card, { backgroundColor: t.card, borderColor: t.border }]} accessibilityLabel={`${name} details`}>
+    <View
+      style={[styles.card, { backgroundColor: translucent ? `${t.card}B8` : t.card, borderColor: t.border }]} accessibilityLabel={`${name} details`}>
       <View style={styles.header}>
         {photo ? (
           <Image source={{ uri: photoUri(photo) }} style={[styles.avatar, { borderColor: t.category[rel.category] }]} />

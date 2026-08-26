@@ -25,6 +25,11 @@ import { useTheme } from '../ui/theme';
 import { useReduceMotion } from '../ui/useReduceMotion';
 
 const RETIRED = new Set(['archived', 'in_memoriam']);
+/** `#rrggbb` at reduced opacity, so the graph shows through overlays. */
+const translucent = (hex: string, alpha = 0.72) =>
+  `${hex}${Math.round(alpha * 255)
+    .toString(16)
+    .padStart(2, '0')}`;
 /** Rings <-> tiers transition, in ms. */
 const ARRANGE_MS = 700;
 /** Above this many people, names appear only once zoomed in. */
@@ -343,6 +348,11 @@ export default function GraphScreen() {
           reduceMotion={reducedMotion}
           onRendered={onRendered}
           onZoomEnd={(s) => setZoomedIn(s >= LABEL_ZOOM)}
+          // The whole graph is an overview: close any person or link details that would cover it.
+          onFrameAll={() => {
+            setSelectedEdgeId(null);
+            setSelectedPersonId(null);
+          }}
           onNodePress={selectPerson}
           onNodeDoublePress={demoSize ? undefined : openPerson}
           onEdgePress={selectEdge}
@@ -360,7 +370,7 @@ export default function GraphScreen() {
           onLayout={(e) => setOverlayBottom(e.nativeEvent.layout.y + e.nativeEvent.layout.height)}
         >
           {total !== null && prefs.showScore && (
-            <View style={[styles.score, { backgroundColor: t.card, borderColor: t.border }]} accessibilityLabel={`Social Health Score ${total}`}>
+            <View style={[styles.score, { backgroundColor: translucent(t.card), borderColor: t.border }]} accessibilityLabel={`Social Health Score ${total}`}>
               <Text style={[styles.scoreLabel, { color: t.muted }]}>Social Health</Text>
               <Text style={[styles.scoreValue, { color: t.text }]}>{Math.round(total)}</Text>
             </View>
@@ -378,6 +388,7 @@ export default function GraphScreen() {
                   demoSize ? undefined : () => router.push({ pathname: '/log', params: { person: selectedPerson.personId } })
                 }
                 onClose={() => setSelectedPersonId(null)}
+                translucent
               />
             </View>
           )}
@@ -420,7 +431,7 @@ export default function GraphScreen() {
         <Text style={[styles.legendText, { color: t.muted }]}>
           {demoSize
             ? `Stress test (${GRAPH_RENDERERS[rendererId].label}): ${visible.length} people · ${timing}`
-            : `${visible.length} of ${relationships.length} shown · tap a person for details, double-tap to open, tap a line for links${isLive && !tiersOn ? ' · drag to move' : ''}`}
+            : `${visible.length} of ${relationships.length} shown · tap a person for details, double-tap to open, tap a line for links, double-tap empty space or ⌂ to see everyone${isLive && !tiersOn ? ' · drag to move' : ''}`}
           {showLabels ? '' : ' · pinch to zoom in for names'}
         </Text>
         {ties.length > 0 && (
@@ -437,13 +448,13 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   filters: { paddingHorizontal: 16, paddingVertical: 8, gap: 8 },
-  overlay: { position: 'absolute', top: 8, right: 8, alignItems: 'flex-end', gap: 8, maxWidth: 260, width: '62%' },
+  overlay: { position: 'absolute', top: 8, left: 8, alignItems: 'flex-start', gap: 8, maxWidth: 260, width: '62%' },
   score: {
     borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    alignItems: 'flex-end',
+    alignItems: 'flex-start',
   },
   scoreLabel: { fontSize: 11 },
   scoreValue: { fontSize: 26, fontWeight: '800', lineHeight: 30 },

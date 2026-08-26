@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
+import { Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Easing, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
@@ -43,6 +44,7 @@ export function GraphCanvas({
   onEdgePress,
   onBackgroundPress,
   onZoomEnd,
+  onFrameAll,
   onRendered,
   focus,
   bottomInset = 0,
@@ -65,6 +67,8 @@ export function GraphCanvas({
   onEdgePress?: (id: string) => void;
   onBackgroundPress?: () => void;
   onZoomEnd?: (scale: number) => void;
+  /** The view went back to the whole graph (home button or double tap on empty space). */
+  onFrameAll?: () => void;
   onRendered?: () => void;
   /** A graph point to keep in view, e.g. the selected edge; the view pans to it if hidden. */
   focus?: Point | null;
@@ -249,6 +253,23 @@ export function GraphCanvas({
       else onBackgroundPress?.();
     });
 
+  /** Back to the whole graph: no zoom, centred, everyone in view. */
+  const frameAll = () => {
+    if (!size) return;
+    const nextTx = -fit * cx;
+    const nextTy = -fit * cy;
+    savedScale.value = 1;
+    savedTx.value = nextTx;
+    savedTy.value = nextTy;
+    const timing = { duration: reduceMotion ? 0 : 450, easing: Easing.out(Easing.cubic) };
+    scale.value = withTiming(1, timing);
+    tx.value = withTiming(nextTx, timing);
+    ty.value = withTiming(nextTy, timing);
+    onZoomEnd?.(1);
+    onFrameAll?.();
+  };
+
+  // Double tap: on a person opens them; on empty space frames the whole graph.
   const doubleTap = Gesture.Tap()
     .numberOfTaps(2)
     .maxDelay(250)
@@ -257,9 +278,10 @@ export function GraphCanvas({
       if (!success) return;
       const id = nodeAt(e)?.id;
       if (id) onNodeDoublePress?.(id);
+      else frameAll();
     });
 
-  const taps = onNodeDoublePress ? Gesture.Exclusive(doubleTap, tap) : tap;
+  const taps = Gesture.Exclusive(doubleTap, tap);
   const gesture = Gesture.Race(taps, Gesture.Simultaneous(pan, pinch));
 
   const onLayout = (e: LayoutChangeEvent) => {
@@ -267,27 +289,62 @@ export function GraphCanvas({
     setSize((prev) => (prev && prev.width === width && prev.height === height ? prev : { width, height }));
   };
 
+  const c = style.colours;
   return (
-    <GestureDetector gesture={gesture}>
-      <View style={styles.canvas} onLayout={onLayout} collapsable={false}>
-        {size && (
-          <Renderer
-            data={data}
-            positions={positions}
-            size={size}
-            fit={fit}
-            view={{ tx, ty, scale, fit: fitValue }}
-            style={style}
-            live={live}
-            pulse={pulse}
-            onRendered={onRendered}
+    <View style={styles.canvas}>
+      <GestureDetector gesture={gesture}>
+        <View style={styles.canvas} onLayout={onLayout} collapsable={false}>
+          {size && (
+            <Renderer
+              data={data}
+              positions={positions}
+              size={size}
+              fit={fit}
+              view={{ tx, ty, scale, fit: fitValue }}
+              style={style}
+              live={live}
+              pulse={pulse}
+              onRendered={onRendered}
+            />
+          )}
+        </View>
+      </GestureDetector>
+      <Pressable
+        onPress={frameAll}
+        accessibilityRole="button"
+        accessibilityLabel="Show the whole graph"
+        hitSlop={8}
+        style={({ pressed }) => [
+          styles.home,
+          { bottom: bottomInset + 16, backgroundColor: c.card, borderColor: c.edge, opacity: pressed ? 0.7 : 0.92 },
+        ]}
+      >
+        <Svg width={22} height={22} viewBox="0 0 24 24">
+          <Path
+            d="M3 11.5 12 4l9 7.5M5.5 9.5V20h4.5v-6h4v6h4.5V9.5"
+            fill="none"
+            stroke={c.text}
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
           />
-        )}
-      </View>
-    </GestureDetector>
+        </Svg>
+      </Pressable>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   canvas: { flex: 1, overflow: 'hidden' },
+  home: {
+    position: 'absolute',
+    right: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 3,
+  },
 });
