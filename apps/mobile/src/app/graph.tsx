@@ -349,6 +349,7 @@ export default function GraphScreen() {
           onRendered={onRendered}
           onZoomEnd={(s) => setZoomedIn(s >= LABEL_ZOOM)}
           // The whole graph is an overview: close any person or link details that would cover it.
+          onHelp={() => router.push('/graph-help')}
           onFrameAll={() => {
             setSelectedEdgeId(null);
             setSelectedPersonId(null);
@@ -431,7 +432,7 @@ export default function GraphScreen() {
         <Text style={[styles.legendText, { color: t.muted }]}>
           {demoSize
             ? `Stress test (${GRAPH_RENDERERS[rendererId].label}): ${visible.length} people · ${timing}`
-            : `${visible.length} of ${relationships.length} shown · tap a person for details, double-tap to open, tap a line for links, double-tap empty space or ⌂ to see everyone${isLive && !tiersOn ? ' · drag to move' : ''}`}
+            : `${visible.length} of ${relationships.length} shown · tap a person for details, double-tap to open · tap ? for what everything means`}
           {showLabels ? '' : ' · pinch to zoom in for names'}
         </Text>
         {ties.length > 0 && (

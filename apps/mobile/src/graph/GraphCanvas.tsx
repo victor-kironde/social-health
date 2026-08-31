@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Circle, Path, Text as SvgText } from 'react-native-svg';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Easing, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
@@ -12,6 +12,9 @@ const MIN_SCALE = 0.4;
 const MAX_SCALE = 4;
 /** Taps count a little outside a node, more so for small ones (minimum comfortable target). */
 const hitRadius = (r: number) => Math.max(r * 1.4, NODE_RADIUS * 1.2);
+/** Floating buttons (focus, help): size and spacing. */
+const FAB_SIZE = 44;
+const FAB_GAP = 12;
 /** Space kept around the outermost people (graph units): their size, type area and its name. */
 const FIT_MARGIN = NODE_RADIUS + 50;
 /** How close (in screen pixels) a tap must be to an edge to select it. */
@@ -45,6 +48,7 @@ export function GraphCanvas({
   onBackgroundPress,
   onZoomEnd,
   onFrameAll,
+  onHelp,
   onRendered,
   focus,
   bottomInset = 0,
@@ -67,8 +71,10 @@ export function GraphCanvas({
   onEdgePress?: (id: string) => void;
   onBackgroundPress?: () => void;
   onZoomEnd?: (scale: number) => void;
-  /** The view went back to the whole graph (home button or double tap on empty space). */
+  /** The view went back to the whole graph (focus button or double tap on empty space). */
   onFrameAll?: () => void;
+  /** Shows a "?" button above the focus button. */
+  onHelp?: () => void;
   onRendered?: () => void;
   /** A graph point to keep in view, e.g. the selected edge; the view pans to it if hidden. */
   focus?: Point | null;
@@ -356,25 +362,50 @@ export function GraphCanvas({
           )}
         </View>
       </GestureDetector>
+      {onHelp && (
+        <Pressable
+          onPress={onHelp}
+          accessibilityRole="button"
+          accessibilityLabel="What the graph shows"
+          hitSlop={8}
+          style={({ pressed }) => [
+            styles.fab,
+            {
+              bottom: bottomInset + 16 + FAB_SIZE + FAB_GAP,
+              backgroundColor: c.card,
+              borderColor: c.edge,
+              opacity: pressed ? 0.7 : 0.92,
+            },
+          ]}
+        >
+          <Svg width={22} height={22} viewBox="0 0 24 24">
+            <Circle cx={12} cy={12} r={10} fill="none" stroke={c.text} strokeWidth={2} />
+            <SvgText x={12} y={16.5} fontSize={13} fontWeight="700" fill={c.text} textAnchor="middle">
+              ?
+            </SvgText>
+          </Svg>
+        </Pressable>
+      )}
       <Pressable
         onPress={frameAll}
         accessibilityRole="button"
-        accessibilityLabel="Show the whole graph"
+        accessibilityLabel="Fit the whole graph"
         hitSlop={8}
         style={({ pressed }) => [
-          styles.home,
+          styles.fab,
           { bottom: bottomInset + 16, backgroundColor: c.card, borderColor: c.edge, opacity: pressed ? 0.7 : 0.92 },
         ]}
       >
+        {/* Focus: viewfinder corners around a centre point. */}
         <Svg width={22} height={22} viewBox="0 0 24 24">
           <Path
-            d="M3 11.5 12 4l9 7.5M5.5 9.5V20h4.5v-6h4v6h4.5V9.5"
+            d="M3 8V4.5A1.5 1.5 0 0 1 4.5 3H8M16 3h3.5A1.5 1.5 0 0 1 21 4.5V8M21 16v3.5a1.5 1.5 0 0 1-1.5 1.5H16M8 21H4.5A1.5 1.5 0 0 1 3 19.5V16"
             fill="none"
             stroke={c.text}
             strokeWidth={2}
             strokeLinecap="round"
-            strokeLinejoin="round"
           />
+          <Circle cx={12} cy={12} r={3} fill={c.text} />
         </Svg>
       </Pressable>
     </View>
@@ -383,12 +414,12 @@ export function GraphCanvas({
 
 const styles = StyleSheet.create({
   canvas: { flex: 1, overflow: 'hidden' },
-  home: {
+  fab: {
     position: 'absolute',
     right: 16,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: FAB_SIZE,
+    height: FAB_SIZE,
+    borderRadius: FAB_SIZE / 2,
     borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     justifyContent: 'center',
