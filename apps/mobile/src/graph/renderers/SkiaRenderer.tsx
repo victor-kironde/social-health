@@ -1,10 +1,10 @@
-import { Canvas, Group, Picture, Skia, createPicture, type SkCanvas, type SkFont } from '@shopify/react-native-skia';
+import { Canvas, Group, Picture, Skia, type SkCanvas, type SkFont } from '@shopify/react-native-skia';
 import { routeEdge } from '../geometry';
 import { useEffect, useMemo } from 'react';
 import { useDerivedValue } from 'react-native-reanimated';
 import { NODE_RADIUS, type Point } from '../layout';
 import { ME_ID, edgeStroke, encode, type GraphData, type GraphRendererProps, type GraphStyle } from '../model';
-import { centreOffset, drawPhoto, makeFonts, paint, photoImage, photoSpec, type GraphFonts } from './skiaKit';
+import { GRAPH_UNSHIFT, centreOffset, drawPhoto, graphPicture, makeFonts, paint, photoImage, photoSpec, type GraphFonts } from './skiaKit';
 
 /**
  * Skia renderer: the whole graph is recorded once into an SkPicture and
@@ -15,7 +15,7 @@ export function SkiaRenderer({ data, positions, size, view, style, onRendered }:
   const fonts = useMemo(makeFonts, []);
 
   const picture = useMemo(
-    () => createPicture((canvas) => drawGraph(canvas, data, positions, style, fonts)),
+    () => graphPicture((canvas) => drawGraph(canvas, data, positions, style, fonts)),
     [data, positions, style, fonts],
   );
 
@@ -26,6 +26,7 @@ export function SkiaRenderer({ data, positions, size, view, style, onRendered }:
     { translateX: size.width / 2 + view.tx.value },
     { translateY: size.height / 2 + view.ty.value },
     { scale: view.scale.value * view.fit.value },
+    ...GRAPH_UNSHIFT,
   ]);
 
   return (

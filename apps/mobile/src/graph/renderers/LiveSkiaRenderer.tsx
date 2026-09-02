@@ -1,4 +1,4 @@
-import { Canvas, Group, Picture, PointMode, StrokeCap, createPicture, type SkPaint } from '@shopify/react-native-skia';
+import { Canvas, Group, Picture, PointMode, StrokeCap, type SkPaint } from '@shopify/react-native-skia';
 import type { Category } from '@sg/score-engine';
 import { spanningEdges } from '../arrange';
 import { routeEdge } from '../geometry';
@@ -7,7 +7,7 @@ import { useDerivedValue } from 'react-native-reanimated';
 import { NODE_RADIUS, SECTOR_ORDER } from '../layout';
 import { ME_ID, edgeStroke, encode, type GraphRendererProps } from '../model';
 import { SkiaRenderer } from './SkiaRenderer';
-import { centreOffset, drawPhoto, glowPaint, makeFonts, paint, photoImage, photoSpec, type PhotoSpec } from './skiaKit';
+import { GRAPH_UNSHIFT, centreOffset, drawPhoto, graphPicture, glowPaint, makeFonts, paint, photoImage, photoSpec, type PhotoSpec } from './skiaKit';
 
 /** Everything needed to draw one node, prepared on JS so the per-frame worklet only reads it. */
 interface NodeSpec {
@@ -217,8 +217,8 @@ function LiveSkia({
   const setsPicture = useDerivedValue(() => {
     const xy = live.xy.value;
     // Positions arrive just after the first render; until then there is nothing to place.
-    if (xy.length < 2 * live.ids.length) return createPicture(() => {});
-    return createPicture((canvas) => {
+    if (xy.length < 2 * live.ids.length) return graphPicture(() => {});
+    return graphPicture((canvas) => {
       for (const set of specs.sets) {
         canvas.saveLayer(set.layer);
         for (let k = 0; k < set.members.length; k++) {
@@ -241,8 +241,8 @@ function LiveSkia({
   const edgesPicture = useDerivedValue(() => {
     const xy = live.xy.value;
     // Positions arrive just after the first render; until then there is nothing to place.
-    if (xy.length < 2 * live.ids.length) return createPicture(() => {});
-    return createPicture((canvas) => {
+    if (xy.length < 2 * live.ids.length) return graphPicture(() => {});
+    return graphPicture((canvas) => {
       // Ties underneath: every segment of every tie in a band, in one drawPoints call.
       // Independent line segments take Skia's fast path; one big stroked path does not.
       for (const g of specs.ties) {
@@ -271,9 +271,9 @@ function LiveSkia({
   const glowPicture = useDerivedValue(() => {
     const xy = live.xy.value;
     // Positions arrive just after the first render; until then there is nothing to place.
-    if (xy.length < 2 * live.ids.length) return createPicture(() => {});
+    if (xy.length < 2 * live.ids.length) return graphPicture(() => {});
     const phase = pulse ? pulse.value : 0;
-    return createPicture((canvas) => {
+    return graphPicture((canvas) => {
       for (const n of specs.nodes) {
         if (!n.glow) continue;
         const k = Math.sin(TAU * (phase + n.phase));
@@ -291,8 +291,8 @@ function LiveSkia({
   const nodesPicture = useDerivedValue(() => {
     const xy = live.xy.value;
     // Positions arrive just after the first render; until then there is nothing to place.
-    if (xy.length < 2 * live.ids.length) return createPicture(() => {});
-    return createPicture((canvas) => {
+    if (xy.length < 2 * live.ids.length) return graphPicture(() => {});
+    return graphPicture((canvas) => {
       for (const n of specs.nodes) {
         const x = xy[2 * n.i]!;
         const y = xy[2 * n.i + 1]!;
@@ -352,6 +352,7 @@ function LiveSkia({
     { translateX: size.width / 2 + view.tx.value },
     { translateY: size.height / 2 + view.ty.value },
     { scale: view.scale.value * view.fit.value },
+    ...GRAPH_UNSHIFT,
   ]);
 
   return (

@@ -1,5 +1,6 @@
 import {
   FilterMode,
+  createPicture,
   MipmapMode,
   PaintStyle,
   Skia,
@@ -11,6 +12,7 @@ import {
   type SkFont,
   type SkImage,
   type SkPaint,
+  type SkPicture,
 } from '@shopify/react-native-skia';
 import { Platform } from 'react-native';
 
@@ -128,3 +130,26 @@ export function drawPhoto(canvas: SkCanvas, photo: PhotoSpec, x: number, y: numb
   canvas.drawCircle(photo.width / 2, photo.height / 2, photo.width / 2, photo.paint);
   canvas.restore();
 }
+
+/**
+ * Without explicit bounds, a recorded picture's bounds are (0, 0)-(2e6, 2e6): positive
+ * coordinates only. The graph is centred on (0, 0), so when zoomed in on people above or left of
+ * you, Skia judged the whole picture off screen and skipped it (the graph vanished). Recording
+ * with this offset keeps everything in positive space; GRAPH_UNSHIFT moves it back when drawn.
+ * Offsetting rather than passing bounds avoids building a spatial index on every frame. The offset
+ * is far larger than any graph (a few thousand units at most) yet small enough that float rounding
+ * in the combined transform stays well under a pixel at full zoom.
+ */
+export const PICTURE_OFFSET = 20_000;
+
+/** Records a picture in graph coordinates, shifted into the picture's positive bounds. */
+export function graphPicture(draw: (canvas: SkCanvas) => void): SkPicture {
+  'worklet';
+  return createPicture((canvas) => {
+    canvas.translate(PICTURE_OFFSET, PICTURE_OFFSET);
+    draw(canvas);
+  });
+}
+
+/** Append to a renderer's group transform (after the scale) to undo graphPicture's shift. */
+export const GRAPH_UNSHIFT = [{ translateX: -PICTURE_OFFSET }, { translateY: -PICTURE_OFFSET }] as const;
