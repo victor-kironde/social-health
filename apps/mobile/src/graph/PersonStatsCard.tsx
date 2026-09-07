@@ -1,5 +1,6 @@
 import type { RelationshipContribution } from '@sg/score-engine';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { HEALTH_LABELS, relationshipHealth } from '../data/health';
 import { photoUri } from '../data/photos';
 import { IMPORTANCE_LABELS, QUALITY_LABELS, lastContactText, typesLabel } from '../ui/labels';
 import { useTheme } from '../ui/theme';
@@ -27,6 +28,8 @@ export function PersonStatsCard({
   translucent?: boolean;
 }) {
   const t = useTheme();
+  const health = relationshipHealth(rel);
+  const ring = t.health[health];
   const rhythm =
     rel.expectedIntervalDays === null
       ? null
@@ -40,6 +43,7 @@ export function PersonStatsCard({
     .join(' · ');
 
   const rows: [string, string][] = [
+    ['Health', HEALTH_LABELS[health]],
     ['Importance', IMPORTANCE_LABELS[rel.importance]],
     ['Last contact', lastContactText(rel.lastContactAgeDays).replace(/^Last contact /, '')],
     ...(rhythm ? ([['Rhythm', rhythm]] as [string, string][]) : []),
@@ -63,9 +67,9 @@ export function PersonStatsCard({
       style={[styles.card, { backgroundColor: translucent ? `${t.card}B8` : t.card, borderColor: t.border }]} accessibilityLabel={`${name} details`}>
       <View style={styles.header}>
         {photo ? (
-          <Image source={{ uri: photoUri(photo) }} style={[styles.avatar, { borderColor: t.category[rel.category] }]} />
+          <Image source={{ uri: photoUri(photo) }} style={[styles.avatar, { borderColor: ring }]} />
         ) : (
-          <View style={[styles.avatar, { borderColor: t.category[rel.category], backgroundColor: t.bg }]}>
+          <View style={[styles.avatar, { borderColor: ring, backgroundColor: t.bg }]}>
             <Text style={{ color: t.text, fontWeight: '700' }}>{name.charAt(0).toUpperCase()}</Text>
           </View>
         )}

@@ -34,7 +34,8 @@ export function explain(
       kind: 'component_change',
       component: name,
       delta,
-      text: `${LABELS[name]} ${delta > 0 ? 'rose' : 'fell'} by ${Math.round(Math.abs(delta))} points.`,
+      // Worded on the 1–10 scale the app shows (delta stays on the 0–100 scale).
+      text: `${LABELS[name]} ${delta > 0 ? 'rose' : 'fell'} by ${(Math.abs(delta) / 10).toFixed(1)} out of 10.`,
     });
   }
 

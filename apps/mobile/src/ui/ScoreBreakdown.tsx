@@ -5,8 +5,10 @@ import { useTheme } from './theme';
 export const COMPONENT_LABELS: [ComponentName, string][] = [
   ['rhythm', 'Contact rhythm'],
   ['coverage', 'Important relationships covered'],
-  ['diversity', 'Balance across categories'],
+  ['calls', 'Calls'],
+  ['diversity', 'Balance across types'],
   ['quality', 'Quality and support'],
+  ['frecency', 'Recent and frequent contact'],
 ];
 
 /** One labelled bar per score component, so the total never hides a weak part. */
@@ -17,16 +19,18 @@ export function ScoreBreakdown({ result }: { result: ScoreResult }) {
       {COMPONENT_LABELS.map(([key, label]) => {
         const v = result.components[key];
         const pct = v === null ? null : Math.round(v * 100);
+        // Shown out of 10, like the overall score.
+        const outOf10 = v === null ? null : (v * 10).toFixed(1);
         return (
           <View
             key={key}
             style={styles.row}
             accessible
-            accessibilityLabel={`${label}: ${pct === null ? 'not enough information' : `${pct} out of 100`}`}
+            accessibilityLabel={`${label}: ${outOf10 === null ? 'not enough information' : `${outOf10} out of 10`}`}
           >
             <View style={styles.head}>
               <Text style={{ color: t.text }}>{label}</Text>
-              <Text style={{ color: t.muted }}>{pct === null ? 'n/a' : pct}</Text>
+              <Text style={{ color: t.muted }}>{outOf10 === null ? 'n/a' : outOf10}</Text>
             </View>
             <View style={[styles.track, { backgroundColor: t.track }]}>
               <View style={[styles.fill, { width: `${pct ?? 0}%`, backgroundColor: t.accent }]} />

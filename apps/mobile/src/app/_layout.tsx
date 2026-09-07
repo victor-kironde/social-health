@@ -40,6 +40,7 @@ export default function RootLayout() {
               <Stack.Screen name="import" options={{ title: 'Import from contacts', presentation: 'modal' }} />
               <Stack.Screen name="graph" options={{ title: 'Network graph' }} />
               <Stack.Screen name="graph-help" options={{ title: 'Reading your graph' }} />
+              <Stack.Screen name="score" options={{ title: 'Social Health' }} />
               <Stack.Screen name="person/new" options={{ title: 'Add person', presentation: 'modal' }} />
               <Stack.Screen name="person/[id]" options={{ title: '' }} />
               <Stack.Screen name="log" options={{ title: 'Log contact', presentation: 'modal' }} />

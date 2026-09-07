@@ -33,7 +33,7 @@ export function DisplayPanel({
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const set = <K extends keyof DisplayOptions>(key: K, value: DisplayOptions[K]) => onChange({ ...o, [key]: value });
-  const flip = (key: 'sets' | 'egoEdges' | 'ties' | 'names' | 'sizeByFrequency' | 'colourByQuality' | 'colourByGroup' | 'behindOnly' | 'hideNeverContacted') =>
+  const flip = (key: 'sets' | 'egoEdges' | 'ties' | 'names' | 'sizeByFrequency' | 'behindOnly' | 'hideNeverContacted') =>
     set(key, !o[key]);
 
   return (
@@ -74,9 +74,19 @@ export function DisplayPanel({
               <ToggleChip label="Lines to you" on={o.egoEdges} onPress={() => flip('egoEdges')} />
               {hasTies && <ToggleChip label="Links between people" on={o.ties} onPress={() => flip('ties')} />}
               <ToggleChip label="Names" on={o.names} onPress={() => flip('names')} />
-              <ToggleChip label="Colour lines by quality" on={o.colourByQuality} onPress={() => flip('colourByQuality')} />
-              {hasTies && <ToggleChip label="Colour rings by group" on={o.colourByGroup} onPress={() => flip('colourByGroup')} />}
             </View>
+          </View>
+          <View>
+            <Label>Colour people by</Label>
+            <ChoiceChips
+              options={[
+                { value: 'health' as const, label: 'Relationship health' },
+                { value: 'type' as const, label: 'Type' },
+                ...(hasTies ? [{ value: 'group' as const, label: 'Group' }] : []),
+              ]}
+              value={o.colourBy}
+              onChange={(v) => set('colourBy', v)}
+            />
           </View>
           <View>
             <Label>Relationship types</Label>

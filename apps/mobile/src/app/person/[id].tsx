@@ -2,6 +2,7 @@ import { DEFAULT_CONFIG, computeScore, type RelationshipContribution } from '@sg
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { relationshipHealth } from '../../data/health';
 import { pickPersonPhoto, photoUri } from '../../data/photos';
 import { draftFromSnapshot, editPersonEvents, validatePerson, type PersonDraft } from '../../data/people';
 import { useStore } from '../../data/store';
@@ -119,9 +120,9 @@ function PersonEditor({
       <View style={styles.photoRow}>
         <Pressable onPress={choosePhoto} disabled={photoBusy} accessibilityRole="button" accessibilityLabel={photo ? 'Change photo' : 'Add photo'}>
           {photo ? (
-            <Image source={{ uri: photoUri(photo) }} style={[styles.photo, { borderColor: t.category[rel.category] }]} />
+            <Image source={{ uri: photoUri(photo) }} style={[styles.photo, { borderColor: t.health[relationshipHealth(rel)] }]} />
           ) : (
-            <View style={[styles.photo, { borderColor: t.category[rel.category], backgroundColor: t.card }]}>
+            <View style={[styles.photo, { borderColor: t.health[relationshipHealth(rel)], backgroundColor: t.card }]}>
               <Text style={{ color: t.text, fontSize: 32, fontWeight: '700' }}>{name.charAt(0).toUpperCase()}</Text>
             </View>
           )}

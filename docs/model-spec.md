@@ -71,6 +71,24 @@ shows the score as uncertain rather than as a decline.
 `smoothedScore` averages the raw total at *t*, *t*−7d and *t*−14d for display.
 Properties are specified on the raw score.
 
+## Display (app, not engine)
+
+The engine's total stays on 0–100. The app shows it as an integer from 1 to 10,
+`1 + round(total × 9 / 100)`, inside a ring that fills to the score and is coloured
+red (1–2) → green (9–10). Component bars are shown on the same 0–10 scale, and
+change explanations are worded in tenths ("rose by 1.2 out of 10").
+
+Per-relationship health (graph colours, `apps/mobile/src/data/health.ts`) is a
+separate, display-only classification and does not feed the score:
+
+- **lost touch** (grey): never contacted, no contact for more than 3× the expected
+  interval, or paused;
+- otherwise `min(quality ?? 5, rhythmBand)`, where `rhythmBand` is 5/4/3/2 for
+  onRhythm ≥ 0.75 / 0.5 / 0.25 / below. A relationship is as healthy as its weaker side.
+
+Node size uses five discrete steps from the contact-frequency tiers (never
+contacted, then frecency quartiles among the rest).
+
 ## Properties (tests in `packages/score-engine/test/properties.test.ts`)
 
 P1 bounded · P2 deterministic · P3 adding contact never lowers the score ·

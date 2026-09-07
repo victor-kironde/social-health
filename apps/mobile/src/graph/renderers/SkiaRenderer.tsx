@@ -67,7 +67,7 @@ function drawGraph(
 
   for (const n of data.nodes) {
     const p = positions.get(n.id)!;
-    const alpha = encode.nodeOpacity(n.behind);
+    const alpha = encode.nodeOpacity(n);
     const image = n.photo ? photoImage(n.id, n.photo) : null;
     if (image) drawPhoto(canvas, photoSpec(image, alpha), p.x, p.y, n.radius);
     else canvas.drawCircle(p.x, p.y, n.radius, paint(c.card, { alpha }));

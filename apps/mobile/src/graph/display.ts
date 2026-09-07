@@ -11,8 +11,8 @@ export interface DisplayOptions {
   ties: boolean;
   names: boolean;
   sizeByFrequency: boolean;
-  colourByQuality: boolean;
-  colourByGroup: boolean;
+  /** What colours people and their lines: relationship health, type, or group. */
+  colourBy: 'health' | 'type' | 'group';
   // Filter
   /** Shown if any of their relationship types is selected. */
   categories: Category[];
@@ -31,8 +31,7 @@ export const DEFAULT_DISPLAY: DisplayOptions = {
   ties: true,
   names: true,
   sizeByFrequency: true,
-  colourByQuality: true,
-  colourByGroup: false,
+  colourBy: 'health',
   categories: ALL_CATEGORIES,
   minImportance: 1,
   behindOnly: false,

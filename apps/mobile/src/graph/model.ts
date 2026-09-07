@@ -1,4 +1,5 @@
 import type { Category, Rating, RelationshipContribution } from '@sg/score-engine';
+import { relationshipHealth, type HealthBand } from '../data/health';
 import type { ComponentType } from 'react';
 import type { DerivedValue, SharedValue } from 'react-native-reanimated';
 import type { EdgeRouting } from './geometry';
@@ -27,8 +28,10 @@ export interface GraphNode {
   radius: number;
   /** Their photo (base64 JPEG, square), drawn inside the circle instead of the initial. */
   photo?: string;
-  /** Behind their usual rhythm: drawn faded. */
+  /** Behind their usual rhythm: drawn slightly faded. */
   behind: boolean;
+  /** How the relationship is doing (colour), or 'lost' (grey, faint, further out). */
+  health: HealthBand;
   /** In touch within RECENT_DAYS: live renderers give these a gentle pulse. */
   recent: boolean;
   /** Community from the tie graph (metrics.ts), or null for people with no ties. */
@@ -48,6 +51,7 @@ export interface EgoEdge {
   importance: Rating;
   quality: Rating | null;
   behind: boolean;
+  health: HealthBand;
 }
 
 /** Person to person, inferred from contacts logged with both (see ties.ts). */
@@ -77,13 +81,13 @@ export interface GraphColours {
   edge: string;
   category: Record<Category, string>;
   quality: Record<Rating, string>;
+  health: Record<HealthBand, string>;
   /** Categorical palette for communities, cycled. */
   groups: string[];
 }
 
 export interface GraphStyle {
   colours: GraphColours;
-  colourByQuality: boolean;
   showLabels: boolean;
   /** Edge to highlight (tapped), if any. */
   selectedEdgeId?: string | null;
@@ -91,8 +95,11 @@ export interface GraphStyle {
   selectedNodeId?: string | null;
   /** How edges are routed; defaults to right-angled ('orthogonal'). */
   routing?: EdgeRouting;
-  /** What the ring around each person shows. */
-  colourBy?: 'category' | 'group';
+  /**
+   * What colours each person's ring and their line to you: relationship health (default),
+   * relationship type, or group.
+   */
+  colourBy?: 'health' | 'category' | 'group';
   /** Shaded background areas per relationship type (overlapping for people with several). */
   showSets?: boolean;
   /** Lines from you to each person; default true. */
@@ -168,6 +175,7 @@ export function buildGraph(
     importance: r.importance,
     quality: r.quality,
     behind: behind(r),
+    health: relationshipHealth(r),
   }));
   // Ties only between people currently shown (filters hide both ends' links).
   const tieEdges: TieEdge[] = ties
@@ -182,6 +190,7 @@ export function buildGraph(
       importance: r.importance,
       quality: r.quality,
       radius: radii?.get(r.personId) ?? NODE_RADIUS,
+      health: relationshipHealth(r),
       ...(photos?.has(r.personId) ? { photo: photos.get(r.personId)! } : {}),
       behind: behind(r),
       recent: !behind(r) && r.lastContactAgeDays !== null && r.lastContactAgeDays <= RECENT_DAYS,
@@ -206,7 +215,7 @@ export function edgeStroke(e: GraphEdge, s: GraphStyle): EdgeStroke {
     return {
       colour: selected ? s.colours.accent : encode.edgeColour(e, s),
       width: encode.edgeWidth(e.importance) + (selected ? encode.selectedWidthBoost : 0),
-      opacity: selected ? 1 : encode.edgeOpacity(e.behind),
+      opacity: selected ? 1 : encode.edgeOpacity(e),
     };
   }
   // Weights are snapped to a few bands so renderers can batch ties into one path per band.
@@ -229,21 +238,22 @@ export function tieBand(weight: number): number {
 /** Shared visual rules, so every renderer encodes the data the same way. */
 export const encode = {
   edgeWidth: (importance: Rating) => 0.75 + importance * 0.9,
-  edgeOpacity: (behind: boolean) => (behind ? 0.35 : 0.9),
-  nodeOpacity: (behind: boolean) => (behind ? 0.45 : 1),
+  /** Lost touch: faint; behind rhythm: a little faded. */
+  edgeOpacity: (e: { behind: boolean; health: HealthBand }) => (e.health === 'lost' ? 0.25 : e.behind ? 0.6 : 0.9),
+  nodeOpacity: (n: { behind: boolean; health: HealthBand }) => (n.health === 'lost' ? 0.38 : n.behind ? 0.8 : 1),
   edgeColour: (e: EgoEdge, s: GraphStyle) =>
-    s.colourByQuality && e.quality !== null ? s.colours.quality[e.quality] : s.colours.edge,
+    (s.colourBy ?? 'health') === 'health' ? s.colours.health[e.health] : s.colours.edge,
   /** Ties are secondary context: thin, muted, firmer when stronger. */
   tieWidth: (weight: number) => 0.8 + 1.4 * Math.min(1, weight / 3),
   tieOpacity: (weight: number) => 0.25 + 0.35 * Math.min(1, weight / 3),
   selectedWidthBoost: 3,
-  /** Ring colour: the person's category, or their group (grey when they have no ties). */
-  ringColour: (n: GraphNode, s: GraphStyle) =>
-    s.colourBy === 'group'
-      ? n.group === null
-        ? s.colours.edge
-        : s.colours.groups[n.group % s.colours.groups.length]!
-      : s.colours.category[n.category],
+  /** Ring colour: relationship health, type, or group (grey when they have no ties). */
+  ringColour: (n: GraphNode, s: GraphStyle) => {
+    const by = s.colourBy ?? 'health';
+    if (by === 'health') return s.colours.health[n.health];
+    if (by === 'group') return n.group === null ? s.colours.edge : s.colours.groups[n.group % s.colours.groups.length]!;
+    return s.colours.category[n.category];
+  },
   initial: (label: string) => label.charAt(0).toUpperCase(),
   shortLabel: (label: string) => (label.length > 14 ? `${label.slice(0, 13)}…` : label),
 };

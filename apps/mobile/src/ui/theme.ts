@@ -12,14 +12,23 @@ const light = {
   border: '#d6dae1',
   warn: '#a8570a',
   danger: '#b42318',
-  /** Category rings: distinct hues, readable on the card background. */
+  /**
+   * Relationship types: deliberately muted, loosely following the kind of closeness (green
+   * family, blue friends, lavender work, sand neighbours, rose community), so they sit quietly
+   * behind the health colours.
+   */
   category: {
-    family: '#d9480f',
-    friend: '#1c7ed6',
-    work: '#7048e8',
-    neighbour: '#2b8a3e',
-    community: '#c2255c',
+    family: '#6f9e7c',
+    friend: '#6f8fb8',
+    work: '#8c84a8',
+    neighbour: '#b39a6b',
+    community: '#a97f92',
   } as Record<Category, string>,
+  /** Relationship health: 1 unhealthy (red) to 5 good (green), and grey for lost touch. */
+  health: { 1: '#d64545', 2: '#e8833a', 3: '#d9a72b', 4: '#7cb342', 5: '#2e9d57', lost: '#9aa0a8' } as Record<
+    Rating | 'lost',
+    string
+  >,
   /** Quality, harmful → very good. Unrated edges use `edge`. */
   quality: { 1: '#d92d20', 2: '#f79009', 3: '#a39e93', 4: '#66a80f', 5: '#2b8a3e' } as Record<Rating, string>,
   edge: '#b8bec9',
@@ -41,12 +50,13 @@ const dark: Theme = {
   warn: '#f0a75a',
   danger: '#f97066',
   category: {
-    family: '#ff8a4c',
-    friend: '#5ea8f0',
-    work: '#a48bf5',
-    neighbour: '#5fc06f',
-    community: '#f06595',
+    family: '#8fbf9b',
+    friend: '#8fadd4',
+    work: '#a99fc6',
+    neighbour: '#cbb487',
+    community: '#c79db0',
   },
+  health: { 1: '#f26d6d', 2: '#f5a05c', 3: '#f0c94f', 4: '#a3d65c', 5: '#4cc779', lost: '#7a808a' },
   quality: { 1: '#f97066', 2: '#fdb022', 3: '#8f8a80', 4: '#94d82d', 5: '#51cf66' },
   edge: '#4a505c',
   groups: ['#56b4e9', '#f0b840', '#3fc4a0', '#e39bc8', '#8fd0f5', '#ff8a50', '#a79ef0', '#d6c050'],

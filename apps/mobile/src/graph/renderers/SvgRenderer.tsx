@@ -47,7 +47,7 @@ export function SvgRenderer({ data, positions, size, fit, view, style, onRendere
           {data.nodes.map((n) => {
             const p = positions.get(n.id)!;
             return (
-              <G key={n.id} opacity={encode.nodeOpacity(n.behind)}>
+              <G key={n.id} opacity={encode.nodeOpacity(n)}>
                 {n.photo && (
                   <Defs>
                     <ClipPath id={`photo-${n.id}`}>

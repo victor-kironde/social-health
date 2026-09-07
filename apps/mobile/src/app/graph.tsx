@@ -1,8 +1,9 @@
 import { DEFAULT_CONFIG, computeScore } from '@sg/score-engine';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Easing, cancelAnimation, useDerivedValue, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
+import { relationshipHealth } from '../data/health';
 import { usePrefs } from '../data/prefs';
 import { useStore } from '../data/store';
 import { ORDER_LABELS, TIER_LABELS, TIER_SET_LINK, layoutSignature, nodeRadii, orderTiers, tierLayout } from '../graph/arrange';
@@ -21,6 +22,7 @@ import { deriveTies, tieSignature } from '../graph/ties';
 import { DEFAULT_RENDERER, GRAPH_RENDERERS, type RendererId } from '../graph/renderers';
 import { ToggleChip } from '../ui/components';
 import { CATEGORY_LABELS, IMPORTANCE_LABELS } from '../ui/labels';
+import { ScoreRing } from '../ui/ScoreRing';
 import { useTheme } from '../ui/theme';
 import { useReduceMotion } from '../ui/useReduceMotion';
 
@@ -30,6 +32,8 @@ const translucent = (hex: string, alpha = 0.72) =>
   `${hex}${Math.round(alpha * 255)
     .toString(16)
     .padStart(2, '0')}`;
+/** How much further out than their ring people you have lost touch with drift (graph units). */
+const LOST_OUTWARD = 90;
 /** Rings <-> tiers transition, in ms. */
 const ARRANGE_MS = 700;
 /** Above this many people, names appear only once zoomed in. */
@@ -95,6 +99,7 @@ export default function GraphScreen() {
         importance: tiers.get(r.personId)!,
         radius: radii.get(r.personId)!,
         categories: [r.category, ...r.alsoCategories],
+        outward: relationshipHealth(r) === 'lost' ? LOST_OUTWARD : 0,
       })),
     [relationships, tiers, radii],
   );
@@ -104,7 +109,7 @@ export default function GraphScreen() {
     () =>
       layoutSignature([
         tieSignature(ties),
-        ...layoutInputs.map((n) => `${n.id}:${n.importance}:${n.radius}:${n.categories.join('+')}`).sort(),
+        ...layoutInputs.map((n) => `${n.id}:${n.importance}:${n.radius}:${n.outward}:${n.categories.join('+')}`).sort(),
       ]),
     [ties, layoutInputs],
   );
@@ -256,11 +261,15 @@ export default function GraphScreen() {
   const style: GraphStyle = useMemo(
     () => ({
       colours: t,
-      colourByQuality: display.colourByQuality,
       showLabels,
       selectedEdgeId: selectedEdge?.id ?? null,
       selectedNodeId: selectedPerson?.personId ?? null,
-      colourBy: display.colourByGroup && ties.length > 0 ? ('group' as const) : ('category' as const),
+      colourBy:
+        display.colourBy === 'group' && ties.length > 0
+          ? ('group' as const)
+          : display.colourBy === 'type'
+            ? ('category' as const)
+            : ('health' as const),
       showSets: display.sets,
       showEgoEdges: display.egoEdges,
       showTies: display.ties,
@@ -371,10 +380,18 @@ export default function GraphScreen() {
           onLayout={(e) => setOverlayBottom(e.nativeEvent.layout.y + e.nativeEvent.layout.height)}
         >
           {total !== null && prefs.showScore && (
-            <View style={[styles.score, { backgroundColor: translucent(t.card), borderColor: t.border }]} accessibilityLabel={`Social Health Score ${total}`}>
-              <Text style={[styles.scoreLabel, { color: t.muted }]}>Social Health</Text>
-              <Text style={[styles.scoreValue, { color: t.text }]}>{Math.round(total)}</Text>
-            </View>
+            <Pressable
+              onPress={() => router.push('/score')}
+              accessibilityRole="button"
+              accessibilityHint="Opens score details"
+              style={({ pressed }) => [
+                styles.score,
+                { backgroundColor: translucent(t.card), borderColor: t.border, opacity: pressed ? 0.75 : 1 },
+              ]}
+            >
+              <ScoreRing total={total} size={46} />
+              <Text style={[styles.scoreLabel, { color: t.muted }]}>Social{'\n'}Health</Text>
+            </Pressable>
           )}
           {selectedPerson && stats && (
             <View style={styles.stats}>
@@ -421,13 +438,10 @@ export default function GraphScreen() {
 
       <View style={[styles.legend, { borderTopColor: t.border }]}>
         <Text style={[styles.legendText, { color: t.muted }]}>
+          {display.colourBy === 'health' ? 'Green = healthy, red = unhealthy, grey and faint = lost touch · ' : ''}
           {tiersOn ? `Higher row` : 'Closer'} = {display.orderBy === 'importance' ? 'more important' : `higher ${ORDER_LABELS[display.orderBy].toLowerCase()}`}
-          {display.egoEdges ? ' · thicker line = more important' : ''}
           {display.sizeByFrequency ? ' · bigger = more in touch' : ''}
-          {display.sets ? ' · shaded areas = relationship types (overlaps = several)' : ''} · faded = behind usual rhythm
-          {isLive ? ' · glowing = in touch this week' : ''}
-          {display.ties && graph.edges.some((e) => e.kind === 'tie') ? ' · thin grey lines = seen together' : ''}
-          {display.colourByQuality && display.egoEdges ? ' · line colour = how the relationship is going' : ''}
+          {display.sets ? ' · shaded areas = relationship types' : ''}
         </Text>
         <Text style={[styles.legendText, { color: t.muted }]}>
           {demoSize
@@ -451,14 +465,16 @@ const styles = StyleSheet.create({
   filters: { paddingHorizontal: 16, paddingVertical: 8, gap: 8 },
   overlay: { position: 'absolute', top: 8, left: 8, alignItems: 'flex-start', gap: 8, maxWidth: 260, width: '62%' },
   score: {
-    borderRadius: 12,
+    borderRadius: 30,
     borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    alignItems: 'flex-start',
+    paddingLeft: 5,
+    paddingRight: 12,
+    paddingVertical: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
-  scoreLabel: { fontSize: 11 },
-  scoreValue: { fontSize: 26, fontWeight: '800', lineHeight: 30 },
+  scoreLabel: { fontSize: 11, lineHeight: 14 },
   stats: { alignSelf: 'stretch' },
   legend: { paddingHorizontal: 16, paddingVertical: 10, borderTopWidth: StyleSheet.hairlineWidth, gap: 2 },
   legendText: { fontSize: 12 },

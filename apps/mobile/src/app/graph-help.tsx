@@ -1,13 +1,13 @@
 import type { ReactNode } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, G, Line, Path, Polyline, Rect, Text as SvgText } from 'react-native-svg';
-import { QUALITY_LABELS } from '../ui/labels';
 import { useTheme } from '../ui/theme';
 
 /** Plain-language key to everything the network graph draws, each with a small sample drawing. */
 export default function GraphHelp() {
   const t = useTheme();
   const c = t.category;
+  const h = t.health;
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
@@ -34,52 +34,67 @@ export default function GraphHelp() {
         title="A person"
         art={
           <Art>
-            <Circle cx={36} cy={28} r={15} fill={t.card} stroke={c.family} strokeWidth={4} />
+            <Circle cx={36} cy={28} r={15} fill={t.card} stroke={h[5]} strokeWidth={4} />
             <SvgText x={36} y={33} fontSize={13} fontWeight="700" fill={t.text} textAnchor="middle">
               A
             </SvgText>
           </Art>
         }
       >
-        Each circle is someone you added, showing their photo if you chose one, or their initial. The ring colour is
-        their main relationship type: <Swatch colour={c.family}>family</Swatch>, <Swatch colour={c.friend}>friend</Swatch>
-        , <Swatch colour={c.work}>work</Swatch>, <Swatch colour={c.neighbour}>neighbour</Swatch> or{' '}
-        <Swatch colour={c.community}>community</Swatch>. With "Colour rings by group" on, the ring shows which group
-        they belong to instead.
+        Each circle is someone you added, showing their photo if you chose one, or their initial.
+      </Item>
+      <Item
+        title="Colour: how the relationship is doing"
+        art={
+          <Art>
+            {([1, 2, 3, 4, 5] as const).map((b, k) => (
+              <Circle key={b} cx={8 + k * 14} cy={28} r={6} fill={t.card} stroke={h[b]} strokeWidth={3} />
+            ))}
+          </Art>
+        }
+      >
+        The ring and the line to you run from <Swatch colour={h[5]}>green (healthy)</Swatch> through{' '}
+        <Swatch colour={h[3]}>amber (needs attention)</Swatch> to <Swatch colour={h[1]}>red (unhealthy)</Swatch>. A
+        relationship is as healthy as its weaker side: how you said it is going, and whether you are keeping to the
+        rhythm you hoped for. A relationship you rated harmful is red however often you meet; a good one you have
+        drifted from turns amber. In Display & filters you can colour people by type or group instead.
       </Item>
       <Item
         title="Size: how much you are in touch"
         art={
           <Art>
-            <Circle cx={18} cy={30} r={8} fill={t.card} stroke={c.friend} strokeWidth={3} />
-            <Circle cx={48} cy={28} r={17} fill={t.card} stroke={c.friend} strokeWidth={4} />
+            {[3, 4.5, 6.5, 9, 12].map((r, k) => (
+              <Circle key={k} cx={[5, 14, 26, 42, 60][k]} cy={30} r={r} fill={t.card} stroke={h[5]} strokeWidth={2} />
+            ))}
           </Art>
         }
       >
-        Bigger circles are people you have been in touch with more, and more recently. Every logged contact and call
-        counts, and older ones count for less (they halve every 30 days). Sizes compare people with each other, so the
-        person you are most in touch with is always the biggest.
+        There are five sizes. The smallest is someone you have not been in touch with yet; the rest rank everyone
+        else from least to most in touch. Every logged contact and call counts, and older ones count for less (they
+        halve every 30 days), so recent, frequent contact makes someone bigger.
       </Item>
       <Item
-        title="Faded: behind your usual rhythm"
+        title="Grey, faint and further out: lost touch"
         art={
           <Art>
-            <G opacity={0.4}>
-              <Circle cx={36} cy={28} r={15} fill={t.card} stroke={c.work} strokeWidth={4} />
+            <G opacity={0.38}>
+              <Circle cx={44} cy={28} r={13} fill={t.card} stroke={h.lost} strokeWidth={4} />
             </G>
+            <Circle cx={12} cy={28} r={5} fill={t.accent} />
           </Art>
         }
       >
-        A faded person is someone you have not been in touch with as often as you hoped (the rhythm you set for
-        them, such as monthly). It is a gentle reminder, not a judgement.
+        Someone you have not been in touch with for three times their usual rhythm (or ever), or whose relationship
+        you paused, turns grey, fades and drifts further from you. Someone only a little behind fades slightly. These
+        are gentle reminders, not judgements: you decide who matters.
       </Item>
       <Item
         title="Glow: in touch this week"
         art={
           <Art>
-            <Circle cx={36} cy={28} r={24} fill={c.friend} opacity={0.18} />
-            <Circle cx={36} cy={28} r={19} fill={c.friend} opacity={0.22} />
-            <Circle cx={36} cy={28} r={14} fill={t.card} stroke={c.friend} strokeWidth={4} />
+            <Circle cx={36} cy={28} r={24} fill={h[5]} opacity={0.18} />
+            <Circle cx={36} cy={28} r={19} fill={h[5]} opacity={0.22} />
+            <Circle cx={36} cy={28} r={14} fill={t.card} stroke={h[5]} strokeWidth={4} />
           </Art>
         }
       >
@@ -89,7 +104,7 @@ export default function GraphHelp() {
         title="Outer ring: connects groups"
         art={
           <Art>
-            <Circle cx={36} cy={28} r={14} fill={t.card} stroke={c.neighbour} strokeWidth={4} />
+            <Circle cx={36} cy={28} r={14} fill={t.card} stroke={h[4]} strokeWidth={4} />
             <Circle cx={36} cy={28} r={20} fill="none" stroke={t.text} strokeWidth={1.5} opacity={0.7} />
           </Art>
         }
@@ -143,8 +158,11 @@ export default function GraphHelp() {
           </Art>
         }
       >
-        Shaded areas group the people of each relationship type. Someone can belong to more than one type (set
-        "Also part of" on their page), and then they sit where the areas overlap, like a relative you also work with.
+        Softly shaded areas group the people of each relationship type, in muted colours:{' '}
+        <Swatch colour={c.family}>family</Swatch>, <Swatch colour={c.friend}>friends</Swatch>,{' '}
+        <Swatch colour={c.work}>work</Swatch>, <Swatch colour={c.neighbour}>neighbours</Swatch> and{' '}
+        <Swatch colour={c.community}>community</Swatch>. Someone can belong to more than one type (set "Also part of"
+        on their page), and then they sit where the areas overlap, like a relative you also work with.
       </Item>
 
       <Heading>Lines</Heading>
@@ -152,16 +170,14 @@ export default function GraphHelp() {
         title="Lines to you"
         art={
           <Art>
-            <Polyline points="10,44 10,14 60,14" fill="none" stroke={t.quality[5]} strokeWidth={5} />
-            <Polyline points="10,44 60,44" fill="none" stroke={t.quality[2]} strokeWidth={2} />
+            <Polyline points="10,44 10,14 60,14" fill="none" stroke={h[5]} strokeWidth={5} />
+            <Polyline points="10,44 60,44" fill="none" stroke={h[2]} strokeWidth={2} />
           </Art>
         }
       >
-        Every person has a line to you. Thicker lines are more important relationships. When "Colour lines by
-        quality" is on, the colour shows how you said the relationship is going, from{' '}
-        <Swatch colour={t.quality[1]}>{QUALITY_LABELS[1].toLowerCase()}</Swatch> to{' '}
-        <Swatch colour={t.quality[5]}>{QUALITY_LABELS[5].toLowerCase()}</Swatch>. Grey
-        means not rated. Lines turn at right angles to keep the drawing tidy.
+        Every person has a line to you. Thicker lines are more important relationships, and the line takes the same
+        health colour as the person. Lines to people you have lost touch with are faint. Lines turn at right angles
+        to keep the drawing tidy.
       </Item>
       <Item
         title="Links between people"
@@ -183,19 +199,28 @@ export default function GraphHelp() {
         title="Social Health score"
         art={
           <Art>
-            <Rect x={8} y={12} width={56} height={32} rx={8} fill={t.card} stroke={t.border} />
-            <SvgText x={16} y={24} fontSize={7} fill={t.muted}>
-              Social Health
-            </SvgText>
-            <SvgText x={16} y={39} fontSize={14} fontWeight="800" fill={t.text}>
-              64
+            <Circle cx={36} cy={28} r={20} fill="none" stroke={t.track} strokeWidth={5} />
+            <Circle
+              cx={36}
+              cy={28}
+              r={20}
+              fill="none"
+              stroke={h[3]}
+              strokeWidth={5}
+              strokeLinecap="round"
+              strokeDasharray={`${2 * Math.PI * 20 * 0.6} ${2 * Math.PI * 20}`}
+              transform="rotate(-90 36 28)"
+            />
+            <SvgText x={36} y={33} fontSize={14} fontWeight="800" fill={t.text} textAnchor="middle">
+              6
             </SvgText>
           </Art>
         }
       >
-        Shown in the top-left corner: a 0–100 summary of keeping in touch, covering your rhythms, your most
-        important people, variety across types, calls, how relationships are going and recent contact. You can hide
-        the number in Settings at any time.
+        Shown in the top-left corner as a number from 1 to 10. The ring fills up to the score and turns from red
+        (low) to green (high). It sums up keeping in touch: your rhythms, your most important people, variety across
+        types, calls, how relationships are going and recent contact. Tap it for details. You can hide the score in
+        Settings at any time.
       </Item>
       <Item
         title="Person details"
@@ -234,7 +259,7 @@ export default function GraphHelp() {
       />
       <Gesture
         icon="Display & filters"
-        text="Choose rings or tiers, what to order by, what to show (type areas, sizes, lines, names, colours), and who to show (types, importance, behind rhythm, never contacted)."
+        text="Choose rings or tiers, what to order by, what to show (type areas, sizes, lines, names), what colours people (health, type or group), and who to show (types, importance, behind rhythm, never contacted)."
       />
 
       <Text style={[styles.note, { color: t.muted }]}>

@@ -116,7 +116,7 @@ function LiveSkia({
     data.nodes.forEach((n, k) => {
       const i = index.get(n.id);
       if (i === undefined) return;
-      const alpha = encode.nodeOpacity(n.behind);
+      const alpha = encode.nodeOpacity(n);
       const initial = encode.initial(n.label);
       const label = style.showLabels ? encode.shortLabel(n.label) : '';
       const image = n.photo ? photoImage(n.id, n.photo) : null;
@@ -133,7 +133,7 @@ function LiveSkia({
         label,
         labelDx: label ? centreOffset(label, fonts.label) : 0,
         labelPaint: paint(c.muted, { alpha }),
-        glow: n.recent ? glowFor(c.category[n.category]) : null,
+        glow: n.recent ? glowFor(encode.ringColour(n, style)) : null,
         phase: (k * 0.618) % 1,
       });
     });

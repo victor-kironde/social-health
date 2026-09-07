@@ -18,6 +18,8 @@ export interface LayoutInput {
   radius?: number;
   /** Relationship types, primary first. When given, people are pulled towards their types' sectors. */
   categories?: Category[];
+  /** Extra distance beyond their ring (e.g. lost touch drifts outward). Default 0. */
+  outward?: number;
 }
 
 /** Fixed order of type sectors around the circle, so a type always sits in the same direction. */
@@ -90,6 +92,8 @@ export type SimNode = SimulationNodeDatum & {
   id: string;
   importance: Rating | null;
   radius: number;
+  /** Extra distance beyond the importance ring. */
+  outward: number;
   /** Sector target (on the importance ring), when types are known. */
   tx?: number;
   ty?: number;
@@ -123,10 +127,10 @@ export function createEgoSimulation(
   const sorted = [...nodes].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   const angles = sectorAngles([...new Set(nodes.flatMap((n) => n.categories ?? []))]);
   const simNodes: SimNode[] = [
-    { id: ME, importance: null, radius: NODE_RADIUS + 4, x: 0, y: 0, fx: 0, fy: 0 },
+    { id: ME, importance: null, radius: NODE_RADIUS + 4, outward: 0, x: 0, y: 0, fx: 0, fy: 0 },
     ...sorted.map((n, i) => {
       const prev = previous?.get(n.id);
-      const r = ringRadius(n.importance);
+      const r = ringRadius(n.importance) + (n.outward ?? 0);
       const dir = n.categories ? sectorDirection(n.categories, angles) : null;
       const target = dir === null ? undefined : { x: r * Math.cos(dir), y: r * Math.sin(dir) };
       // Newcomers start near their target (small deterministic jitter so they do not stack).
@@ -135,6 +139,7 @@ export function createEgoSimulation(
         id: n.id,
         importance: n.importance,
         radius: n.radius ?? NODE_RADIUS,
+        outward: n.outward ?? 0,
         ...(target ? { tx: target.x, ty: target.y } : {}),
         x: prev?.x ?? (target ? target.x + 6 * Math.cos(jitter) : r * Math.cos(i * golden)),
         y: prev?.y ?? (target ? target.y + 6 * Math.sin(jitter) : r * Math.sin(i * golden)),
@@ -146,7 +151,7 @@ export function createEgoSimulation(
     .randomSource(lcg(seed))
     .force(
       'radial',
-      forceRadial<SimNode>((d) => (d.importance === null ? 0 : ringRadius(d.importance))).strength(0.8),
+      forceRadial<SimNode>((d) => (d.importance === null ? 0 : ringRadius(d.importance) + d.outward)).strength(0.8),
     )
     .force('collide', forceCollide<SimNode>((d) => d.radius + 12).iterations(2))
     .force('charge', forceManyBody<SimNode>().strength(-20).distanceMax(200))

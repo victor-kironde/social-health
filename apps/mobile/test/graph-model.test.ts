@@ -29,10 +29,15 @@ describe('buildGraph', () => {
 });
 
 describe('encode', () => {
-  it('makes more important edges thicker and behind ones fainter', () => {
+  it('makes more important edges thicker, behind ones fainter, and lost touch faintest', () => {
     expect(encode.edgeWidth(5)).toBeGreaterThan(encode.edgeWidth(1));
-    expect(encode.edgeOpacity(true)).toBeLessThan(encode.edgeOpacity(false));
-    expect(encode.nodeOpacity(true)).toBeLessThan(encode.nodeOpacity(false));
+    const ok = { behind: false, health: 5 as const };
+    const behind = { behind: true, health: 3 as const };
+    const lost = { behind: true, health: 'lost' as const };
+    expect(encode.edgeOpacity(behind)).toBeLessThan(encode.edgeOpacity(ok));
+    expect(encode.edgeOpacity(lost)).toBeLessThan(encode.edgeOpacity(behind));
+    expect(encode.nodeOpacity(behind)).toBeLessThan(encode.nodeOpacity(ok));
+    expect(encode.nodeOpacity(lost)).toBeLessThan(encode.nodeOpacity(behind));
   });
 
   it('shortens long labels', () => {

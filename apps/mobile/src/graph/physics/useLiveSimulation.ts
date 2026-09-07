@@ -43,7 +43,7 @@ export function useLiveSimulation(
 
   // A new simulation only when the people, their sizes, types or ties change, not on every render.
   const key =
-    nodes.map((n) => `${n.id}:${n.importance}:${n.radius ?? ''}:${(n.categories ?? []).join('+')}`).join('|') +
+    nodes.map((n) => `${n.id}:${n.importance}:${n.radius ?? ''}:${n.outward ?? 0}:${(n.categories ?? []).join('+')}`).join('|') +
     '#' +
     (links ?? []).map((l) => `${l.source}-${l.target}`).join('|');
   const sim = useMemo(() => {

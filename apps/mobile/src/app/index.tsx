@@ -8,6 +8,7 @@ import { useStore } from '../data/store';
 import { Button, Card, Label } from '../ui/components';
 import { IMPORTANCE_LABELS, RHYTHM_LABELS, STATE_LABELS, lastContactText, typesLabel } from '../ui/labels';
 import { ScoreBreakdown } from '../ui/ScoreBreakdown';
+import { ScoreRing } from '../ui/ScoreRing';
 import { useTheme } from '../ui/theme';
 
 const RETIRED = new Set(['archived', 'in_memoriam']);
@@ -106,9 +107,21 @@ export default function Home() {
       ) : (
         <>
           {prefs.showScore && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityHint="Opens score details"
+            onPress={() => router.push('/score')}
+            style={({ pressed }) => pressed && { opacity: 0.8 }}
+          >
           <Card>
             <Label>Social Health Score</Label>
-            <Text style={[styles.score, { color: t.text }]}>{Math.round(result.total)}</Text>
+            <View style={styles.scoreRow}>
+              <ScoreRing total={result.total} size={96} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: t.text, fontSize: 16, fontWeight: '600' }}>out of 10</Text>
+                <Text style={{ color: t.muted, marginTop: 2 }}>Tap for details</Text>
+              </View>
+            </View>
             {result.lowData && (
               <Text style={{ color: t.warn }}>
                 {isNewUser
@@ -118,6 +131,7 @@ export default function Home() {
             )}
             <ScoreBreakdown result={result} />
           </Card>
+          </Pressable>
           )}
 
           <Card>
@@ -180,7 +194,7 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   content: { padding: 16, gap: 12 },
   heading: { fontSize: 18, fontWeight: '600', marginBottom: 4 },
-  score: { fontSize: 56, fontWeight: '700' },
+  scoreRow: { flexDirection: 'row', alignItems: 'center', gap: 16, marginVertical: 8 },
   explanation: { marginTop: 4, lineHeight: 20 },
   person: { paddingVertical: 10, gap: 2 },
   name: { fontSize: 16, fontWeight: '600' },

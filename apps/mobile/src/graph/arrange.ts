@@ -8,28 +8,24 @@ import { NODE_RADIUS, SECTOR_ORDER, type Point } from './layout';
  * the tiers (list) arrangement.
  */
 
-/** Size range when nodes are sized by contact frequency. */
-export const MIN_NODE_RADIUS = 12;
-export const MAX_NODE_RADIUS = 26;
-/** Size when nobody has any contact yet (sized by frequency, but nothing to compare). */
-const UNKNOWN_RADIUS = 15;
+/**
+ * Five distinct sizes, from never in touch to most in touch. Discrete steps (each about 1.3
+ * times the last, so the area nearly doubles each step) read far more clearly than a smooth
+ * scale, and small changes in contact do not resize anyone.
+ */
+export const NODE_SIZES: Record<Rating, number> = { 1: 10, 2: 14, 3: 19, 4: 25, 5: 32 };
+export const MIN_NODE_RADIUS = NODE_SIZES[1];
+export const MAX_NODE_RADIUS = NODE_SIZES[5];
 
 /**
- * Radius per person from frecency (how much and how recently in touch),
- * relative to the most in-touch person. Square root, so area (what the eye
- * compares) grows with frequency. Rounded so small changes do not re-layout.
+ * Radius per person from how much and how recently you have been in touch (frecency), in five
+ * steps: never contacted is the smallest, and the rest are ranked into four steps (see
+ * orderTiers), so sizes compare people with each other.
  */
 export function nodeRadii(relationships: RelationshipContribution[], bySize: boolean): Map<string, number> {
   if (!bySize) return new Map(relationships.map((r) => [r.personId, NODE_RADIUS]));
-  const max = Math.max(0, ...relationships.map((r) => r.frecency));
-  return new Map(
-    relationships.map((r) => [
-      r.personId,
-      max > 0
-        ? Math.round(MIN_NODE_RADIUS + (MAX_NODE_RADIUS - MIN_NODE_RADIUS) * Math.sqrt(Math.max(0, r.frecency) / max))
-        : UNKNOWN_RADIUS,
-    ]),
-  );
+  const tiers = orderTiers(relationships, 'frequency');
+  return new Map(relationships.map((r) => [r.personId, NODE_SIZES[tiers.get(r.personId)!]]));
 }
 
 export type OrderBy = 'importance' | 'frequency' | 'recent';
@@ -94,7 +90,7 @@ const MAX_PER_LINE = 10;
 const FIRST_ROW = 110;
 /**
  * Longest set link in tiers: the widest in-row spacing, so neighbours in a row join up. Rows are
- * always further apart than this (ROW_GAP plus at least the smallest spacing), so rows never do.
+ * always laid out further apart than this, so rows never do.
  */
 export const TIER_SET_LINK = 2 * MAX_NODE_RADIUS + COL_GAP + 1;
 
@@ -115,7 +111,8 @@ export function tierLayout(nodes: TierInput[], labels: Record<Rating, string>): 
     if (!members.length) continue;
     const maxR = Math.max(...members.map((m) => m.radius));
     const step = 2 * maxR + COL_GAP;
-    const lineHeight = step + ROW_GAP;
+    // Rows are always further apart than the longest type-area link, so areas never join rows.
+    const lineHeight = Math.max(step + ROW_GAP, TIER_SET_LINK + 1);
     const widest = Math.min(members.length, MAX_PER_LINE);
     rows.push({ x: -((widest - 1) * step) / 2 - maxR, y: y - maxR - 8, label: labels[tier] });
     for (let start = 0; start < members.length; start += MAX_PER_LINE) {
