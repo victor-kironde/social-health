@@ -1,5 +1,6 @@
 import { Canvas, Group, Picture, PointMode, StrokeCap, type SkPaint } from '@shopify/react-native-skia';
 import type { Category } from '@sg/score-engine';
+import { groupHealthColour, type HealthBand } from '../../data/health';
 import { spanningEdges } from '../arrange';
 import { routeEdge } from '../geometry';
 import { useEffect, useMemo } from 'react';
@@ -161,22 +162,25 @@ function LiveSkia({
 
     const sets: SetSpec[] = [];
     if (style.showSets) {
-      const members = new Map<Category, { members: number[]; radii: number[]; primary: boolean[] }>();
+      const members = new Map<Category, { members: number[]; radii: number[]; primary: boolean[]; health: HealthBand[] }>();
       for (const n of data.nodes) {
         const i = index.get(n.id);
         if (i === undefined) continue;
         n.categories.forEach((cat, k) => {
           let m = members.get(cat);
-          if (!m) members.set(cat, (m = { members: [], radii: [], primary: [] }));
+          if (!m) members.set(cat, (m = { members: [], radii: [], primary: [], health: [] }));
           m.members.push(i);
           m.radii.push(n.radius);
           m.primary.push(k === 0);
+          m.health.push(n.health);
         });
       }
       for (const cat of SECTOR_ORDER) {
         const m = members.get(cat);
         if (!m) continue;
-        const colour = c.category[cat];
+        // Coloured by health: the group takes the overall health of the relationships in it.
+        // Otherwise each type keeps its own muted colour.
+        const colour = (style.colourBy ?? 'health') === 'health' ? groupHealthColour(m.health, c.health) : c.category[cat];
         const bar = paint(colour, { stroke: SET_BAR });
         bar.setStrokeCap(StrokeCap.Round);
         const name = style.categoryNames?.[cat] ?? cat;

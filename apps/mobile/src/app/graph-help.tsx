@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, G, Line, Path, Polyline, Rect, Text as SvgText } from 'react-native-svg';
+import { groupHealthColour } from '../data/health';
 import { useTheme } from '../ui/theme';
 
 /** Plain-language key to everything the network graph draws, each with a small sample drawing. */
@@ -152,17 +153,21 @@ export default function GraphHelp() {
         title="Relationship type areas"
         art={
           <Art>
-            <Circle cx={28} cy={28} r={18} fill={c.family} opacity={0.25} />
-            <Circle cx={46} cy={28} r={18} fill={c.work} opacity={0.25} />
-            <Circle cx={37} cy={28} r={5} fill={t.card} stroke={c.family} strokeWidth={2} />
+            <Circle cx={28} cy={28} r={18} fill={groupHealthColour([5, 5, 4], h)} opacity={0.3} />
+            <Circle cx={46} cy={28} r={18} fill={groupHealthColour([3, 'lost'], h)} opacity={0.3} />
+            <Circle cx={37} cy={28} r={5} fill={t.card} stroke={h[4]} strokeWidth={2} />
           </Art>
         }
       >
-        Softly shaded areas group the people of each relationship type, in muted colours:{' '}
+        Softly shaded areas group the people of each relationship type, named on the graph. Each area takes the
+        overall health of the relationships in it: a muted green for a group that is going well, warmer when some are
+        strained, and greyer the more of them you have lost touch with. So you can see at a glance, say, that family
+        is doing well while work contacts are drifting. Someone can belong to more than one type (set "Also part of"
+        on their page), and then they sit where the areas overlap, like a relative you also work with. When you
+        colour people by type, each area uses its type colour instead:{' '}
         <Swatch colour={c.family}>family</Swatch>, <Swatch colour={c.friend}>friends</Swatch>,{' '}
         <Swatch colour={c.work}>work</Swatch>, <Swatch colour={c.neighbour}>neighbours</Swatch> and{' '}
-        <Swatch colour={c.community}>community</Swatch>. Someone can belong to more than one type (set "Also part of"
-        on their page), and then they sit where the areas overlap, like a relative you also work with.
+        <Swatch colour={c.community}>community</Swatch>.
       </Item>
 
       <Heading>Lines</Heading>

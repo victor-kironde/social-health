@@ -441,7 +441,11 @@ export default function GraphScreen() {
           {display.colourBy === 'health' ? 'Green = healthy, red = unhealthy, grey and faint = lost touch · ' : ''}
           {tiersOn ? `Higher row` : 'Closer'} = {display.orderBy === 'importance' ? 'more important' : `higher ${ORDER_LABELS[display.orderBy].toLowerCase()}`}
           {display.sizeByFrequency ? ' · bigger = more in touch' : ''}
-          {display.sets ? ' · shaded areas = relationship types' : ''}
+          {display.sets
+            ? display.colourBy === 'health'
+              ? ' · shaded areas = relationship types, tinted by their overall health'
+              : ' · shaded areas = relationship types'
+            : ''}
         </Text>
         <Text style={[styles.legendText, { color: t.muted }]}>
           {demoSize

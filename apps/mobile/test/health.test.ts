@@ -1,6 +1,6 @@
 import type { RelationshipContribution } from '@sg/score-engine';
 import { describe, expect, it } from 'vitest';
-import { relationshipHealth, scoreBand, scoreOutOf10 } from '../src/data/health';
+import { GROUP_MUTE, groupHealthColour, mixHex, relationshipHealth, scoreBand, scoreOutOf10 } from '../src/data/health';
 
 function rel(over: Partial<RelationshipContribution> = {}): RelationshipContribution {
   return {
@@ -62,5 +62,31 @@ describe('score out of 10', () => {
 
   it('colours 1–2 red up to 9–10 green', () => {
     expect([1, 2, 3, 5, 6, 8, 10].map(scoreBand)).toEqual([1, 1, 2, 3, 3, 4, 5]);
+  });
+});
+
+describe('groupHealthColour', () => {
+  const palette = { 1: '#ff0000', 2: '#ff8000', 3: '#ffff00', 4: '#80ff00', 5: '#00ff00', lost: '#808080' } as const;
+  const muted = (hex: string) => mixHex(hex, palette.lost, GROUP_MUTE);
+
+  it('is the (muted) health colour when everyone in the group is alike', () => {
+    expect(groupHealthColour([5, 5, 5], palette)).toBe(muted('#00ff00'));
+    expect(groupHealthColour([1], palette)).toBe(muted('#ff0000'));
+  });
+
+  it('averages health, blending between neighbouring colours', () => {
+    expect(groupHealthColour([4, 5], palette)).toBe(muted(mixHex('#80ff00', '#00ff00', 0.5)));
+    expect(groupHealthColour([1, 5], palette)).toBe(muted('#ffff00'));
+  });
+
+  it('greys out with the share of lost touch, and is plain grey when all are lost', () => {
+    expect(groupHealthColour([5, 'lost'], palette)).toBe(muted(mixHex('#00ff00', '#808080', 0.5)));
+    expect(groupHealthColour(['lost', 'lost'], palette)).toBe('#808080');
+    expect(groupHealthColour([], palette)).toBe('#808080');
+  });
+
+  it('a healthier group is never redder than a less healthy one', () => {
+    const red = (hex: string) => parseInt(hex.slice(1, 3), 16);
+    expect(red(groupHealthColour([5, 5], palette))).toBeLessThan(red(groupHealthColour([2, 3], palette)));
   });
 });
