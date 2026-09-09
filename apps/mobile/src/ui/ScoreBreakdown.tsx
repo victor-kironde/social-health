@@ -1,4 +1,4 @@
-import type { ComponentName, ScoreResult } from '@sg/score-engine';
+import { DEFAULT_CONFIG, type ComponentName, type ScoreResult } from '@sg/score-engine';
 import { StyleSheet, Text, View } from 'react-native';
 import { useTheme } from './theme';
 
@@ -12,7 +12,7 @@ export const COMPONENT_LABELS: [ComponentName, string][] = [
 ];
 
 /** One labelled bar per score component, so the total never hides a weak part. */
-export function ScoreBreakdown({ result }: { result: ScoreResult }) {
+export function ScoreBreakdown({ result, showWeights = false }: { result: ScoreResult; showWeights?: boolean }) {
   const t = useTheme();
   return (
     <View>
@@ -29,7 +29,14 @@ export function ScoreBreakdown({ result }: { result: ScoreResult }) {
             accessibilityLabel={`${label}: ${outOf10 === null ? 'not enough information' : `${outOf10} out of 10`}`}
           >
             <View style={styles.head}>
-              <Text style={{ color: t.text }}>{label}</Text>
+              <Text style={{ color: t.text }}>
+                {label}
+                {showWeights && (
+                  <Text style={{ color: t.muted, fontSize: 12 }}>
+                    {'  '}weight {DEFAULT_CONFIG.componentWeights[key].toFixed(2)}
+                  </Text>
+                )}
+              </Text>
               <Text style={{ color: t.muted }}>{outOf10 === null ? 'n/a' : outOf10}</Text>
             </View>
             <View style={[styles.track, { backgroundColor: t.track }]}>

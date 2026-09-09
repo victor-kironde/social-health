@@ -4,7 +4,7 @@ const LABELS: Record<ComponentName, string> = {
   rhythm: 'Contact rhythm',
   coverage: 'Coverage of important relationships',
   quality: 'Quality and support',
-  diversity: 'Balance across categories',
+  diversity: 'Balance across types',
   calls: 'Calls',
   frecency: 'Recent and frequent contact',
 };

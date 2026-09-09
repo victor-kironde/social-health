@@ -1,30 +1,31 @@
-import { DAY, DEFAULT_CONFIG, computeScore, explain, type EventLog } from '@sg/score-engine';
-import * as scenarios from '@sg/synth/scenarios';
-import { Link } from 'expo-router';
+import { DAY, DEFAULT_CONFIG, computeScore, explain } from '@sg/score-engine';
+import { Link, router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { dbStatus, type DbStatus } from '../data/db';
-import { Button, Card, ChoiceChips, Label } from '../ui/components';
+import { HEALTH_LABELS, relationshipHealth, scoreOutOf10 } from '../data/health';
 import { DEFAULT_ITERATIONS } from '../data/exportCrypto';
 import { kdfSelfTest } from '../data/nativeKdf';
+import { SCENARIOS, SCENARIO_AS_OF, SCENARIO_GROUPS, findScenario, scenarioNames } from '../data/scenarioCatalog';
+import { NODE_SIZES, orderTiers } from '../graph/arrange';
+import { networkMetrics } from '../graph/metrics';
+import { deriveTies } from '../graph/ties';
+import { Button, Card, ChoiceChips, Label } from '../ui/components';
+import { CATEGORY_LABELS, IMPORTANCE_LABELS } from '../ui/labels';
 import { ScoreBreakdown } from '../ui/ScoreBreakdown';
+import { ScoreRing } from '../ui/ScoreRing';
 import { useTheme } from '../ui/theme';
 
-const SCENARIOS: Record<string, () => EventLog> = {
-  'Close-knit': () => scenarios.closeKnit(),
-  'Messages only': () => scenarios.closeKnit('message'),
-  Balanced: scenarios.balanced,
-  Concentrated: scenarios.concentrated,
-  'Large, neglected': scenarios.largeNeglected,
-  Inactive: scenarios.inactive,
-  'Busy, paused': () => scenarios.busyPeriod(true),
-  'Busy, unpaused': () => scenarios.busyPeriod(false),
-};
+const RETIRED = new Set(['archived', 'in_memoriam']);
 
-/** Developer screen: the engine on synthetic scenarios, plus storage diagnostics. */
+/**
+ * Developer screen: the engine on every synthetic scenario (score, parts and weights, each
+ * relationship's health and graph size, network structure, what 30 quiet days would do), a way
+ * to open any scenario as a graph, and storage and encryption diagnostics.
+ */
 export default function Preview() {
   const t = useTheme();
-  const [selected, setSelected] = useState('Close-knit');
+  const [selected, setSelected] = useState('closeKnit');
   const [db, setDb] = useState<DbStatus | { error: string } | null>(null);
   const [kdf, setKdf] = useState<{ correct: boolean; ms: number } | { error: string } | null>(null);
 
@@ -34,15 +35,164 @@ export default function Preview() {
       .catch((e: unknown) => setDb({ error: String(e) }));
   }, []);
 
-  const { result, later, explanations } = useMemo(() => {
-    const log = SCENARIOS[selected]!();
-    const result = computeScore(log, DEFAULT_CONFIG, scenarios.AS_OF);
-    const later = computeScore(log, DEFAULT_CONFIG, scenarios.AS_OF + 30 * DAY);
-    return { result, later, explanations: explain(result, later) };
-  }, [selected]);
+  const scenario = findScenario(selected)!;
+  const view = useMemo(() => {
+    const log = scenario.build();
+    const result = computeScore(log, DEFAULT_CONFIG, SCENARIO_AS_OF);
+    const later = computeScore(log, DEFAULT_CONFIG, SCENARIO_AS_OF + 30 * DAY);
+    const shown = result.relationships.filter((r) => !RETIRED.has(r.state));
+    const ids = new Set(shown.map((r) => r.personId));
+    const ties = deriveTies(log.interactions, SCENARIO_AS_OF, ids);
+    const metrics = networkMetrics([...ids], ties.map((x) => ({ a: x.a, b: x.b, weight: x.weight })));
+    const sizes = orderTiers(shown, 'frequency');
+    return {
+      result,
+      later,
+      explanations: explain(result, later),
+      names: scenarioNames(log),
+      shown,
+      retired: result.relationships.length - shown.length,
+      sizes,
+      ties,
+      metrics,
+      calls: log.calls?.length ?? null,
+      interactions: log.interactions.length,
+    };
+  }, [scenario]);
+  const { result, later } = view;
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
+      <Text style={{ color: t.muted, lineHeight: 19 }}>
+        The scoring engine (model v{result.modelVersion}) on {SCENARIOS.length} synthetic scenarios, as of{' '}
+        {new Date(SCENARIO_AS_OF).toISOString().slice(0, 10)}. Nothing here touches your own data.
+      </Text>
+
+      {SCENARIO_GROUPS.map((group) => (
+        <View key={group} style={{ gap: 6 }}>
+          <Label>{group}</Label>
+          <ChoiceChips
+            options={SCENARIOS.filter((x) => x.group === group).map((x) => ({ value: x.id, label: x.label }))}
+            value={selected}
+            onChange={setSelected}
+          />
+        </View>
+      ))}
+
+      <Card>
+        <Label>{scenario.label}</Label>
+        <Text style={{ color: t.muted, lineHeight: 19 }}>{scenario.description}</Text>
+        <Text style={{ color: t.muted, fontSize: 12, marginTop: 4 }}>
+          {view.shown.length} people{view.retired ? ` (+${view.retired} archived or in memoriam)` : ''} ·{' '}
+          {view.interactions} logged contacts
+          {view.calls === null ? ' · call history not connected' : ` · ${view.calls} calls`}
+        </Text>
+        <View style={{ marginTop: 10 }}>
+          <Button
+            title="View as graph"
+            variant="secondary"
+            onPress={() => router.push({ pathname: '/graph', params: { scenario: scenario.id } })}
+          />
+        </View>
+      </Card>
+
+      <Card>
+        <Label>Social Health</Label>
+        <View style={styles.scoreRow}>
+          <ScoreRing total={result.total} size={88} />
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={{ color: t.text, fontSize: 16, fontWeight: '600' }}>
+              {scoreOutOf10(result.total)} out of 10
+            </Text>
+            <Text style={{ color: t.muted, fontSize: 12 }}>Engine total {result.total.toFixed(1)} / 100</Text>
+            <Text style={{ color: result.lowData ? t.warn : t.muted, fontSize: 12 }}>
+              {result.lowData ? `Low data: confidence ${result.confidence.toFixed(2)}` : `Confidence ${result.confidence.toFixed(2)}`}
+            </Text>
+          </View>
+        </View>
+        <ScoreBreakdown result={result} showWeights />
+      </Card>
+
+      <Card style={{ gap: 0 }}>
+        <Label>Each relationship (as drawn on the graph)</Label>
+        <View style={[styles.tableHead, { borderBottomColor: t.border }]}>
+          <Text style={[styles.colName, styles.th, { color: t.muted }]}>Person</Text>
+          <Text style={[styles.colHealth, styles.th, { color: t.muted }]}>Health</Text>
+          <Text style={[styles.colNum, styles.th, { color: t.muted }]}>Size</Text>
+          <Text style={[styles.colNum, styles.th, { color: t.muted }]}>Last</Text>
+        </View>
+        {view.shown.map((r) => {
+          const health = relationshipHealth(r);
+          const size = view.sizes.get(r.personId)!;
+          return (
+            <View key={r.personId} style={styles.tableRow}>
+              <View style={styles.colName}>
+                <Text style={{ color: t.text }} numberOfLines={1}>
+                  {view.names.get(r.personId)}
+                </Text>
+                <Text style={{ color: t.muted, fontSize: 11 }} numberOfLines={1}>
+                  {[r.category, ...r.alsoCategories].map((c) => CATEGORY_LABELS[c]).join(' + ')} ·{' '}
+                  {IMPORTANCE_LABELS[r.importance]}
+                  {r.quality !== null ? ` · rated ${r.quality}` : ''}
+                </Text>
+              </View>
+              <View style={[styles.colHealth, { flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
+                <View style={[styles.dot, { backgroundColor: t.health[health] }]} />
+                <Text style={{ color: t.text, fontSize: 12 }} numberOfLines={1}>
+                  {HEALTH_LABELS[health]}
+                </Text>
+              </View>
+              <Text style={[styles.colNum, { color: t.text, fontSize: 12 }]}>
+                {size} ({NODE_SIZES[size]})
+              </Text>
+              <Text style={[styles.colNum, { color: t.muted, fontSize: 12 }]}>
+                {r.lastContactAgeDays === null ? 'never' : `${Math.floor(r.lastContactAgeDays)}d`}
+              </Text>
+            </View>
+          );
+        })}
+        <Text style={{ color: t.muted, fontSize: 11, marginTop: 8, lineHeight: 16 }}>
+          Health is the weaker of the rating and keeping to rhythm; lost touch after 3× the rhythm. Size is the
+          contact-frequency step (1 never contacted … 5 most in touch) and its radius.
+        </Text>
+      </Card>
+
+      <Card>
+        <Label>Network structure (from contacts logged together)</Label>
+        {view.ties.length === 0 ? (
+          <Text style={{ color: t.muted, lineHeight: 19 }}>
+            No two people were contacted together, so there are no links or groups. Try "Two circles and a bridge".
+          </Text>
+        ) : (
+          <Text style={{ color: t.text, lineHeight: 20 }}>
+            {view.ties.length} links · {view.metrics.groups} {view.metrics.groups === 1 ? 'group' : 'groups'} ·{' '}
+            {[...view.metrics.nodes.values()].filter((m) => m.groupsTouched >= 2).length} connecting groups · density{' '}
+            {view.metrics.density.toFixed(2)} · effective size {view.metrics.effectiveSize.toFixed(1)} of{' '}
+            {view.metrics.size}
+          </Text>
+        )}
+      </Card>
+
+      <Card>
+        <Label>
+          If 30 days pass with no contact ({scoreOutOf10(result.total)} → {scoreOutOf10(later.total)} out of 10)
+        </Label>
+        {view.explanations.length === 0 ? (
+          <Text style={{ color: t.text }}>No notable changes.</Text>
+        ) : (
+          view.explanations.map((e, i) => (
+            <Text key={i} style={[styles.explanation, { color: t.text }]}>
+              • {e.text}
+            </Text>
+          ))
+        )}
+      </Card>
+
+      <Link href={{ pathname: '/graph', params: { demo: '150' } }} style={{ color: t.accent, textAlign: 'center', paddingVertical: 12 }}>
+        Graph stress test (150 synthetic people)
+      </Link>
+
+      <Label>Diagnostics</Label>
       <Card>
         <Label>Encrypted storage</Label>
         <Text style={{ color: t.text }}>
@@ -78,48 +228,19 @@ export default function Preview() {
           />
         </View>
       </Card>
-
-      <ChoiceChips
-        options={Object.keys(SCENARIOS).map((name) => ({ value: name, label: name }))}
-        value={selected}
-        onChange={setSelected}
-      />
-
-      <Card>
-        <Label>Model v{result.modelVersion}</Label>
-        <Text style={[styles.score, { color: t.text }]}>{Math.round(result.total)}</Text>
-        <Text style={{ color: result.lowData ? t.warn : t.muted }}>
-          {result.lowData
-            ? `Low data (confidence ${result.confidence.toFixed(2)}): treat this score as uncertain`
-            : `Confidence ${result.confidence.toFixed(2)}`}
-        </Text>
-        <ScoreBreakdown result={result} />
-      </Card>
-
-      <Card>
-        <Label>
-          If 30 days pass with no contact ({Math.round(result.total)} → {Math.round(later.total)})
-        </Label>
-        {explanations.length === 0 ? (
-          <Text style={{ color: t.text }}>No notable changes.</Text>
-        ) : (
-          explanations.map((e, i) => (
-            <Text key={i} style={[styles.explanation, { color: t.text }]}>
-              • {e.text}
-            </Text>
-          ))
-        )}
-      </Card>
-
-      <Link href={{ pathname: '/graph', params: { demo: '150' } }} style={{ color: t.accent, textAlign: 'center', paddingVertical: 12 }}>
-        Graph stress test (150 synthetic people)
-      </Link>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { padding: 16, gap: 12 },
-  score: { fontSize: 56, fontWeight: '700' },
+  content: { padding: 16, gap: 12, paddingBottom: 40 },
+  scoreRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginVertical: 6 },
   explanation: { marginTop: 4, lineHeight: 20 },
+  tableHead: { flexDirection: 'row', paddingBottom: 6, borderBottomWidth: StyleSheet.hairlineWidth, gap: 8 },
+  th: { fontSize: 11 },
+  tableRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6, gap: 8 },
+  colName: { flex: 1 },
+  colHealth: { width: 104 },
+  colNum: { width: 46, textAlign: 'right' },
+  dot: { width: 10, height: 10, borderRadius: 5 },
 });

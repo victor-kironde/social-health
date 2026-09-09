@@ -1,10 +1,11 @@
 import { DEFAULT_CONFIG, computeScore } from '@sg/score-engine';
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { Stack, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Easing, cancelAnimation, useDerivedValue, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 import { relationshipHealth } from '../data/health';
 import { usePrefs } from '../data/prefs';
+import { SCENARIO_AS_OF, findScenario, scenarioNames } from '../data/scenarioCatalog';
 import { useStore } from '../data/store';
 import { ORDER_LABELS, TIER_LABELS, TIER_SET_LINK, layoutSignature, nodeRadii, orderTiers, tierLayout } from '../graph/arrange';
 import { DEFAULT_DISPLAY, activeFilterCount, applyFilters, type DisplayOptions } from '../graph/display';
@@ -46,8 +47,12 @@ export default function GraphScreen() {
   const t = useTheme();
   const { log, graphLayout, saveGraphLayout, photos } = useStore();
   const { prefs } = usePrefs();
-  const { demo } = useLocalSearchParams<{ demo?: string }>();
+  const { demo, scenario: scenarioId } = useLocalSearchParams<{ demo?: string; scenario?: string }>();
   const demoSize = demo ? Math.min(500, Math.max(1, Number(demo) || 150)) : null;
+  // A synthetic scenario from the engine preview, shown as of the scenarios' fixed date.
+  const scenario = demoSize ? undefined : findScenario(scenarioId);
+  /** Showing made-up data (stress test or scenario): never save, open or log anything real. */
+  const sample = demoSize !== null || scenario !== undefined;
   const reducedMotion = useReduceMotion();
 
   const [display, setDisplay] = useState<DisplayOptions>(DEFAULT_DISPLAY);
@@ -65,23 +70,25 @@ export default function GraphScreen() {
   const [settleStats, setSettleStats] = useState<SettleStats | null>(null);
 
   // People (non-retired), and ties between them inferred from contacts logged with both.
-  const { relationships, names, ties, now, total } = useMemo(() => {
-    const now = Date.now();
+  const { relationships, names, ties, now, total, sourceLog } = useMemo(() => {
     if (demoSize) {
       const d = demoNetwork(demoSize);
-      return { ...d, ties: demoLinks ? d.ties : [], now, total: null };
+      return { ...d, ties: demoLinks ? d.ties : [], now: Date.now(), total: null, sourceLog: null };
     }
-    const score = computeScore(log, DEFAULT_CONFIG, now);
+    const source = scenario ? scenario.build() : log;
+    const now = scenario ? SCENARIO_AS_OF : Date.now();
+    const score = computeScore(source, DEFAULT_CONFIG, now);
     const rels = score.relationships.filter((r) => !RETIRED.has(r.state));
-    const ties = deriveTies(log.interactions, now, new Set(rels.map((r) => r.personId)));
+    const ties = deriveTies(source.interactions, now, new Set(rels.map((r) => r.personId)));
     return {
       relationships: rels,
-      names: new Map(log.people.map((p) => [p.id, p.displayName])),
+      names: scenario ? scenarioNames(source) : new Map(log.people.map((p) => [p.id, p.displayName])),
       ties,
       now,
       total: score.total,
+      sourceLog: source,
     };
-  }, [log, demoSize, demoLinks]);
+  }, [log, demoSize, demoLinks, scenario]);
   const byId = useMemo(() => new Map(relationships.map((r) => [r.personId, r])), [relationships]);
   // Network structure over everyone shown on the graph (filters only hide; they do not change it).
   const metrics = useMemo(
@@ -113,8 +120,8 @@ export default function GraphScreen() {
       ]),
     [ties, layoutInputs],
   );
-  const previous = demoSize ? undefined : graphLayout.positions;
-  const warm = !demoSize && graphLayout.tieSignature !== signature;
+  const previous = sample ? undefined : graphLayout.positions;
+  const warm = !sample && graphLayout.tieSignature !== signature;
 
   // Live renderers: a running simulation (lays everyone out, then filtering only hides people).
   // Once it settles, the view re-fits to where people actually ended up.
@@ -126,7 +133,7 @@ export default function GraphScreen() {
     warm,
     reducedMotion,
     onSettled: (p, stats) => {
-      if (!demoSize) saveGraphLayout(p, signature);
+      if (!sample) saveGraphLayout(p, signature);
       setSettled(p);
       if (stats) setSettleStats(stats);
     },
@@ -141,8 +148,8 @@ export default function GraphScreen() {
     // `warm` and `previous` are read once per layout; a new layout comes from new people or ties.
   }, [isLive, layoutInputs, links]);
   useEffect(() => {
-    if (staticPositions && !demoSize) saveGraphLayout(staticPositions, signature);
-  }, [staticPositions, demoSize, saveGraphLayout, signature]);
+    if (staticPositions && !sample) saveGraphLayout(staticPositions, signature);
+  }, [staticPositions, sample, saveGraphLayout, signature]);
   // Only trust settled positions that belong to the current set of people.
   const settledMatches =
     settled !== null && settled.size === layoutInputs.length && layoutInputs.every((n) => settled.has(n.id));
@@ -220,8 +227,8 @@ export default function GraphScreen() {
   const [renderMs, setRenderMs] = useState<number | null>(null);
   const graph = useMemo(() => {
     renderStart.current = performance.now();
-    return buildGraph(visible, names, ties, metrics.nodes, radii, demoSize ? undefined : photos);
-  }, [visible, names, ties, metrics, radii, photos, demoSize]);
+    return buildGraph(visible, names, ties, metrics.nodes, radii, sample ? undefined : photos);
+  }, [visible, names, ties, metrics, radii, photos, sample]);
   // A selection that is filtered out of view simply disappears.
   const selectedEdge = graph.edges.find((e) => e.id === selectedEdgeId) ?? null;
   const selectedPerson =
@@ -229,9 +236,16 @@ export default function GraphScreen() {
   const stats = useMemo(
     () =>
       selectedPerson
-        ? personStats(selectedPerson.personId, relationships, demoSize ? [] : log.interactions, demoSize ? undefined : log.calls, metrics.nodes, now)
+        ? personStats(
+            selectedPerson.personId,
+            relationships,
+            sourceLog?.interactions ?? [],
+            sourceLog?.calls,
+            metrics.nodes,
+            now,
+          )
         : null,
-    [selectedPerson, relationships, log, metrics, now, demoSize],
+    [selectedPerson, relationships, sourceLog, metrics, now],
   );
   const [sheetHeight, setSheetHeight] = useState(0);
   // Bottom edge of the score and stats overlay, so a selected person is kept in sight below it.
@@ -307,6 +321,7 @@ export default function GraphScreen() {
 
   return (
     <View style={styles.root}>
+      {scenario && <Stack.Screen options={{ title: `Scenario: ${scenario.label}` }} />}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={styles.filters}>
         {demoSize &&
           (Object.keys(GRAPH_RENDERERS) as RendererId[]).map((id) => (
@@ -364,7 +379,7 @@ export default function GraphScreen() {
             setSelectedPersonId(null);
           }}
           onNodePress={selectPerson}
-          onNodeDoublePress={demoSize ? undefined : openPerson}
+          onNodeDoublePress={sample ? undefined : openPerson}
           onEdgePress={selectEdge}
           onBackgroundPress={() => {
             setSelectedEdgeId(null);
@@ -381,7 +396,7 @@ export default function GraphScreen() {
         >
           {total !== null && prefs.showScore && (
             <Pressable
-              onPress={() => router.push('/score')}
+              onPress={sample ? undefined : () => router.push('/score')}
               accessibilityRole="button"
               accessibilityHint="Opens score details"
               style={({ pressed }) => [
@@ -399,11 +414,11 @@ export default function GraphScreen() {
                 key={selectedPerson.personId}
                 rel={selectedPerson}
                 name={names.get(selectedPerson.personId) ?? '?'}
-                photo={demoSize ? undefined : photos.get(selectedPerson.personId)}
+                photo={sample ? undefined : photos.get(selectedPerson.personId)}
                 stats={stats}
-                onOpen={demoSize ? undefined : () => openPerson(selectedPerson.personId)}
+                onOpen={sample ? undefined : () => openPerson(selectedPerson.personId)}
                 onLog={
-                  demoSize ? undefined : () => router.push({ pathname: '/log', params: { person: selectedPerson.personId } })
+                  sample ? undefined : () => router.push({ pathname: '/log', params: { person: selectedPerson.personId } })
                 }
                 onClose={() => setSelectedPersonId(null)}
                 translucent
@@ -411,7 +426,7 @@ export default function GraphScreen() {
             </View>
           )}
         </View>
-        {selectedEdge && !demoSize && (
+        {selectedEdge && !sample && (
           <EdgeSheet
             key={selectedEdge.id}
             edge={selectedEdge}
@@ -450,7 +465,9 @@ export default function GraphScreen() {
         <Text style={[styles.legendText, { color: t.muted }]}>
           {demoSize
             ? `Stress test (${GRAPH_RENDERERS[rendererId].label}): ${visible.length} people · ${timing}`
-            : `${visible.length} of ${relationships.length} shown · tap a person for details, double-tap to open · tap ? for what everything means`}
+            : scenario
+              ? `Synthetic scenario as of ${new Date(now).toISOString().slice(0, 10)} · ${visible.length} people · tap a person for details`
+              : `${visible.length} of ${relationships.length} shown · tap a person for details, double-tap to open · tap ? for what everything means`}
           {showLabels ? '' : ' · pinch to zoom in for names'}
         </Text>
         {ties.length > 0 && (

@@ -192,3 +192,29 @@ export function callsBrief(): EventLog {
     for (let d = 2; d <= 365; d += 14) b.call(id, d, 30);
   }));
 }
+
+/**
+ * Two social circles and a bridge, for showing network structure: a family who meet together,
+ * a group of friends who meet together, and one friend (cleo) who also joins family meals and
+ * so connects the circles. Kim is a colleague who is also family. Rounded out with a strained
+ * relationship (lee), someone you have lost touch with (zoe) and a new neighbour not yet met (nia).
+ */
+export function circles(): EventLog {
+  const b = new ScenarioBuilder(AS_OF);
+  ['mum', 'dad', 'sis'].forEach((id) => b.person(id, { category: 'family', importance: 5, rhythm: 'monthly' }));
+  ['ana', 'ben', 'cleo'].forEach((id) => b.person(id, { category: 'friend', importance: 4, rhythm: 'monthly' }));
+  b.person('kim', { category: 'work', importance: 3, rhythm: 'weekly' });
+  b.change('kim', { field: 'alsoCategories', value: ['family'] }, b.at(365));
+  b.person('lee', { category: 'work', importance: 3, rhythm: 'monthly', quality: 2 });
+  b.person('zoe', { category: 'friend', importance: 4, rhythm: 'monthly' });
+  b.person('nia', { category: 'neighbour', importance: 2, rhythm: 'quarterly' });
+
+  b.contactEvery(['mum', 'dad', 'sis'], 21, { toDaysAgo: 4 });
+  b.contactEvery(['ana', 'ben', 'cleo'], 14, { toDaysAgo: 2 });
+  b.contactEvery(['mum', 'dad', 'cleo'], 60, { toDaysAgo: 10 });
+  b.contactEvery(['kim', 'sis'], 30, { toDaysAgo: 6 });
+  b.contactEvery('kim', 7, { toDaysAgo: 1 }, { type: 'message' });
+  b.contactEvery('lee', 30, { toDaysAgo: 12 });
+  b.contactEvery('zoe', 30, { fromDaysAgo: 365, toDaysAgo: 200 });
+  return b.build();
+}
