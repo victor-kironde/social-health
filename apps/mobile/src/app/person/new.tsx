@@ -1,12 +1,14 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { validatePerson, type PersonDraft } from '../../data/people';
 import { useStore } from '../../data/store';
 import { Button } from '../../ui/components';
 import { PersonFields } from '../../ui/PersonFields';
+import { useTheme } from '../../ui/theme';
 
 export default function NewPerson() {
+  const t = useTheme();
   const { addPerson } = useStore();
   const [draft, setDraft] = useState<PersonDraft>({
     displayName: '',
@@ -46,6 +48,24 @@ export default function NewPerson() {
 
   return (
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      {/* Several people at once: pick them from the phone's contacts instead (names only). */}
+      <Pressable
+        onPress={() => router.replace('/import')}
+        accessibilityRole="button"
+        accessibilityHint="Opens your contacts to choose people to add"
+        style={({ pressed }) => [styles.import, { borderColor: t.border, backgroundColor: t.card }, pressed && { opacity: 0.7 }]}
+      >
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: t.text, fontWeight: '600', fontSize: 15 }}>Choose from my contacts</Text>
+          <Text style={{ color: t.muted, fontSize: 13, marginTop: 2 }}>Add several people at once. Only names are copied.</Text>
+        </View>
+        <Text style={{ color: t.muted, fontSize: 20 }}>›</Text>
+      </Pressable>
+      <View style={styles.or}>
+        <View style={[styles.rule, { backgroundColor: t.border }]} />
+        <Text style={{ color: t.muted, fontSize: 12 }}>or add someone yourself</Text>
+        <View style={[styles.rule, { backgroundColor: t.border }]} />
+      </View>
       <PersonFields
         draft={draft}
         onChange={(d) => {
@@ -62,4 +82,7 @@ export default function NewPerson() {
 
 const styles = StyleSheet.create({
   content: { padding: 16, gap: 20 },
+  import: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 12, borderWidth: 1 },
+  or: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: -4, marginBottom: -4 },
+  rule: { flex: 1, height: StyleSheet.hairlineWidth },
 });
