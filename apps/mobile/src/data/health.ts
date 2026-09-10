@@ -77,3 +77,37 @@ export function groupHealthColour(bands: HealthBand[], palette: Record<HealthBan
   const lostShare = (bands.length - active.length) / bands.length;
   return mixHex(mixHex(health, grey, lostShare), grey, GROUP_MUTE);
 }
+
+/** A relationship's own score from 1 to 10, with the health band it sits in. */
+export interface PersonalHealth {
+  score: number;
+  band: HealthBand;
+}
+
+/**
+ * A single relationship's score out of 10, from the parts of the main score that belong to one
+ * person (weights as in the model): keeping to rhythm 0.25, calls 0.25 (when connected), your
+ * quality rating 0.10 (when rated) and recent catch-ups 0.10. Coverage and variety across types
+ * describe the whole network, so they are left out. The result is kept within its health band
+ * (Good 9–10, Fairly good 7–8, Needs attention 5–6, Strained 3–4, Unhealthy or Lost touch 1–2),
+ * so the number, the label and the colour always agree.
+ */
+export function personalHealth(r: RelationshipContribution): PersonalHealth {
+  const band = relationshipHealth(r);
+  const parts: [number | null, number][] = [
+    [r.onRhythm, 0.25],
+    [r.callLevel, 0.25],
+    [r.quality === null ? null : (r.quality - 1) / 4, 0.1],
+    [r.level, 0.1],
+  ];
+  let sum = 0;
+  let weight = 0;
+  for (const [v, w] of parts) {
+    if (v === null) continue;
+    sum += w * v;
+    weight += w;
+  }
+  const raw = scoreOutOf10(weight > 0 ? (100 * sum) / weight : 0);
+  const top = band === 'lost' ? 2 : 2 * band;
+  return { score: Math.min(top, Math.max(top - 1, raw)), band };
+}

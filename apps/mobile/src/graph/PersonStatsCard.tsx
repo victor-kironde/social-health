@@ -1,6 +1,6 @@
 import type { RelationshipContribution } from '@sg/score-engine';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { HEALTH_LABELS, relationshipHealth } from '../data/health';
+import { HEALTH_LABELS, personalHealth } from '../data/health';
 import { photoUri } from '../data/photos';
 import { IMPORTANCE_LABELS, QUALITY_LABELS, lastContactText, typesLabel } from '../ui/labels';
 import { useTheme } from '../ui/theme';
@@ -28,7 +28,7 @@ export function PersonStatsCard({
   translucent?: boolean;
 }) {
   const t = useTheme();
-  const health = relationshipHealth(rel);
+  const { score, band: health } = personalHealth(rel);
   const ring = t.health[health];
   const rhythm =
     rel.expectedIntervalDays === null
@@ -43,7 +43,6 @@ export function PersonStatsCard({
     .join(' · ');
 
   const rows: [string, string][] = [
-    ['Health', HEALTH_LABELS[health]],
     ['Importance', IMPORTANCE_LABELS[rel.importance]],
     ['Last catch-up', lastContactText(rel.lastContactAgeDays).replace(/^Last catch-up /, '')],
     ...(rhythm ? ([['Rhythm', rhythm]] as [string, string][]) : []),
@@ -80,6 +79,7 @@ export function PersonStatsCard({
           <Text style={{ color: t.muted, fontSize: 12 }} numberOfLines={1}>
             {typesLabel(rel.category, rel.alsoCategories)}
           </Text>
+          <HealthPill score={score} label={HEALTH_LABELS[health]} colour={ring} />
         </View>
         <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close">
           <Text style={{ color: t.muted, fontSize: 18 }}>×</Text>
@@ -110,7 +110,33 @@ export function PersonStatsCard({
   );
 }
 
+/** "6 · Needs attention": a relationship's own score out of 10 and its health, in its colour. */
+export function HealthPill({ score, label, colour, large = false }: { score: number; label: string; colour: string; large?: boolean }) {
+  return (
+    <View
+      style={[styles.pill, { borderColor: colour }, large && styles.pillLarge]}
+      accessible
+      accessibilityLabel={`Relationship health ${score} out of 10, ${label}`}
+    >
+      <Text style={{ color: colour, fontWeight: '800', fontSize: large ? 16 : 12 }}>{score}</Text>
+      <Text style={{ color: colour, fontSize: large ? 14 : 11, fontWeight: '600' }}>· {label}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    alignSelf: 'flex-start',
+    borderWidth: 1.5,
+    borderRadius: 10,
+    paddingHorizontal: 7,
+    paddingVertical: 1,
+    marginTop: 4,
+  },
+  pillLarge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 14, marginTop: 8 },
   card: { borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, padding: 12, gap: 4 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 },
   avatar: { width: 40, height: 40, borderRadius: 20, borderWidth: 2.5, alignItems: 'center', justifyContent: 'center' },

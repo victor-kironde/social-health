@@ -2,7 +2,8 @@ import { DEFAULT_CONFIG, computeScore, type RelationshipContribution } from '@sg
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { relationshipHealth } from '../../data/health';
+import { HEALTH_LABELS, personalHealth, relationshipHealth } from '../../data/health';
+import { HealthPill } from '../../graph/PersonStatsCard';
 import { pickPersonPhoto, photoUri } from '../../data/photos';
 import { draftFromSnapshot, editPersonEvents, validatePerson, type PersonDraft } from '../../data/people';
 import { useStore } from '../../data/store';
@@ -136,6 +137,10 @@ function PersonEditor({
 
       <Card>
         <Text style={{ color: t.text, fontSize: 16 }}>{lastContactText(rel.lastContactAgeDays)}</Text>
+        {(() => {
+          const { score, band } = personalHealth(rel);
+          return <HealthPill score={score} label={`${HEALTH_LABELS[band]} (out of 10)`} colour={t.health[band]} large />;
+        })()}
         {rel.expectedIntervalDays !== null && (
           <Text style={{ color: t.muted }}>
             {rel.onRhythm !== null && rel.onRhythm >= 0.5 ? 'On rhythm' : 'Behind usual rhythm'} · hoping to catch up

@@ -224,8 +224,9 @@ export default function GraphHelp() {
       >
         Shown in the top-left corner as a number from 1 to 10. The ring fills up to the score and turns from red
         (low) to green (high). It sums up keeping in touch: your rhythms, your most important people, variety across
-        types, calls, how relationships are going and recent catch-ups. Tap it for details. You can hide the score in
-        Settings at any time.
+        types, calls, how relationships are going and recent catch-ups. With filters on (say, only family), it scores
+        just the people shown and says "filtered". Tap it for details. You can hide the score in Settings at any
+        time.
       </Item>
       <Item
         title="Person details"
@@ -238,7 +239,10 @@ export default function GraphHelp() {
           </Art>
         }
       >
-        Tap a person to see their details over the graph: importance, last catch-up, rhythm, how often you are in
+        Tap a person to see their details over the graph, starting with the relationship's own score out of 10
+        and its health, such as "6 · Needs attention". It comes from keeping to rhythm, calls, how you rated it and
+        recent catch-ups, and always sits in its colour's range: 9–10 good, 7–8 fairly good, 5–6 needs attention,
+        3–4 strained, 1–2 unhealthy or lost touch. Below it: importance, last catch-up, rhythm, how often you are in
         touch compared with others, recent catch-ups and calls, and their place in your network.
       </Item>
 

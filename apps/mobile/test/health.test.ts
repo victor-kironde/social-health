@@ -1,6 +1,6 @@
 import type { RelationshipContribution } from '@sg/score-engine';
 import { describe, expect, it } from 'vitest';
-import { GROUP_MUTE, groupHealthColour, mixHex, relationshipHealth, scoreBand, scoreOutOf10 } from '../src/data/health';
+import { GROUP_MUTE, groupHealthColour, mixHex, personalHealth, relationshipHealth, scoreBand, scoreOutOf10 } from '../src/data/health';
 
 function rel(over: Partial<RelationshipContribution> = {}): RelationshipContribution {
   return {
@@ -88,5 +88,32 @@ describe('groupHealthColour', () => {
   it('a healthier group is never redder than a less healthy one', () => {
     const red = (hex: string) => parseInt(hex.slice(1, 3), 16);
     expect(red(groupHealthColour([5, 5], palette))).toBeLessThan(red(groupHealthColour([2, 3], palette)));
+  });
+});
+
+describe('personalHealth (a relationship out of 10)', () => {
+  it('stays inside its health band, so number, label and colour agree', () => {
+    for (const quality of [null, 1, 2, 3, 4, 5] as const)
+      for (const onRhythm of [0, 0.2, 0.4, 0.6, 0.9, 1])
+        for (const age of [null, 5, 200]) {
+          const r = rel({ quality, onRhythm, lastContactAgeDays: age, level: onRhythm });
+          const { score, band } = personalHealth(r);
+          expect(band).toBe(relationshipHealth(r));
+          const top = band === 'lost' ? 2 : 2 * band;
+          expect(score).toBeGreaterThanOrEqual(top - 1);
+          expect(score).toBeLessThanOrEqual(top);
+        }
+  });
+
+  it('a strong, well-rated, on-rhythm relationship scores 10; a harmful one 1 or 2', () => {
+    expect(personalHealth(rel({ quality: 5, onRhythm: 1, level: 1 })).score).toBe(10);
+    expect(personalHealth(rel({ quality: 1 })).score).toBeLessThanOrEqual(2);
+  });
+
+  it('within a band, more contact scores higher', () => {
+    const weak = personalHealth(rel({ onRhythm: 0.8, level: 0.1, callLevel: 0.1 }));
+    const strong = personalHealth(rel({ onRhythm: 1, level: 1, callLevel: 1 }));
+    expect(weak.band).toBe(strong.band);
+    expect(strong.score).toBeGreaterThan(weak.score);
   });
 });

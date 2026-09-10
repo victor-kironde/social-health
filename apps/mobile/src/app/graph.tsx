@@ -7,6 +7,7 @@ import { Easing, cancelAnimation, useDerivedValue, useSharedValue, withRepeat, w
 import { relationshipHealth } from '../data/health';
 import { hasSeenIntro } from '../data/onboarding';
 import { usePrefs } from '../data/prefs';
+import { restrictLog } from '../data/subset';
 import { SCENARIO_AS_OF, findScenario, scenarioNames } from '../data/scenarioCatalog';
 import { useStore } from '../data/store';
 import { ORDER_MEANING, TIER_LABELS, TIER_SET_LINK, layoutSignature, nodeRadii, orderTiers, tierLayout } from '../graph/arrange';
@@ -181,6 +182,14 @@ export default function GraphScreen() {
   );
 
   const visible = useMemo(() => applyFilters(relationships, display), [relationships, display]);
+  // With filters on, the score describes only the people shown (e.g. just family).
+  const filtered = activeFilterCount(display) > 0;
+  const shownTotal = useMemo(() => {
+    if (total === null || !sourceLog || !filtered) return total;
+    if (visible.length === 0) return null;
+    const ids = new Set(visible.map((r) => r.personId));
+    return computeScore(restrictLog(sourceLog, ids), DEFAULT_CONFIG, now).total;
+  }, [total, sourceLog, filtered, visible, now]);
   const showLabels = display.names && (visible.length <= LABEL_LIMIT || zoomedIn);
 
   // Tiers: a list-like arrangement of the people shown, you at the top.
@@ -424,18 +433,20 @@ export default function GraphScreen() {
           pointerEvents="box-none"
           onLayout={(e) => setOverlayBottom(e.nativeEvent.layout.y + e.nativeEvent.layout.height)}
         >
-          {total !== null && prefs.showScore && (
+          {shownTotal !== null && prefs.showScore && (
             <Pressable
               onPress={sample ? undefined : () => router.push('/score')}
               accessibilityRole="button"
-              accessibilityHint="Opens score details"
+              accessibilityHint={filtered ? 'Score for the people shown. Opens score details' : 'Opens score details'}
               style={({ pressed }) => [
                 styles.score,
                 { backgroundColor: translucent(t.card), borderColor: t.border, opacity: pressed ? 0.75 : 1 },
               ]}
             >
-              <ScoreRing total={total} size={46} />
-              <Text style={[styles.scoreLabel, { color: t.muted }]}>Social{'\n'}Health</Text>
+              <ScoreRing total={shownTotal} size={46} />
+              <Text style={[styles.scoreLabel, { color: t.muted }]}>
+                Social{'\n'}Health{filtered ? '\n(filtered)' : ''}
+              </Text>
             </Pressable>
           )}
           {selectedPerson && stats && (
