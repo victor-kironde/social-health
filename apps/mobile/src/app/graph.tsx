@@ -462,7 +462,7 @@ export default function GraphScreen() {
 
       <View style={[styles.legend, { borderTopColor: t.border, paddingBottom: 10 + insets.bottom }]}>
         <Text style={[styles.legendText, { color: t.muted }]}>
-          {display.colourBy === 'health' ? 'Green healthy · red unhealthy · grey lost touch · ' : ''}
+          {display.colourBy === 'health' ? 'Green close · amber drifting · red strained · grey lost touch · ' : ''}
           {tiersOn ? `higher` : 'closer'} = {ORDER_MEANING[display.orderBy]}
           {display.sizeByFrequency ? ' · bigger = more in touch' : ''}
         </Text>

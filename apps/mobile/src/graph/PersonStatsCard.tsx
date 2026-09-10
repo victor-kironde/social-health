@@ -119,7 +119,7 @@ export function PersonStatsCard({
   );
 }
 
-/** "6 · Needs attention": a relationship's own score out of 10 and its health, in its colour. */
+/** "6 · Drifting a little": a relationship's own score out of 10 and its health, in its colour. */
 export function HealthPill({ score, label, colour, large = false }: { score: number; label: string; colour: string; large?: boolean }) {
   return (
     <View

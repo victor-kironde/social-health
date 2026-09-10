@@ -90,6 +90,9 @@ separate, display-only classification and does not feed the score:
   interval, or paused;
 - otherwise `min(quality ?? 5, rhythmBand)`, where `rhythmBand` is 5/4/3/2 for
   onRhythm ≥ 0.75 / 0.5 / 0.25 / below. A relationship is as healthy as its weaker side.
+- Bands are named by closeness, never as a verdict: 5 Close, 4 Connected, 3 Drifting a
+  little, 2 Distant, 1 Strained, and Lost touch (grey). A relationship's own 1–10 score
+  is kept inside its band (Close 9–10 … Strained or Lost touch 1–2).
 
 Node size uses five discrete steps from the contact-frequency tiers (never
 contacted, then frecency quartiles among the rest).

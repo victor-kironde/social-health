@@ -1,8 +1,8 @@
 import type { Rating, RelationshipContribution } from '@sg/score-engine';
 
 /**
- * How a single relationship is doing, for colouring the graph: 5 = good (green) down to
- * 1 = unhealthy (red), or 'lost' (grey) when you have lost touch or are not in the
+ * How a single relationship is doing, for colouring the graph, in terms of closeness: 5 = close
+ * (green) down to 1 = strained (red), or 'lost' (grey) when you have lost touch or are not in the
  * relationship right now.
  */
 export type HealthBand = Rating | 'lost';
@@ -24,12 +24,13 @@ export function relationshipHealth(r: RelationshipContribution): HealthBand {
   return Math.min(r.quality ?? 5, rhythmBand) as Rating;
 }
 
+/** Gentle, closeness-based names for each band (never a verdict on the person). */
 export const HEALTH_LABELS: Record<HealthBand, string> = {
-  5: 'Good',
-  4: 'Fairly good',
-  3: 'Needs attention',
-  2: 'Strained',
-  1: 'Unhealthy',
+  5: 'Close',
+  4: 'Connected',
+  3: 'Drifting a little',
+  2: 'Distant',
+  1: 'Strained',
   lost: 'Lost touch',
 };
 
@@ -89,7 +90,7 @@ export interface PersonalHealth {
  * person (weights as in the model): keeping to rhythm 0.25, calls 0.25 (when connected), your
  * quality rating 0.10 (when rated) and recent catch-ups 0.10. Coverage and variety across types
  * describe the whole network, so they are left out. The result is kept within its health band
- * (Good 9–10, Fairly good 7–8, Needs attention 5–6, Strained 3–4, Unhealthy or Lost touch 1–2),
+ * (Close 9–10, Connected 7–8, Drifting a little 5–6, Distant 3–4, Strained or Lost touch 1–2),
  * so the number, the label and the colour always agree.
  */
 export function personalHealth(r: RelationshipContribution): PersonalHealth {

@@ -24,7 +24,7 @@ const light = {
     neighbour: '#b39a6b',
     community: '#a97f92',
   } as Record<Category, string>,
-  /** Relationship health: 1 unhealthy (red) to 5 good (green), and grey for lost touch. */
+  /** Relationship health: 1 strained (red) to 5 close (green), and grey for lost touch. */
   health: { 1: '#d64545', 2: '#e8833a', 3: '#d9a72b', 4: '#7cb342', 5: '#2e9d57', lost: '#9aa0a8' } as Record<
     Rating | 'lost',
     string

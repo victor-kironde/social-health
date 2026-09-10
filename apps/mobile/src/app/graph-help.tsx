@@ -55,9 +55,10 @@ export default function GraphHelp() {
           </Art>
         }
       >
-        The ring and the line to you run from <Swatch colour={h[5]}>green (healthy)</Swatch> through{' '}
-        <Swatch colour={h[3]}>amber (needs attention)</Swatch> to <Swatch colour={h[1]}>red (unhealthy)</Swatch>. A
-        relationship is as healthy as its weaker side: how you said it is going, and whether you are keeping to the
+        The ring and the line to you run from <Swatch colour={h[5]}>green (close)</Swatch> and{' '}
+        <Swatch colour={h[4]}>connected</Swatch>, through <Swatch colour={h[3]}>amber (drifting a little)</Swatch>{' '}
+        and <Swatch colour={h[2]}>distant</Swatch>, to <Swatch colour={h[1]}>red (strained)</Swatch>. A
+        relationship is only as close as its weaker side: how you said it is going, and whether you are keeping to the
         rhythm you hoped for. A relationship you rated harmful is red however often you meet; a good one you have
         drifted from turns amber. In Display & filters you can colour people by type or group instead.
       </Item>
@@ -242,9 +243,9 @@ export default function GraphHelp() {
         }
       >
         Tap a person to see their details over the graph, starting with the relationship's own score out of 10
-        and its health, such as "6 · Needs attention". It comes from keeping to rhythm, calls, how you rated it and
-        recent catch-ups, and always sits in its colour's range: 9–10 good, 7–8 fairly good, 5–6 needs attention,
-        3–4 strained, 1–2 unhealthy or lost touch. Below it: importance, last catch-up, rhythm, how often you are in
+        and how close you are, such as "6 · Drifting a little". It comes from keeping to rhythm, calls, how you rated it and
+        recent catch-ups, and always sits in its colour's range: 9–10 close, 7–8 connected, 5–6 drifting a little,
+        3–4 distant, 1–2 strained or lost touch. Below it: importance, last catch-up, rhythm, how often you are in
         touch compared with others, recent catch-ups and calls, and their place in your network. Double-tap the card
         or tap their photo to open their page.
       </Item>
