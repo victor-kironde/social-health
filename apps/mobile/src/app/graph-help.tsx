@@ -160,7 +160,8 @@ export default function GraphHelp() {
           </Art>
         }
       >
-        Softly shaded areas group the people of each relationship type, named on the graph. Each area takes the
+        Softly shaded areas group the people of each relationship type, named on the graph. An area always
+        wraps whole people, so it never looks like a line. Each area takes the
         overall health of the relationships in it: a muted green for a group that is going well, warmer when some are
         strained, and greyer the more of them you have lost touch with. So you can see at a glance, say, that family
         is doing well while work contacts are drifting. Someone can belong to more than one type (set "Also part of"
@@ -249,7 +250,7 @@ export default function GraphHelp() {
       </Item>
 
       <Heading>Using the graph</Heading>
-      <Gesture icon="Tap" text="A person: show their details. Their photo in the details: open their page. A line: show what links them. Empty space: close details." />
+      <Gesture icon="Tap" text="A person: show their details. Their photo in the details: open their page. Anywhere else: close details." />
       <Gesture icon="Double-tap" text="A person or their details: open their page. Empty space: fit everyone in view." />
       <Gesture icon="Drag" text="A person (in rings): move them; they settle back gently. Empty space: move around." />
       <Gesture icon="Pinch" text="Zoom in or out. Names appear when you zoom in on a busy graph." />

@@ -49,6 +49,7 @@ interface SetSpec {
   /** Draws the whole set at once with this opacity, so the set's own overlaps do not darken. */
   layer: SkPaint;
   fill: SkPaint;
+  /** Joins neighbouring members; its width is set per link (see setsPicture). */
   bar: SkPaint;
   label: SkPaint;
   /** Outline behind the name so it stays readable over people and lines. */
@@ -59,6 +60,8 @@ interface SetSpec {
   members: number[];
   radii: number[];
   primary: boolean[];
+  /** Member radius by index into xy, for sizing the joins. */
+  radiusAt: Record<number, number>;
 }
 
 const TAU = Math.PI * 2;
@@ -68,8 +71,6 @@ const BRIDGE_GAP = 6;
 const GLOW_SCALE = 1.75;
 /** How far a set reaches beyond its members' circles. */
 const SET_PAD = 14;
-/** Width of the band joining members of a set. */
-const SET_BAR = 30;
 /** Members further apart than this are drawn as separate islands (unless the style says otherwise). */
 const SET_MAX_LINK = 260;
 /** Opacity of each set: low, so two overlapping sets read as a third, darker shade. */
@@ -181,7 +182,7 @@ function LiveSkia({
         // Coloured by health: the group takes the overall health of the relationships in it.
         // Otherwise each type keeps its own muted colour.
         const colour = (style.colourBy ?? 'health') === 'health' ? groupHealthColour(m.health, c.health) : c.category[cat];
-        const bar = paint(colour, { stroke: SET_BAR });
+        const bar = paint(colour, { stroke: 1 });
         bar.setStrokeCap(StrokeCap.Round);
         const name = style.categoryNames?.[cat] ?? cat;
         sets.push({
@@ -193,6 +194,7 @@ function LiveSkia({
           name,
           nameDx: centreOffset(name, fonts.set),
           ...m,
+          radiusAt: Object.fromEntries(m.members.map((idx, k) => [idx, m.radii[k]!])),
         });
       }
     }
@@ -229,10 +231,13 @@ function LiveSkia({
           const i = set.members[k]!;
           canvas.drawCircle(xy[2 * i]!, xy[2 * i + 1]!, set.radii[k]! + SET_PAD, set.fill);
         }
+        // Each join is as wide as the smaller member's disc, so the area flows around whole people
+        // as one shape rather than reading as a thick line between them.
         const links = spanningEdges(xy, set.members, specs.setMaxLink);
         for (let k = 0; k < links.length; k += 2) {
           const a = links[k]!;
           const b = links[k + 1]!;
+          set.bar.setStrokeWidth(2 * (Math.min(set.radiusAt[a]!, set.radiusAt[b]!) + SET_PAD));
           canvas.drawLine(xy[2 * a]!, xy[2 * a + 1]!, xy[2 * b]!, xy[2 * b + 1]!, set.bar);
         }
         canvas.restore();

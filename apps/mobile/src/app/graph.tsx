@@ -18,7 +18,6 @@ import { PersonStatsCard } from '../graph/PersonStatsCard';
 import { personStats } from '../graph/personStats';
 import { GraphCanvas } from '../graph/GraphCanvas';
 import { demoNetwork } from '../graph/demo';
-import { EdgeSheet } from '../graph/EdgeSheet';
 import { layoutEgoGraph, type Point } from '../graph/layout';
 import { ME_ID, buildGraph, type GraphStyle, type LivePositions } from '../graph/model';
 import { useLiveSimulation, type SettleStats } from '../graph/physics/useLiveSimulation';
@@ -77,7 +76,6 @@ export default function GraphScreen() {
   const [rendererId, setRendererId] = useState<RendererId>(DEFAULT_RENDERER);
   const isLive = GRAPH_RENDERERS[rendererId].live;
 
-  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   // The person whose stats are shown (one tap); a double tap opens their page instead.
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
   // Stress test only: switch links off to compare, and report how long the layout took to settle.
@@ -253,7 +251,6 @@ export default function GraphScreen() {
     return buildGraph(visible, names, ties, metrics.nodes, radii, sample ? undefined : photos);
   }, [visible, names, ties, metrics, radii, photos, sample]);
   // A selection that is filtered out of view simply disappears.
-  const selectedEdge = graph.edges.find((e) => e.id === selectedEdgeId) ?? null;
   const selectedPerson =
     selectedPersonId && graph.nodes.some((n) => n.id === selectedPersonId) ? byId.get(selectedPersonId) ?? null : null;
   const stats = useMemo(
@@ -270,13 +267,11 @@ export default function GraphScreen() {
         : null,
     [selectedPerson, relationships, sourceLog, metrics, now],
   );
-  const [sheetHeight, setSheetHeight] = useState(0);
   // Bottom edge of the score and stats overlay, so a selected person is kept in sight below it.
   const [overlayBottom, setOverlayBottom] = useState(0);
-  // The selected person, or the midpoint of the selected edge, where it is right now,
-  // so the view can keep it in sight (above the sheet).
+  // The selected person, where they are right now, so the view can keep them in sight.
   const focus = useMemo(() => {
-    if (!selectedEdge && !selectedPerson) return null;
+    if (!selectedPerson) return null;
     const xy = live?.xy.value;
     const index = live ? new Map(live.ids.map((id, i) => [id, i])) : null;
     const at = (id: string): Point | undefined => {
@@ -287,19 +282,15 @@ export default function GraphScreen() {
       }
       return (tierView?.positions ?? positions).get(id);
     };
-    if (selectedPerson) return at(selectedPerson.personId) ?? null;
-    const a = at(selectedEdge!.source);
-    const b = at(selectedEdge!.target);
-    return a && b ? { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } : null;
-    // Recompute only when a different edge or person is selected.
-  }, [selectedEdge?.id, selectedPerson?.personId]);
+    return at(selectedPerson.personId) ?? null;
+    // Recompute only when a different person is selected.
+  }, [selectedPerson?.personId]);
   const onRendered = useCallback(() => setRenderMs(performance.now() - renderStart.current), []);
 
   const style: GraphStyle = useMemo(
     () => ({
       colours: t,
       showLabels,
-      selectedEdgeId: selectedEdge?.id ?? null,
       selectedNodeId: selectedPerson?.personId ?? null,
       colourBy:
         display.colourBy === 'group' && ties.length > 0
@@ -314,17 +305,10 @@ export default function GraphScreen() {
       setMaxLink: tierView ? TIER_SET_LINK : undefined,
       categoryNames: CATEGORY_LABELS,
     }),
-    [t, display, showLabels, selectedEdge?.id, selectedPerson?.personId, ties.length, tierView],
+    [t, display, showLabels, selectedPerson?.personId, ties.length, tierView],
   );
   const openPerson = (id: string) => router.push({ pathname: '/person/[id]', params: { id } });
-  const selectPerson = (id: string) => {
-    setSelectedEdgeId(null);
-    setSelectedPersonId(id);
-  };
-  const selectEdge = (id: string) => {
-    setSelectedPersonId(null);
-    setSelectedEdgeId(id);
-  };
+  const selectPerson = (id: string) => setSelectedPersonId(id);
 
   if (!sample && status === 'loading') {
     return (
@@ -423,19 +407,11 @@ export default function GraphScreen() {
                   { key: 'people', label: 'People and score', Icon: PeopleIcon, onPress: () => router.push('/people') },
                 ]
           }
-          onFrameAll={() => {
-            setSelectedEdgeId(null);
-            setSelectedPersonId(null);
-          }}
+          onFrameAll={() => setSelectedPersonId(null)}
           onNodePress={selectPerson}
           onNodeDoublePress={sample ? undefined : openPerson}
-          onEdgePress={selectEdge}
-          onBackgroundPress={() => {
-            setSelectedEdgeId(null);
-            setSelectedPersonId(null);
-          }}
+          onBackgroundPress={() => setSelectedPersonId(null)}
           focus={focus}
-          bottomInset={selectedEdge ? sheetHeight : 0}
           topInset={selectedPerson ? overlayBottom : 0}
         />
         <View
@@ -474,21 +450,6 @@ export default function GraphScreen() {
             </View>
           )}
         </View>
-        {selectedEdge && !sample && (
-          <EdgeSheet
-            key={selectedEdge.id}
-            edge={selectedEdge}
-            relationships={byId}
-            metrics={metrics.nodes}
-            names={names}
-            now={now}
-            animate={!reducedMotion}
-            onClose={() => setSelectedEdgeId(null)}
-            onOpenPerson={openPerson}
-            onLogContact={(ids) => router.push({ pathname: '/log', params: { people: ids.join(',') } })}
-            onHeight={setSheetHeight}
-          />
-        )}
       </View>
 
       <DisplayPanel
