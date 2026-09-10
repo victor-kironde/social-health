@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
-import Svg, { Circle, Path, Text as SvgText } from 'react-native-svg';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Easing, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 import { fitScale, hitTest, hitTestEdge, hitTestXY, screenToGraph, zoomAbout } from './geometry';
 import { NODE_RADIUS, type Point } from './layout';
+import { FocusIcon, HelpIcon } from './icons';
 import { ME_ID, type GraphData, type GraphRenderer, type GraphStyle, type LivePositions } from './model';
 
 const MIN_SCALE = 0.4;
@@ -49,6 +49,7 @@ export function GraphCanvas({
   onZoomEnd,
   onFrameAll,
   onHelp,
+  leftActions = [],
   onRendered,
   focus,
   bottomInset = 0,
@@ -75,6 +76,8 @@ export function GraphCanvas({
   onFrameAll?: () => void;
   /** Shows a "?" button above the focus button. */
   onHelp?: () => void;
+  /** Round icon buttons stacked in the bottom-left corner, first at the bottom. */
+  leftActions?: { key: string; label: string; Icon: ComponentType<{ colour: string }>; onPress: () => void }[];
   onRendered?: () => void;
   /** A graph point to keep in view, e.g. the selected edge; the view pans to it if hidden. */
   focus?: Point | null;
@@ -363,52 +366,51 @@ export function GraphCanvas({
         </View>
       </GestureDetector>
       {onHelp && (
-        <Pressable
-          onPress={onHelp}
-          accessibilityRole="button"
-          accessibilityLabel="What the graph shows"
-          hitSlop={8}
-          style={({ pressed }) => [
-            styles.fab,
-            {
-              bottom: bottomInset + 16 + FAB_SIZE + FAB_GAP,
-              backgroundColor: c.card,
-              borderColor: c.edge,
-              opacity: pressed ? 0.7 : 0.92,
-            },
-          ]}
-        >
-          <Svg width={22} height={22} viewBox="0 0 24 24">
-            <Circle cx={12} cy={12} r={10} fill="none" stroke={c.text} strokeWidth={2} />
-            <SvgText x={12} y={16.5} fontSize={13} fontWeight="700" fill={c.text} textAnchor="middle">
-              ?
-            </SvgText>
-          </Svg>
-        </Pressable>
+        <Fab bottom={bottomInset + 16 + FAB_SIZE + FAB_GAP} side="right" label="What the graph shows" onPress={onHelp} colours={c}>
+          <HelpIcon colour={c.text} />
+        </Fab>
       )}
-      <Pressable
-        onPress={frameAll}
-        accessibilityRole="button"
-        accessibilityLabel="Fit the whole graph"
-        hitSlop={8}
-        style={({ pressed }) => [
-          styles.fab,
-          { bottom: bottomInset + 16, backgroundColor: c.card, borderColor: c.edge, opacity: pressed ? 0.7 : 0.92 },
-        ]}
-      >
-        {/* Focus: viewfinder corners around a centre point. */}
-        <Svg width={22} height={22} viewBox="0 0 24 24">
-          <Path
-            d="M3 8V4.5A1.5 1.5 0 0 1 4.5 3H8M16 3h3.5A1.5 1.5 0 0 1 21 4.5V8M21 16v3.5a1.5 1.5 0 0 1-1.5 1.5H16M8 21H4.5A1.5 1.5 0 0 1 3 19.5V16"
-            fill="none"
-            stroke={c.text}
-            strokeWidth={2}
-            strokeLinecap="round"
-          />
-          <Circle cx={12} cy={12} r={3} fill={c.text} />
-        </Svg>
-      </Pressable>
+      <Fab bottom={bottomInset + 16} side="right" label="Fit the whole graph" onPress={frameAll} colours={c}>
+        <FocusIcon colour={c.text} />
+      </Fab>
+      {leftActions.map((a, i) => (
+        <Fab key={a.key} bottom={bottomInset + 16 + i * (FAB_SIZE + FAB_GAP)} side="left" label={a.label} onPress={a.onPress} colours={c}>
+          <a.Icon colour={c.text} />
+        </Fab>
+      ))}
     </View>
+  );
+}
+
+/** A small round outlined button floating over the graph. */
+function Fab({
+  bottom,
+  side,
+  label,
+  onPress,
+  colours,
+  children,
+}: {
+  bottom: number;
+  side: 'left' | 'right';
+  label: string;
+  onPress: () => void;
+  colours: { card: string; edge: string };
+  children: ReactNode;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      hitSlop={8}
+      style={({ pressed }) => [
+        styles.fab,
+        { bottom, [side]: 16, backgroundColor: colours.card, borderColor: colours.edge, opacity: pressed ? 0.7 : 0.92 },
+      ]}
+    >
+      {children}
+    </Pressable>
   );
 }
 
@@ -416,7 +418,6 @@ const styles = StyleSheet.create({
   canvas: { flex: 1, overflow: 'hidden' },
   fab: {
     position: 'absolute',
-    right: 16,
     width: FAB_SIZE,
     height: FAB_SIZE,
     borderRadius: FAB_SIZE / 2,

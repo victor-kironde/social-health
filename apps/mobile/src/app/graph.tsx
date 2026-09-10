@@ -13,6 +13,7 @@ import { useStore } from '../data/store';
 import { ORDER_MEANING, TIER_LABELS, TIER_SET_LINK, layoutSignature, nodeRadii, orderTiers, tierLayout } from '../graph/arrange';
 import { DEFAULT_DISPLAY, activeFilterCount, applyFilters, type DisplayOptions } from '../graph/display';
 import { DisplayPanel } from '../graph/DisplayPanel';
+import { AddPersonIcon, CatchUpIcon, PeopleIcon } from '../graph/icons';
 import { PersonStatsCard } from '../graph/PersonStatsCard';
 import { personStats } from '../graph/personStats';
 import { GraphCanvas } from '../graph/GraphCanvas';
@@ -413,6 +414,15 @@ export default function GraphScreen() {
           onZoomEnd={(s) => setZoomedIn(s >= LABEL_ZOOM)}
           // The whole graph is an overview: close any person or link details that would cover it.
           onHelp={() => router.push('/graph-help')}
+          leftActions={
+            sample
+              ? []
+              : [
+                  { key: 'catch-up', label: 'Log a catch-up', Icon: CatchUpIcon, onPress: () => router.push('/log') },
+                  { key: 'add', label: 'Add person', Icon: AddPersonIcon, onPress: () => router.push('/person/new') },
+                  { key: 'people', label: 'People and score', Icon: PeopleIcon, onPress: () => router.push('/people') },
+                ]
+          }
           onFrameAll={() => {
             setSelectedEdgeId(null);
             setSelectedPersonId(null);
@@ -458,9 +468,6 @@ export default function GraphScreen() {
                 photo={sample ? undefined : photos.get(selectedPerson.personId)}
                 stats={stats}
                 onOpen={sample ? undefined : () => openPerson(selectedPerson.personId)}
-                onLog={
-                  sample ? undefined : () => router.push({ pathname: '/log', params: { person: selectedPerson.personId } })
-                }
                 onClose={() => setSelectedPersonId(null)}
                 translucent
               />
@@ -492,7 +499,7 @@ export default function GraphScreen() {
         hasTies={ties.length > 0}
       />
 
-      <View style={[styles.legend, { borderTopColor: t.border }]}>
+      <View style={[styles.legend, { borderTopColor: t.border, paddingBottom: 10 + insets.bottom }]}>
         <Text style={[styles.legendText, { color: t.muted }]}>
           {display.colourBy === 'health' ? 'Green healthy · red unhealthy · grey lost touch · ' : ''}
           {tiersOn ? `higher` : 'closer'} = {ORDER_MEANING[display.orderBy]}
@@ -512,32 +519,7 @@ export default function GraphScreen() {
           </Text>
         )}
       </View>
-      {!sample && (
-        <View style={[styles.actions, { paddingBottom: 12 + insets.bottom }]}>
-          <ActionButton label="People" onPress={() => router.push('/people')} />
-          <ActionButton label="Catch up" primary onPress={() => router.push('/log')} />
-          <ActionButton label="Add person" onPress={() => router.push('/person/new')} />
-        </View>
-      )}
     </View>
-  );
-}
-
-/** One of the main screen's actions under the graph. */
-function ActionButton({ label, onPress, primary = false }: { label: string; onPress: () => void; primary?: boolean }) {
-  const t = useTheme();
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      style={({ pressed }) => [
-        styles.action,
-        primary ? { backgroundColor: t.accent } : { borderColor: t.border, borderWidth: 1 },
-        pressed && { opacity: 0.75 },
-      ]}
-    >
-      <Text style={{ color: primary ? t.onAccent : t.text, fontWeight: '600' }}>{label}</Text>
-    </Pressable>
   );
 }
 
@@ -561,6 +543,5 @@ const styles = StyleSheet.create({
   legend: { paddingHorizontal: 16, paddingVertical: 10, borderTopWidth: StyleSheet.hairlineWidth, gap: 2 },
   legendText: { fontSize: 12 },
   emptyTitle: { fontSize: 20, fontWeight: '700' },
-  actions: { flexDirection: 'row', gap: 8, paddingHorizontal: 12, paddingTop: 8, paddingBottom: 12 },
-  action: { flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 12 },
+
 });

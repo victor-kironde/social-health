@@ -1,5 +1,6 @@
 import type { RelationshipContribution } from '@sg/score-engine';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { HEALTH_LABELS, personalHealth } from '../data/health';
 import { photoUri } from '../data/photos';
 import { IMPORTANCE_LABELS, QUALITY_LABELS, lastContactText, typesLabel } from '../ui/labels';
@@ -13,7 +14,6 @@ export function PersonStatsCard({
   photo,
   stats,
   onOpen,
-  onLog,
   onClose,
   translucent = false,
 }: {
@@ -21,8 +21,8 @@ export function PersonStatsCard({
   name: string;
   photo?: string;
   stats: PersonStats;
+  /** Opens the person's page: double tap on the card, or tap on their photo. */
   onOpen?: () => void;
-  onLog?: () => void;
   onClose: () => void;
   /** See-through background, for floating over the graph. */
   translucent?: boolean;
@@ -61,52 +61,61 @@ export function PersonStatsCard({
     ['Network', network],
   ];
 
+  const doubleTap = Gesture.Tap()
+    .numberOfTaps(2)
+    .maxDelay(250)
+    .enabled(!!onOpen)
+    .runOnJS(true)
+    .onEnd((_e, success) => {
+      if (success) onOpen?.();
+    });
+
   return (
-    <View
-      style={[styles.card, { backgroundColor: translucent ? `${t.card}B8` : t.card, borderColor: t.border }]} accessibilityLabel={`${name} details`}>
-      <View style={styles.header}>
-        {photo ? (
-          <Image source={{ uri: photoUri(photo) }} style={[styles.avatar, { borderColor: ring }]} />
-        ) : (
-          <View style={[styles.avatar, { borderColor: ring, backgroundColor: t.bg }]}>
-            <Text style={{ color: t.text, fontWeight: '700' }}>{name.charAt(0).toUpperCase()}</Text>
+    <GestureDetector gesture={doubleTap}>
+      <View
+        style={[styles.card, { backgroundColor: translucent ? `${t.card}B8` : t.card, borderColor: t.border }]}
+        accessibilityLabel={`${name} details`}
+      >
+        <View style={styles.header}>
+          <Pressable
+            onPress={onOpen}
+            disabled={!onOpen}
+            hitSlop={6}
+            accessibilityRole={onOpen ? 'button' : undefined}
+            accessibilityLabel={onOpen ? `Open ${name}` : undefined}
+          >
+            {photo ? (
+              <Image source={{ uri: photoUri(photo) }} style={[styles.avatar, { borderColor: ring }]} />
+            ) : (
+              <View style={[styles.avatar, { borderColor: ring, backgroundColor: t.bg }]}>
+                <Text style={{ color: t.text, fontWeight: '700' }}>{name.charAt(0).toUpperCase()}</Text>
+              </View>
+            )}
+          </Pressable>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.name, { color: t.text }]} numberOfLines={1}>
+              {name}
+            </Text>
+            <Text style={{ color: t.muted, fontSize: 12 }} numberOfLines={1}>
+              {typesLabel(rel.category, rel.alsoCategories)}
+            </Text>
+            <HealthPill score={score} label={HEALTH_LABELS[health]} colour={ring} />
           </View>
+          <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close">
+            <Text style={{ color: t.muted, fontSize: 18 }}>×</Text>
+          </Pressable>
+        </View>
+        {rows.map(([k, v]) => (
+          <View key={k} style={styles.row}>
+            <Text style={[styles.key, { color: t.muted }]}>{k}</Text>
+            <Text style={[styles.value, { color: t.text }]}>{v}</Text>
+          </View>
+        ))}
+        {onOpen && (
+          <Text style={[styles.hint, { color: t.muted }]}>Double-tap here or tap the photo to open {name.split(' ')[0]}</Text>
         )}
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.name, { color: t.text }]} numberOfLines={1}>
-            {name}
-          </Text>
-          <Text style={{ color: t.muted, fontSize: 12 }} numberOfLines={1}>
-            {typesLabel(rel.category, rel.alsoCategories)}
-          </Text>
-          <HealthPill score={score} label={HEALTH_LABELS[health]} colour={ring} />
-        </View>
-        <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close">
-          <Text style={{ color: t.muted, fontSize: 18 }}>×</Text>
-        </Pressable>
       </View>
-      {rows.map(([k, v]) => (
-        <View key={k} style={styles.row}>
-          <Text style={[styles.key, { color: t.muted }]}>{k}</Text>
-          <Text style={[styles.value, { color: t.text }]}>{v}</Text>
-        </View>
-      ))}
-      {(onOpen || onLog) && (
-        <View style={styles.actions}>
-          {onLog && (
-            <Pressable onPress={onLog} style={[styles.action, { borderColor: t.border }]} accessibilityRole="button">
-              <Text style={{ color: t.text, fontSize: 13 }}>Catch up</Text>
-            </Pressable>
-          )}
-          {onOpen && (
-            <Pressable onPress={onOpen} style={[styles.action, { backgroundColor: t.accent }]} accessibilityRole="button">
-              <Text style={{ color: t.onAccent, fontSize: 13, fontWeight: '600' }}>Open</Text>
-            </Pressable>
-          )}
-        </View>
-      )}
-      <Text style={[styles.hint, { color: t.muted }]}>Double-tap a person to open them</Text>
-    </View>
+    </GestureDetector>
   );
 }
 
@@ -144,7 +153,5 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
   key: { fontSize: 12, flexShrink: 0 },
   value: { fontSize: 12, flexShrink: 1, textAlign: 'right' },
-  actions: { flexDirection: 'row', gap: 8, marginTop: 8 },
-  action: { flex: 1, alignItems: 'center', paddingVertical: 7, borderRadius: 8, borderWidth: 1, borderColor: 'transparent' },
   hint: { fontSize: 10, marginTop: 4, textAlign: 'center' },
 });

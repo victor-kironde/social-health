@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import Svg, { Circle, G, Line, Path, Polyline, Rect, Text as SvgText } from 'react-native-svg';
+import Svg, { Circle, G, Line, Polyline, Rect, Text as SvgText } from 'react-native-svg';
 import { groupHealthColour } from '../data/health';
+import { AddPersonIcon, CatchUpIcon, FocusIcon, HelpIcon, PeopleIcon } from '../graph/icons';
 import { useTheme } from '../ui/theme';
 
 /** Plain-language key to everything the network graph draws, each with a small sample drawing. */
@@ -243,29 +244,20 @@ export default function GraphHelp() {
         and its health, such as "6 · Needs attention". It comes from keeping to rhythm, calls, how you rated it and
         recent catch-ups, and always sits in its colour's range: 9–10 good, 7–8 fairly good, 5–6 needs attention,
         3–4 strained, 1–2 unhealthy or lost touch. Below it: importance, last catch-up, rhythm, how often you are in
-        touch compared with others, recent catch-ups and calls, and their place in your network.
+        touch compared with others, recent catch-ups and calls, and their place in your network. Double-tap the card
+        or tap their photo to open their page.
       </Item>
 
       <Heading>Using the graph</Heading>
-      <Gesture icon="Tap" text="A person: show their details. A line: show what links them. Empty space: close details." />
-      <Gesture icon="Double-tap" text="A person: open their page. Empty space: fit everyone in view." />
+      <Gesture icon="Tap" text="A person: show their details. Their photo in the details: open their page. A line: show what links them. Empty space: close details." />
+      <Gesture icon="Double-tap" text="A person or their details: open their page. Empty space: fit everyone in view." />
       <Gesture icon="Drag" text="A person (in rings): move them; they settle back gently. Empty space: move around." />
       <Gesture icon="Pinch" text="Zoom in or out. Names appear when you zoom in on a busy graph." />
-      <Gesture
-        icon={
-          <Svg width={22} height={22} viewBox="0 0 24 24">
-            <Path
-              d="M3 8V4.5A1.5 1.5 0 0 1 4.5 3H8M16 3h3.5A1.5 1.5 0 0 1 21 4.5V8M21 16v3.5a1.5 1.5 0 0 1-1.5 1.5H16M8 21H4.5A1.5 1.5 0 0 1 3 19.5V16"
-              fill="none"
-              stroke={t.text}
-              strokeWidth={2}
-              strokeLinecap="round"
-            />
-            <Circle cx={12} cy={12} r={3} fill={t.text} />
-          </Svg>
-        }
-        text="Fit the whole graph back in view."
-      />
+      <Gesture icon={<FocusIcon colour={t.text} />} text="Fit the whole graph back in view (bottom right)." />
+      <Gesture icon={<HelpIcon colour={t.text} />} text="This page." />
+      <Gesture icon={<CatchUpIcon colour={t.text} />} text="Log a catch-up (bottom left)." />
+      <Gesture icon={<AddPersonIcon colour={t.text} />} text="Add someone, yourself or from your contacts." />
+      <Gesture icon={<PeopleIcon colour={t.text} />} text="Everyone as a list, with your Social Health score and recent changes." />
       <Gesture
         icon="Display & filters"
         text="Choose rings or tiers, what to order by, what to show (type areas, sizes, lines, names), what colours people (health, type or group), and who to show (types, importance, behind rhythm, never contacted)."
