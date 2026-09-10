@@ -1,9 +1,11 @@
 import { DEFAULT_CONFIG, computeScore } from '@sg/score-engine';
 import { Stack, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Easing, cancelAnimation, useDerivedValue, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 import { relationshipHealth } from '../data/health';
+import { hasSeenIntro } from '../data/onboarding';
 import { usePrefs } from '../data/prefs';
 import { SCENARIO_AS_OF, findScenario, scenarioNames } from '../data/scenarioCatalog';
 import { useStore } from '../data/store';
@@ -21,7 +23,7 @@ import { useLiveSimulation, type SettleStats } from '../graph/physics/useLiveSim
 import { networkMetrics } from '../graph/metrics';
 import { deriveTies, tieSignature } from '../graph/ties';
 import { DEFAULT_RENDERER, GRAPH_RENDERERS, type RendererId } from '../graph/renderers';
-import { ToggleChip } from '../ui/components';
+import { Button, ToggleChip } from '../ui/components';
 import { CATEGORY_LABELS, IMPORTANCE_LABELS } from '../ui/labels';
 import { ScoreRing } from '../ui/ScoreRing';
 import { useTheme } from '../ui/theme';
@@ -45,14 +47,25 @@ const PULSE_MS = 2800;
 
 export default function GraphScreen() {
   const t = useTheme();
-  const { log, graphLayout, saveGraphLayout, photos } = useStore();
+  const { log, graphLayout, saveGraphLayout, photos, status } = useStore();
   const { prefs } = usePrefs();
+  const insets = useSafeAreaInsets();
   const { demo, scenario: scenarioId } = useLocalSearchParams<{ demo?: string; scenario?: string }>();
   const demoSize = demo ? Math.min(500, Math.max(1, Number(demo) || 150)) : null;
   // A synthetic scenario from the engine preview, shown as of the scenarios' fixed date.
   const scenario = demoSize ? undefined : findScenario(scenarioId);
   /** Showing made-up data (stress test or scenario): never save, open or log anything real. */
   const sample = demoSize !== null || scenario !== undefined;
+
+  // The first time the app opens, show the introduction once.
+  useEffect(() => {
+    if (sample || status !== 'ready') return;
+    hasSeenIntro()
+      .then((seen) => {
+        if (!seen) router.push('/intro');
+      })
+      .catch(() => undefined);
+  }, [sample, status]);
   const reducedMotion = useReduceMotion();
 
   const [display, setDisplay] = useState<DisplayOptions>(DEFAULT_DISPLAY);
@@ -303,10 +316,27 @@ export default function GraphScreen() {
     setSelectedEdgeId(id);
   };
 
-  if (relationships.length === 0) {
+  if (!sample && status === 'loading') {
     return (
       <View style={styles.center}>
-        <Text style={{ color: t.muted }}>Add people to see your network as a graph.</Text>
+        <ActivityIndicator color={t.accent} />
+      </View>
+    );
+  }
+  if (relationships.length === 0) {
+    return (
+      <View style={[styles.center, { gap: 12 }]}>
+        <Text style={[styles.emptyTitle, { color: t.text }]}>Your network starts here</Text>
+        <Text style={{ color: t.muted, textAlign: 'center', lineHeight: 20, maxWidth: 360 }}>
+          Add the people who matter to you and they will appear around you, coloured by how each relationship is
+          doing.
+        </Text>
+        {!sample && (
+          <View style={{ gap: 10, alignSelf: 'stretch', maxWidth: 360, width: '100%', marginTop: 8 }}>
+            <Button title="Choose from my contacts" onPress={() => router.push('/import')} />
+            <Button title="Add someone myself" variant="secondary" onPress={() => router.push('/person/new')} />
+          </View>
+        )}
       </View>
     );
   }
@@ -453,30 +483,50 @@ export default function GraphScreen() {
 
       <View style={[styles.legend, { borderTopColor: t.border }]}>
         <Text style={[styles.legendText, { color: t.muted }]}>
-          {display.colourBy === 'health' ? 'Green = healthy, red = unhealthy, grey and faint = lost touch · ' : ''}
-          {tiersOn ? `Higher row` : 'Closer'} = {display.orderBy === 'importance' ? 'more important' : `higher ${ORDER_LABELS[display.orderBy].toLowerCase()}`}
+          {display.colourBy === 'health' ? 'Green healthy · red unhealthy · grey lost touch · ' : ''}
+          {tiersOn ? `higher` : 'closer'} = {display.orderBy === 'importance' ? 'more important' : `more ${ORDER_LABELS[display.orderBy].toLowerCase()}`}
           {display.sizeByFrequency ? ' · bigger = more in touch' : ''}
-          {display.sets
-            ? display.colourBy === 'health'
-              ? ' · shaded areas = relationship types, tinted by their overall health'
-              : ' · shaded areas = relationship types'
-            : ''}
         </Text>
         <Text style={[styles.legendText, { color: t.muted }]}>
           {demoSize
             ? `Stress test (${GRAPH_RENDERERS[rendererId].label}): ${visible.length} people · ${timing}`
             : scenario
               ? `Synthetic scenario as of ${new Date(now).toISOString().slice(0, 10)} · ${visible.length} people · tap a person for details`
-              : `${visible.length} of ${relationships.length} shown · tap a person for details, double-tap to open · tap ? for what everything means`}
+              : `${visible.length} of ${relationships.length} shown · tap ? for the full key`}
           {showLabels ? '' : ' · pinch to zoom in for names'}
         </Text>
-        {ties.length > 0 && (
+        {sample && ties.length > 0 && (
           <Text style={[styles.legendText, { color: t.muted }]}>
             {`Structure: ${metrics.groups} ${metrics.groups === 1 ? 'group' : 'groups'} · ${bridges} ${bridges === 1 ? 'person connects' : 'people connect'} groups (outer ring) · density ${metrics.density.toFixed(2)} · effective size ${metrics.effectiveSize.toFixed(1)} of ${metrics.size}`}
           </Text>
         )}
       </View>
+      {!sample && (
+        <View style={[styles.actions, { paddingBottom: 12 + insets.bottom }]}>
+          <ActionButton label="People" onPress={() => router.push('/people')} />
+          <ActionButton label="Log contact" primary onPress={() => router.push('/log')} />
+          <ActionButton label="Add person" onPress={() => router.push('/person/new')} />
+        </View>
+      )}
     </View>
+  );
+}
+
+/** One of the main screen's actions under the graph. */
+function ActionButton({ label, onPress, primary = false }: { label: string; onPress: () => void; primary?: boolean }) {
+  const t = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      style={({ pressed }) => [
+        styles.action,
+        primary ? { backgroundColor: t.accent } : { borderColor: t.border, borderWidth: 1 },
+        pressed && { opacity: 0.75 },
+      ]}
+    >
+      <Text style={{ color: primary ? t.onAccent : t.text, fontWeight: '600' }}>{label}</Text>
+    </Pressable>
   );
 }
 
@@ -499,4 +549,7 @@ const styles = StyleSheet.create({
   stats: { alignSelf: 'stretch' },
   legend: { paddingHorizontal: 16, paddingVertical: 10, borderTopWidth: StyleSheet.hairlineWidth, gap: 2 },
   legendText: { fontSize: 12 },
+  emptyTitle: { fontSize: 20, fontWeight: '700' },
+  actions: { flexDirection: 'row', gap: 8, paddingHorizontal: 12, paddingTop: 8, paddingBottom: 12 },
+  action: { flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 12 },
 });

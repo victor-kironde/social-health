@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { schemaVersion } from '../data/db';
 import { cleanUpExports, exportData } from '../data/exportFile';
+import { resetIntro } from '../data/onboarding';
 import { MIN_PASSWORD_LENGTH, passwordProblem } from '../data/exportCrypto';
 import { usePrefs } from '../data/prefs';
 import { useStore } from '../data/store';
@@ -121,6 +122,8 @@ export default function Settings() {
     setBusy('Deleting everything…');
     try {
       await deleteAllData();
+      // A fresh start: show the introduction again next time.
+      await resetIntro().catch(() => undefined);
       setDeleteText('');
       router.dismissAll();
     } catch (e) {
@@ -280,6 +283,9 @@ export default function Settings() {
           Social Graph {Constants.expoConfig?.version ?? ''} · score model v{MODEL_VERSION} · database schema v{schema ?? '…'}
           {'\n'}Everything stays on this phone, in an encrypted database. Nothing is sent anywhere.
         </Text>
+        <View style={{ marginTop: 10 }}>
+          <Button title="Show the introduction again" variant="secondary" onPress={() => router.push('/intro')} />
+        </View>
       </Card>
     </ScrollView>
   );

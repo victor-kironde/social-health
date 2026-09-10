@@ -35,8 +35,12 @@ export default function RootLayout() {
                   ),
                 }}
               />
+              <Stack.Screen name="people" options={{ title: 'People & score' }} />
               <Stack.Screen name="settings" options={{ title: 'Settings' }} />
-              <Stack.Screen name="welcome" options={{ title: 'Welcome' }} />
+              <Stack.Screen
+                name="intro"
+                options={{ headerShown: false, presentation: 'fullScreenModal', animation: 'fade' }}
+              />
               <Stack.Screen name="import" options={{ title: 'Import from contacts', presentation: 'modal' }} />
               <Stack.Screen name="graph" options={{ title: 'Network graph' }} />
               <Stack.Screen name="graph-help" options={{ title: 'Reading your graph' }} />
