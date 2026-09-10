@@ -83,7 +83,7 @@ export function PersonFields({
       </View>
 
       <View>
-        <Label>How often would you like to be in touch?</Label>
+        <Label>How often would you like to catch up?</Label>
         <ChoiceChips options={options(RHYTHM_LABELS)} value={effectiveRhythm} onChange={(v) => set('rhythm', v)} />
         {draft.rhythm === null && (
           <Text style={[styles.hint, { color: t.muted }]}>

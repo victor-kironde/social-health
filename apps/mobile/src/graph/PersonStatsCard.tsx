@@ -45,13 +45,13 @@ export function PersonStatsCard({
   const rows: [string, string][] = [
     ['Health', HEALTH_LABELS[health]],
     ['Importance', IMPORTANCE_LABELS[rel.importance]],
-    ['Last contact', lastContactText(rel.lastContactAgeDays).replace(/^Last contact /, '')],
+    ['Last catch-up', lastContactText(rel.lastContactAgeDays).replace(/^Last catch-up /, '')],
     ...(rhythm ? ([['Rhythm', rhythm]] as [string, string][]) : []),
     [
-      'Contact frequency',
-      stats.frequencyRank === null ? 'No contact yet' : `#${stats.frequencyRank} of ${stats.contacted} most in touch`,
+      'Catch-up frequency',
+      stats.frequencyRank === null ? 'No catch-ups yet' : `#${stats.frequencyRank} of ${stats.contacted} most in touch`,
     ],
-    [`Logged (${RECENT_WINDOW_DAYS} days)`, String(stats.loggedRecent)],
+    [`Catch-ups (${RECENT_WINDOW_DAYS} days)`, String(stats.loggedRecent)],
     ...(stats.callsRecent
       ? ([[`Calls (${RECENT_WINDOW_DAYS} days)`, `${stats.callsRecent.count} · ${stats.callsRecent.minutes} min`]] as [
           string,
@@ -95,7 +95,7 @@ export function PersonStatsCard({
         <View style={styles.actions}>
           {onLog && (
             <Pressable onPress={onLog} style={[styles.action, { borderColor: t.border }]} accessibilityRole="button">
-              <Text style={{ color: t.text, fontSize: 13 }}>Log contact</Text>
+              <Text style={{ color: t.text, fontSize: 13 }}>Catch up</Text>
             </Pressable>
           )}
           {onOpen && (

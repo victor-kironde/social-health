@@ -28,7 +28,7 @@ export default function ScoreDetails() {
     <ScrollView contentContainerStyle={styles.content}>
       {prefs.showScore && log.interactions.length === 0 && (
         <Card>
-          <Text style={{ color: t.text, lineHeight: 20 }}>Log your first contact to see your score.</Text>
+          <Text style={{ color: t.text, lineHeight: 20 }}>Log your first catch-up to see your score.</Text>
         </Card>
       )}
       {prefs.showScore && log.interactions.length > 0 && (

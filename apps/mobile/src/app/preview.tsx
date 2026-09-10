@@ -84,7 +84,7 @@ export default function Preview() {
         <Text style={{ color: t.muted, lineHeight: 19 }}>{scenario.description}</Text>
         <Text style={{ color: t.muted, fontSize: 12, marginTop: 4 }}>
           {view.shown.length} people{view.retired ? ` (+${view.retired} archived or in memoriam)` : ''} ·{' '}
-          {view.interactions} logged contacts
+          {view.interactions} logged catch-ups
           {view.calls === null ? ' · call history not connected' : ` · ${view.calls} calls`}
         </Text>
         <View style={{ marginTop: 10 }}>
@@ -153,15 +153,15 @@ export default function Preview() {
         })}
         <Text style={{ color: t.muted, fontSize: 11, marginTop: 8, lineHeight: 16 }}>
           Health is the weaker of the rating and keeping to rhythm; lost touch after 3× the rhythm. Size is the
-          contact-frequency step (1 never contacted … 5 most in touch) and its radius.
+          catch-up frequency step (1 not yet caught up … 5 most in touch) and its radius.
         </Text>
       </Card>
 
       <Card>
-        <Label>Network structure (from contacts logged together)</Label>
+        <Label>Network structure (from catch-ups with several people)</Label>
         {view.ties.length === 0 ? (
           <Text style={{ color: t.muted, lineHeight: 19 }}>
-            No two people were contacted together, so there are no links or groups. Try "Two circles and a bridge".
+            No catch-up included two people, so there are no links or groups. Try "Two circles and a bridge".
           </Text>
         ) : (
           <Text style={{ color: t.text, lineHeight: 20 }}>
@@ -175,7 +175,7 @@ export default function Preview() {
 
       <Card>
         <Label>
-          If 30 days pass with no contact ({scoreOutOf10(result.total)} → {scoreOutOf10(later.total)} out of 10)
+          If 30 days pass with no catch-ups ({scoreOutOf10(result.total)} → {scoreOutOf10(later.total)} out of 10)
         </Label>
         {view.explanations.length === 0 ? (
           <Text style={{ color: t.text }}>No notable changes.</Text>

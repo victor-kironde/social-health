@@ -63,10 +63,10 @@ export const QUALITY_LABELS: Record<Rating, string> = {
 };
 
 export function lastContactText(days: number | null): string {
-  if (days === null) return 'No contact logged';
-  if (days < 1) return 'Seen today';
+  if (days === null) return 'No catch-ups yet';
+  if (days < 1) return 'Caught up today';
   const d = Math.floor(days);
-  return d === 1 ? 'Last contact yesterday' : `Last contact ${d} days ago`;
+  return d === 1 ? 'Last catch-up yesterday' : `Last catch-up ${d} days ago`;
 }
 
 /** "today", "yesterday", "5 days ago". */

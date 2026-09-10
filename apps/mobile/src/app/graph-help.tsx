@@ -71,8 +71,8 @@ export default function GraphHelp() {
         }
       >
         There are five sizes. The smallest is someone you have not been in touch with yet; the rest rank everyone
-        else from least to most in touch. Every logged contact and call counts, and older ones count for less (they
-        halve every 30 days), so recent, frequent contact makes someone bigger.
+        else from least to most in touch. Every catch-up you log and every call counts, and older ones count for less
+        (they halve every 30 days), so recent, frequent catch-ups make someone bigger.
       </Item>
       <Item
         title="Grey, faint and further out: lost touch"
@@ -194,7 +194,7 @@ export default function GraphHelp() {
           </Art>
         }
       >
-        A thin grey line joins two people you have logged contact with together, such as a dinner with both. Thicker
+        A thin grey line joins two people you have caught up with together, such as a dinner with both. Thicker
         means more often or more recently. From these links the app finds groups of people who know each other, and
         who connects those groups.
       </Item>
@@ -224,7 +224,7 @@ export default function GraphHelp() {
       >
         Shown in the top-left corner as a number from 1 to 10. The ring fills up to the score and turns from red
         (low) to green (high). It sums up keeping in touch: your rhythms, your most important people, variety across
-        types, calls, how relationships are going and recent contact. Tap it for details. You can hide the score in
+        types, calls, how relationships are going and recent catch-ups. Tap it for details. You can hide the score in
         Settings at any time.
       </Item>
       <Item
@@ -238,8 +238,8 @@ export default function GraphHelp() {
           </Art>
         }
       >
-        Tap a person to see their details over the graph: importance, last contact, rhythm, how often you are in
-        touch compared with others, recent contacts and calls, and their place in your network.
+        Tap a person to see their details over the graph: importance, last catch-up, rhythm, how often you are in
+        touch compared with others, recent catch-ups and calls, and their place in your network.
       </Item>
 
       <Heading>Using the graph</Heading>
@@ -268,7 +268,7 @@ export default function GraphHelp() {
       />
 
       <Text style={[styles.note, { color: t.muted }]}>
-        The graph is a tool for reflection, not a measure of your worth. Relationships change, and gaps in contact
+        The graph is a tool for reflection, not a measure of your worth. Relationships change, and gaps between catch-ups
         are normal. You decide what matters.
       </Text>
     </ScrollView>

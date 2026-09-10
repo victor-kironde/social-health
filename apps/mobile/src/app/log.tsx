@@ -62,7 +62,7 @@ export default function LogContact() {
             setError(null);
           }}
         />
-        <Text style={[styles.hint, { color: t.muted }]}>Choose everyone who was there. A group counts as one contact.</Text>
+        <Text style={[styles.hint, { color: t.muted }]}>Choose everyone who was there. A group counts as one catch-up.</Text>
         {error && <Text style={{ color: t.danger, marginTop: 6 }}>{error}</Text>}
       </View>
 

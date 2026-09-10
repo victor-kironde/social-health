@@ -138,20 +138,20 @@ function PersonEditor({
         <Text style={{ color: t.text, fontSize: 16 }}>{lastContactText(rel.lastContactAgeDays)}</Text>
         {rel.expectedIntervalDays !== null && (
           <Text style={{ color: t.muted }}>
-            {rel.onRhythm !== null && rel.onRhythm >= 0.5 ? 'On rhythm' : 'Behind usual rhythm'} · hoping for contact
+            {rel.onRhythm !== null && rel.onRhythm >= 0.5 ? 'On rhythm' : 'Behind usual rhythm'} · hoping to catch up
             every {Math.round(rel.expectedIntervalDays)} days
           </Text>
         )}
         <View style={{ marginTop: 12 }}>
           <Button
-            title={`Log contact with ${name}`}
+            title={`Log a catch-up with ${name}`}
             onPress={() => router.push({ pathname: '/log', params: { person: personId } })}
           />
         </View>
       </Card>
 
       <Card style={{ gap: 0 }}>
-        <Label>Contact history</Label>
+        <Label>Catch-ups</Label>
         {history.length === 0 ? (
           <Text style={{ color: t.muted }}>Nothing logged yet.</Text>
         ) : (
@@ -186,7 +186,7 @@ function PersonEditor({
 
       <View style={{ marginTop: 24 }}>
         <Text style={{ color: t.muted, marginBottom: 8, lineHeight: 20 }}>
-          Archiving keeps their history. Deleting removes {name} and every record about them, including from contacts
+          Archiving keeps their history. Deleting removes {name} and every record about them, including from catch-ups
           you logged with others. It cannot be undone.
         </Text>
         <Button title={`Delete ${name}`} variant="danger" onPress={confirmDelete} disabled={saving} />

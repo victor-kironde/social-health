@@ -3,12 +3,12 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useTheme } from './theme';
 
 export const COMPONENT_LABELS: [ComponentName, string][] = [
-  ['rhythm', 'Contact rhythm'],
+  ['rhythm', 'Catch-up rhythm'],
   ['coverage', 'Important relationships covered'],
   ['calls', 'Calls'],
   ['diversity', 'Balance across types'],
   ['quality', 'Quality and support'],
-  ['frecency', 'Recent and frequent contact'],
+  ['frecency', 'Recent and frequent catch-ups'],
 ];
 
 /** One labelled bar per score component, so the total never hides a weak part. */

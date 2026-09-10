@@ -9,7 +9,7 @@ import { hasSeenIntro } from '../data/onboarding';
 import { usePrefs } from '../data/prefs';
 import { SCENARIO_AS_OF, findScenario, scenarioNames } from '../data/scenarioCatalog';
 import { useStore } from '../data/store';
-import { ORDER_LABELS, TIER_LABELS, TIER_SET_LINK, layoutSignature, nodeRadii, orderTiers, tierLayout } from '../graph/arrange';
+import { ORDER_MEANING, TIER_LABELS, TIER_SET_LINK, layoutSignature, nodeRadii, orderTiers, tierLayout } from '../graph/arrange';
 import { DEFAULT_DISPLAY, activeFilterCount, applyFilters, type DisplayOptions } from '../graph/display';
 import { DisplayPanel } from '../graph/DisplayPanel';
 import { PersonStatsCard } from '../graph/PersonStatsCard';
@@ -484,7 +484,7 @@ export default function GraphScreen() {
       <View style={[styles.legend, { borderTopColor: t.border }]}>
         <Text style={[styles.legendText, { color: t.muted }]}>
           {display.colourBy === 'health' ? 'Green healthy · red unhealthy · grey lost touch · ' : ''}
-          {tiersOn ? `higher` : 'closer'} = {display.orderBy === 'importance' ? 'more important' : `more ${ORDER_LABELS[display.orderBy].toLowerCase()}`}
+          {tiersOn ? `higher` : 'closer'} = {ORDER_MEANING[display.orderBy]}
           {display.sizeByFrequency ? ' · bigger = more in touch' : ''}
         </Text>
         <Text style={[styles.legendText, { color: t.muted }]}>
@@ -504,7 +504,7 @@ export default function GraphScreen() {
       {!sample && (
         <View style={[styles.actions, { paddingBottom: 12 + insets.bottom }]}>
           <ActionButton label="People" onPress={() => router.push('/people')} />
-          <ActionButton label="Log contact" primary onPress={() => router.push('/log')} />
+          <ActionButton label="Catch up" primary onPress={() => router.push('/log')} />
           <ActionButton label="Add person" onPress={() => router.push('/person/new')} />
         </View>
       )}

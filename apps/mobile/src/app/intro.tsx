@@ -68,7 +68,7 @@ const SLIDES: Slide[] = [
   },
   {
     title: 'Keep in touch, gently',
-    body: 'Log a call, a coffee or a message in a few taps, or connect your call history. Choose how often you hope to be in touch with each person, and the app quietly notices when someone is drifting.',
+    body: 'Log a catch-up (a call, a coffee, a message) in a few taps, or connect your call history. Choose how often you hope to be in touch with each person, and the app quietly notices when someone is drifting.',
     art: (
       <Art>
         <Rect x={50} y={30} width={120} height={110} rx={14} fill={C.card} stroke={C.line} />

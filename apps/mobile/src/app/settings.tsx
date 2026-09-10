@@ -61,7 +61,7 @@ export default function Settings() {
   function confirmPlainExport() {
     Alert.alert(
       'Export without encryption?',
-      'Anyone who gets this file can read every name, rating and contact you have recorded. Only do this if you will store it somewhere private.',
+      'Anyone who gets this file can read every name, rating and catch-up you have recorded. Only do this if you will store it somewhere private.',
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Export unencrypted', style: 'destructive', onPress: () => runExport(null) },
@@ -186,7 +186,7 @@ export default function Settings() {
           detail={
             callsConnected
               ? `${log.calls!.length} calls imported. New calls are added when the app opens.`
-              : 'Off. Only the contacts you log yourself count.'
+              : 'Off. Only the catch-ups you log yourself count.'
           }
           value={callsConnected}
           disabled={!!busy}
@@ -255,7 +255,7 @@ export default function Settings() {
       <Card>
         <Label>Delete all data</Label>
         <Text style={{ color: t.muted, lineHeight: 20 }}>
-          Permanently deletes everyone you have added, every contact and rating, and the key that encrypts them. This cannot be undone. Export first if you want a copy.
+          Permanently deletes everyone you have added, every catch-up and rating, and the key that encrypts them. This cannot be undone. Export first if you want a copy.
         </Text>
         <TextInput
           value={deleteText}

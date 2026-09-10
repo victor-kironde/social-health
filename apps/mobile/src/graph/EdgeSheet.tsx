@@ -67,7 +67,7 @@ export function EdgeSheet({
         {metrics?.get(r.personId) && <Text style={{ color: t.muted }}>{networkPlace(metrics.get(r.personId)!)}</Text>}
         <View style={styles.actions}>
           <View style={styles.grow}>
-            <Button title="Log contact" onPress={() => onLogContact([r.personId])} />
+            <Button title="Log a catch-up" onPress={() => onLogContact([r.personId])} />
           </View>
           <View style={styles.grow}>
             <Button title={`Open ${name(r.personId)}`} variant="secondary" onPress={() => onOpenPerson(r.personId)} />
@@ -85,12 +85,12 @@ export function EdgeSheet({
           {a} &amp; {b}
         </Text>
         <Text style={[styles.line, { color: t.text }]}>
-          Together in {edge.count} logged {edge.count === 1 ? 'contact' : 'contacts'} · most recently {daysAgoText(days)}
+          Together in {edge.count} {edge.count === 1 ? 'catch-up' : 'catch-ups'} · most recently {daysAgoText(days)}
         </Text>
-        <Text style={{ color: t.muted }}>Inferred from contacts you logged with both of them. Only you can see this.</Text>
+        <Text style={{ color: t.muted }}>Inferred from catch-ups you logged with both of them. Only you can see this.</Text>
         <View style={styles.actions}>
           <View style={styles.grow}>
-            <Button title="Log contact with both" onPress={() => onLogContact([edge.source, edge.target])} />
+            <Button title="Catch up with both" onPress={() => onLogContact([edge.source, edge.target])} />
           </View>
         </View>
         <View style={styles.actions}>

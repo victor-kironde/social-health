@@ -73,6 +73,11 @@ Properties are specified on the raw score.
 
 ## Display (app, not engine)
 
+**Terminology.** The model's *interactions* (logged contact of any kind: in person, call, message,
+with one or several people) are called **catch-ups** in the interface ("Log a catch-up",
+"Last catch-up 3 days ago"), so that "contacts" only ever means the phone's address book
+(used for importing names and matching calls).
+
 The engine's total stays on 0–100. The app shows it as an integer from 1 to 10,
 `1 + round(total × 9 / 100)`, inside a ring that fills to the score and is coloured
 red (1–2) → green (9–10). Component bars are shown on the same 0–10 scale, and

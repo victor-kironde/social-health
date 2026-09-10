@@ -70,7 +70,7 @@ export function DisplayPanel({
             <Label>Show</Label>
             <View style={styles.chips}>
               <ToggleChip label="Relationship type areas" on={o.sets} onPress={() => flip('sets')} />
-              <ToggleChip label="Size by contact frequency" on={o.sizeByFrequency} onPress={() => flip('sizeByFrequency')} />
+              <ToggleChip label="Size by catch-up frequency" on={o.sizeByFrequency} onPress={() => flip('sizeByFrequency')} />
               <ToggleChip label="Lines to you" on={o.egoEdges} onPress={() => flip('egoEdges')} />
               {hasTies && <ToggleChip label="Links between people" on={o.ties} onPress={() => flip('ties')} />}
               <ToggleChip label="Names" on={o.names} onPress={() => flip('names')} />
@@ -110,10 +110,10 @@ export function DisplayPanel({
             <ChoiceChips options={MIN_IMPORTANCE} value={o.minImportance} onChange={(v) => set('minImportance', v)} />
           </View>
           <View>
-            <Label>Contact</Label>
+            <Label>Catch-ups</Label>
             <View style={styles.chips}>
               <ToggleChip label="Behind rhythm only" on={o.behindOnly} onPress={() => flip('behindOnly')} />
-              <ToggleChip label="Hide never contacted" on={o.hideNeverContacted} onPress={() => flip('hideNeverContacted')} />
+              <ToggleChip label="Hide not yet caught up" on={o.hideNeverContacted} onPress={() => flip('hideNeverContacted')} />
             </View>
           </View>
           <Button title="Reset to defaults" variant="secondary" onPress={() => onChange(DEFAULT_DISPLAY)} />

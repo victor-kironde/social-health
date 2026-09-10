@@ -32,8 +32,15 @@ export type OrderBy = 'importance' | 'frequency' | 'recent';
 
 export const ORDER_LABELS: Record<OrderBy, string> = {
   importance: 'Importance',
-  frequency: 'Contact frequency',
-  recent: 'Last contact',
+  frequency: 'Catch-up frequency',
+  recent: 'Last catch-up',
+};
+
+/** What sitting closer (or higher) means for each order, for the graph's key. */
+export const ORDER_MEANING: Record<OrderBy, string> = {
+  importance: 'more important',
+  frequency: 'more catch-ups',
+  recent: 'caught up more recently',
 };
 
 /** What each tier means, top (5, innermost ring) to bottom (1, outermost). */

@@ -47,7 +47,7 @@ export default function RootLayout() {
               <Stack.Screen name="score" options={{ title: 'Social Health' }} />
               <Stack.Screen name="person/new" options={{ title: 'Add person', presentation: 'modal' }} />
               <Stack.Screen name="person/[id]" options={{ title: '' }} />
-              <Stack.Screen name="log" options={{ title: 'Log contact', presentation: 'modal' }} />
+              <Stack.Screen name="log" options={{ title: 'Log a catch-up', presentation: 'modal' }} />
               <Stack.Screen name="preview" options={{ title: 'Engine preview' }} />
             </Stack>
           </StoreProvider>

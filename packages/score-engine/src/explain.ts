@@ -1,12 +1,12 @@
 import type { ComponentName, Explanation, ScoreResult } from './types';
 
 const LABELS: Record<ComponentName, string> = {
-  rhythm: 'Contact rhythm',
+  rhythm: 'Catch-up rhythm',
   coverage: 'Coverage of important relationships',
   quality: 'Quality and support',
   diversity: 'Balance across types',
   calls: 'Calls',
-  frecency: 'Recent and frequent contact',
+  frecency: 'Recent and frequent catch-ups',
 };
 
 const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);

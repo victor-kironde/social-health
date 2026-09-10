@@ -91,7 +91,7 @@ export default function People() {
         !prefs.showScore ? null : (
         <Card>
           <Label>Social Health Score</Label>
-          <Text style={{ color: t.text, lineHeight: 20 }}>Log your first contact to see your score.</Text>
+          <Text style={{ color: t.text, lineHeight: 20 }}>Log your first catch-up to see your score.</Text>
         </Card>
         )
       ) : (
@@ -145,7 +145,7 @@ export default function People() {
         </>
       )}
 
-      {people.length > 0 && <Button title="Log contact" onPress={() => router.push('/log')} />}
+      {people.length > 0 && <Button title="Log a catch-up" onPress={() => router.push('/log')} />}
       <Button
         title="Add person"
         variant={people.length > 0 ? 'secondary' : 'primary'}
