@@ -36,6 +36,9 @@ const translucent = (hex: string, alpha = 0.72) =>
   `${hex}${Math.round(alpha * 255)
     .toString(16)
     .padStart(2, '0')}`;
+/** Shown under the graph at all times: the score and colours are aids to reflection, nothing more. */
+const DISCLAIMER =
+  'Social Health is for information and reflection only. It is not a diagnosis, and not a measure of anyone’s worth.';
 /** How much further out than their ring people you have lost touch with drift (graph units). */
 const LOST_OUTWARD = 90;
 /** Rings <-> tiers transition, in ms. */
@@ -479,6 +482,10 @@ export default function GraphScreen() {
             {`Structure: ${metrics.groups} ${metrics.groups === 1 ? 'group' : 'groups'} · ${bridges} ${bridges === 1 ? 'person connects' : 'people connect'} groups (outer ring) · density ${metrics.density.toFixed(2)} · effective size ${metrics.effectiveSize.toFixed(1)} of ${metrics.size}`}
           </Text>
         )}
+        {/* Always shown, whatever the filters or settings. */}
+        <Text style={[styles.legendText, styles.disclaimer, { color: t.muted }]}>
+          {DISCLAIMER}
+        </Text>
       </View>
     </View>
   );
@@ -503,6 +510,7 @@ const styles = StyleSheet.create({
   stats: { alignSelf: 'stretch' },
   legend: { paddingHorizontal: 16, paddingVertical: 10, borderTopWidth: StyleSheet.hairlineWidth, gap: 2 },
   legendText: { fontSize: 12 },
+  disclaimer: { fontStyle: 'italic', marginTop: 2, opacity: 0.85 },
   emptyTitle: { fontSize: 20, fontWeight: '700' },
 
 });
