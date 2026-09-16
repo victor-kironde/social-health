@@ -23,6 +23,7 @@ const light = {
     work: '#8c84a8',
     neighbour: '#b39a6b',
     community: '#a97f92',
+    other: '#6fa3a0',
   } as Record<Category, string>,
   /** Relationship health: 1 strained (red) to 5 close (green), and grey for lost touch. */
   health: { 1: '#d64545', 2: '#e8833a', 3: '#d9a72b', 4: '#7cb342', 5: '#2e9d57', lost: '#9aa0a8' } as Record<
@@ -55,6 +56,7 @@ const dark: Theme = {
     work: '#a99fc6',
     neighbour: '#cbb487',
     community: '#c79db0',
+    other: '#8fc2bf',
   },
   health: { 1: '#f26d6d', 2: '#f5a05c', 3: '#f0c94f', 4: '#a3d65c', 5: '#4cc779', lost: '#7a808a' },
   quality: { 1: '#f97066', 2: '#fdb022', 3: '#8f8a80', 4: '#94d82d', 5: '#51cf66' },

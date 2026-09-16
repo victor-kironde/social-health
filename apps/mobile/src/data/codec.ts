@@ -9,6 +9,7 @@ import type {
   SupportReport,
   Timestamp,
 } from '@sg/score-engine';
+import type { PersonGroup } from './groups';
 
 /**
  * Everything the app records is one row in the append-only `event` table.
@@ -23,7 +24,9 @@ export type StoredEvent =
   | { id: string; ts: Timestamp; kind: 'pause'; body: Pause }
   | { id: string; ts: Timestamp; kind: 'call'; body: CallRecord }
   /** A passive data source being connected (e.g. the call log). Disconnecting deletes it. */
-  | { id: string; ts: Timestamp; kind: 'source'; body: { source: 'call_log' } };
+  | { id: string; ts: Timestamp; kind: 'source'; body: { source: 'call_log' } }
+  /** One of your own groups (current state; see groups.ts). Not part of the scoring log. */
+  | { id: string; ts: Timestamp; kind: 'group'; body: PersonGroup };
 
 export interface EventRow {
   id: string;
@@ -57,6 +60,7 @@ export function fromRow(row: EventRow): StoredEvent | null {
     case 'pause':
     case 'call':
     case 'source':
+    case 'group':
       return { id: row.id, ts: row.ts, kind: row.kind, body } as StoredEvent;
     default:
       return null;

@@ -1,11 +1,13 @@
 import { DAY, DEFAULT_CONFIG, computeScore, explain } from '@sg/score-engine';
 import { Link, router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { dbStatus, type DbStatus } from '../data/db';
 import { HEALTH_LABELS, relationshipHealth, scoreOutOf10 } from '../data/health';
 import { DEFAULT_ITERATIONS } from '../data/exportCrypto';
 import { kdfSelfTest } from '../data/nativeKdf';
+import { scenarioToEvents } from '../data/sampleData';
+import { useStore } from '../data/store';
 import { SCENARIOS, SCENARIO_AS_OF, SCENARIO_GROUPS, findScenario, scenarioNames } from '../data/scenarioCatalog';
 import { NODE_SIZES, orderTiers } from '../graph/arrange';
 import { networkMetrics } from '../graph/metrics';
@@ -27,6 +29,7 @@ export default function Preview() {
   const t = useTheme();
   const [selected, setSelected] = useState('closeKnit');
   const [db, setDb] = useState<DbStatus | { error: string } | null>(null);
+  const { log: myLog, loadSample } = useStore();
   const [kdf, setKdf] = useState<{ correct: boolean; ms: number } | { error: string } | null>(null);
 
   useEffect(() => {
@@ -94,6 +97,30 @@ export default function Preview() {
             onPress={() => router.push({ pathname: '/graph', params: { scenario: scenario.id } })}
           />
         </View>
+        {myLog.people.length === 0 && (
+          <View style={{ marginTop: 8 }}>
+            <Button
+              title="Use as my data (empty app only)"
+              variant="secondary"
+              onPress={() =>
+                Alert.alert(
+                  'Use this scenario as your data?',
+                  'Its people and catch-ups are copied into the app as if they were yours, dated up to today. Use Settings → Delete everything to start again.',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Use it',
+                      onPress: () =>
+                        loadSample(scenarioToEvents(scenario.build(), SCENARIO_AS_OF, Date.now()))
+                          .then(() => router.dismissAll())
+                          .catch((e: unknown) => Alert.alert('Could not load it', String(e))),
+                    },
+                  ],
+                )
+              }
+            />
+          </View>
+        )}
       </Card>
 
       <Card>

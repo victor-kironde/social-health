@@ -6,15 +6,19 @@ export interface NewInteractionInput {
   type: InteractionType;
   /** 0 = today. Backdated entries keep the current time of day. */
   daysAgo: number;
+  /** Optional private note (journal) about how it went. */
+  note?: string;
 }
 
 export const MAX_BACKDATE_DAYS = 365;
+export const MAX_NOTE_LENGTH = 2000;
 
 export function validateInteraction(input: NewInteractionInput): string | null {
   if (input.participants.length === 0) return 'Choose at least one person.';
   if (!Number.isInteger(input.daysAgo) || input.daysAgo < 0 || input.daysAgo > MAX_BACKDATE_DAYS) {
     return 'Choose when it happened.';
   }
+  if ((input.note ?? '').length > MAX_NOTE_LENGTH) return `Keep the note under ${MAX_NOTE_LENGTH} characters.`;
   return null;
 }
 
@@ -27,6 +31,7 @@ export function newInteractionEvents(
 ): StoredEvent[] {
   const id = newId();
   const ts = now - input.daysAgo * DAY;
+  const note = input.note?.trim();
   return [
     {
       id,
@@ -40,6 +45,7 @@ export function newInteractionEvents(
         type: input.type,
         participants: [...new Set(input.participants)],
         source: 'manual',
+        ...(note ? { note } : {}),
       },
     },
   ];

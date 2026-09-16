@@ -77,8 +77,8 @@ export function orderTiers(relationships: RelationshipContribution[], by: OrderB
 export interface TierInput {
   id: string;
   tier: Rating;
-  /** Primary type first. */
-  categories: Category[];
+  /** Primary area first (a relationship type or a group id). */
+  categories: string[];
   label: string;
   radius: number;
 }
@@ -109,12 +109,21 @@ export const TIER_SET_LINK = 2 * MAX_NODE_RADIUS + COL_GAP + 1;
 export function tierLayout(nodes: TierInput[], labels: Record<Rating, string>): { positions: Map<string, Point>; rows: TierRow[] } {
   const positions = new Map<string, Point>();
   const rows: TierRow[] = [];
-  const typeRank = (c: Category) => SECTOR_ORDER.indexOf(c);
+  const typeRank = (c: string | undefined) => {
+    const i = c === undefined ? -1 : (SECTOR_ORDER as string[]).indexOf(c);
+    return i < 0 ? SECTOR_ORDER.length : i;
+  };
   let y = FIRST_ROW;
   for (const tier of [5, 4, 3, 2, 1] as Rating[]) {
     const members = nodes
       .filter((n) => n.tier === tier)
-      .sort((a, b) => typeRank(a.categories[0]!) - typeRank(b.categories[0]!) || a.label.localeCompare(b.label) || (a.id < b.id ? -1 : 1));
+      .sort(
+        (a, b) =>
+          typeRank(a.categories[0]) - typeRank(b.categories[0]) ||
+          (a.categories[0] ?? '').localeCompare(b.categories[0] ?? '') ||
+          a.label.localeCompare(b.label) ||
+          (a.id < b.id ? -1 : 1),
+      );
     if (!members.length) continue;
     const maxR = Math.max(...members.map((m) => m.radius));
     const step = 2 * maxR + COL_GAP;

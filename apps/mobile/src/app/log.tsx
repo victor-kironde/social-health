@@ -1,14 +1,18 @@
 import { DEFAULT_CONFIG, resolveRelationships, type InteractionType } from '@sg/score-engine';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { validateInteraction } from '../data/interactions';
+import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { MAX_BACKDATE_DAYS, MAX_NOTE_LENGTH, validateInteraction } from '../data/interactions';
 import { useStore } from '../data/store';
 import { Button, ChoiceChips, Label, MultiChoiceChips } from '../ui/components';
 import { INTERACTION_LABELS, WHEN_OPTIONS } from '../ui/labels';
+import { CalendarPicker } from '../ui/CalendarPicker';
+import { dateDaysAgo, localDate, shortDateLabel } from '../ui/calendar';
 import { useTheme } from '../ui/theme';
 
 const TYPES = Object.keys(INTERACTION_LABELS) as InteractionType[];
+/** The "Pick a date…" chip; any other value is days ago. */
+const PICK_DATE = -1;
 
 export default function LogContact() {
   const t = useTheme();
@@ -21,6 +25,8 @@ export default function LogContact() {
   );
   const [type, setType] = useState<InteractionType>('in_person');
   const [daysAgo, setDaysAgo] = useState(0);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [note, setNote] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -34,7 +40,7 @@ export default function LogContact() {
   }, [log.people, log.relationshipEvents]);
 
   async function save() {
-    const input = { participants, type, daysAgo };
+    const input = { participants, type, daysAgo, note };
     const invalid = validateInteraction(input);
     if (invalid) {
       setError(invalid);
@@ -73,7 +79,40 @@ export default function LogContact() {
 
       <View>
         <Label>When?</Label>
-        <ChoiceChips options={WHEN_OPTIONS} value={daysAgo} onChange={setDaysAgo} />
+        <ChoiceChips
+          options={[
+            ...WHEN_OPTIONS,
+            // A date picked from the calendar shows as its own chip.
+            ...(WHEN_OPTIONS.some((o) => o.value === daysAgo)
+              ? []
+              : [{ value: daysAgo, label: shortDateLabel(dateDaysAgo(localDate(Date.now()), daysAgo), localDate(Date.now())) }]),
+            { value: PICK_DATE, label: 'Pick a date…' },
+          ]}
+          value={daysAgo}
+          onChange={(v) => (v === PICK_DATE ? setCalendarOpen(true) : setDaysAgo(v))}
+        />
+        <CalendarPicker
+          visible={calendarOpen}
+          daysAgo={daysAgo}
+          maxDaysAgo={MAX_BACKDATE_DAYS}
+          onPick={setDaysAgo}
+          onClose={() => setCalendarOpen(false)}
+        />
+      </View>
+
+      <View>
+        <Label>Notes (optional)</Label>
+        <TextInput
+          value={note}
+          onChangeText={setNote}
+          placeholder="What did you talk about? How did it feel?"
+          placeholderTextColor={t.muted}
+          multiline
+          maxLength={MAX_NOTE_LENGTH}
+          accessibilityLabel="Notes"
+          style={[styles.note, { color: t.text, borderColor: t.border, backgroundColor: t.card }]}
+        />
+        <Text style={[styles.hint, { color: t.muted }]}>A private journal for you. It never affects any score.</Text>
       </View>
 
       <Button title={saving ? 'Saving…' : 'Save'} onPress={save} disabled={saving} />
@@ -84,4 +123,5 @@ export default function LogContact() {
 const styles = StyleSheet.create({
   content: { padding: 16, gap: 20 },
   hint: { fontSize: 13, marginTop: 6 },
+  note: { borderWidth: 1, borderRadius: 10, padding: 12, minHeight: 96, fontSize: 15, textAlignVertical: 'top' },
 });

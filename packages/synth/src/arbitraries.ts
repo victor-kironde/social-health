@@ -17,7 +17,7 @@ const START = ARB_AS_OF - 400 * DAY;
 
 const arbTs = fc.integer({ min: START, max: ARB_AS_OF });
 const arbRating = fc.constantFrom<Rating>(1, 2, 3, 4, 5);
-const arbCategory = fc.constantFrom<Category>('family', 'friend', 'work', 'neighbour', 'community');
+const arbCategory = fc.constantFrom<Category>('family', 'friend', 'work', 'neighbour', 'community', 'other');
 
 const arbChange: fc.Arbitrary<RelationshipChange> = fc.oneof(
   arbCategory.map((value) => ({ field: 'category' as const, value })),

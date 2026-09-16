@@ -20,8 +20,10 @@ export interface GraphNode {
   id: string;
   label: string;
   category: Category;
-  /** Every relationship type, primary first: which background sets this person sits in. */
+  /** Every relationship type, primary first. */
   categories: Category[];
+  /** Which shaded areas this person sits in: their types (default) or their groups. */
+  areas?: string[];
   importance: Rating;
   quality: Rating | null;
   /** Drawn radius in graph units (sized by contact frequency, or uniform). */
@@ -112,6 +114,11 @@ export interface GraphStyle {
   setMaxLink?: number;
   /** Display names of relationship types, for labelling sets. */
   categoryNames?: Record<Category, string>;
+  /**
+   * When the areas are not relationship types (e.g. your groups): their order, names and own
+   * colours (used when colouring by type). Nodes then list their keys in `areas`.
+   */
+  areas?: { order: string[]; names: Record<string, string>; colours: Record<string, string> };
 }
 
 /** Pan/zoom, updated on the UI thread by gestures. Renderers read, never write. */

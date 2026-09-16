@@ -5,6 +5,7 @@ import type { Rating } from '@sg/score-engine';
 import type { PlacedPoint } from '../graph/layout';
 import { fromRow, toRow, type EventRow, type StoredEvent } from './codec';
 import { eraseFromLog } from './erase';
+import { groupEvent, groupsFromEvents, type PersonGroup } from './groups';
 
 const KEY_NAME = 'db-key-v1';
 const DB_NAME = 'social-graph.db';
@@ -123,6 +124,27 @@ export async function erasePerson(personId: string): Promise<void> {
     await db.runAsync('DELETE FROM graph_position WHERE person_id = ?;', [personId]);
     await db.runAsync('DELETE FROM person_photo WHERE person_id = ?;', [personId]);
   });
+}
+
+/** Your groups (see groups.ts). */
+export async function loadGroups(): Promise<PersonGroup[]> {
+  return groupsFromEvents(await loadEvents());
+}
+
+/** Saves a group's current state, replacing any earlier record of it. */
+export async function saveGroup(group: PersonGroup): Promise<void> {
+  const db = await openDb();
+  const row = toRow(groupEvent(group, Date.now()));
+  await db.withTransactionAsync(async () => {
+    await db.runAsync('DELETE FROM event WHERE id = ?;', [row.id]);
+    await db.runAsync('INSERT INTO event (id, kind, ts, body) VALUES (?, ?, ?, ?);', [row.id, row.kind, row.ts, row.body]);
+  });
+}
+
+/** Deletes a group for good (its people are untouched). */
+export async function deleteGroup(groupId: string): Promise<void> {
+  const db = await openDb();
+  await db.runAsync('DELETE FROM event WHERE id = ?;', [`group:${groupId}`]);
 }
 
 /** Every person's photo (base64 JPEG), by person id. */

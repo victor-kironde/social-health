@@ -22,6 +22,7 @@ export function DisplayPanel({
   onChange,
   onClose,
   hasTies,
+  groups = [],
 }: {
   visible: boolean;
   options: DisplayOptions;
@@ -29,6 +30,8 @@ export function DisplayPanel({
   onClose: () => void;
   /** Link and group options only mean something once people have been seen together. */
   hasTies: boolean;
+  /** Your own groups, for the areas choice and the group filter. */
+  groups?: { id: string; name: string }[];
 }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
@@ -76,6 +79,19 @@ export function DisplayPanel({
               <ToggleChip label="Names" on={o.names} onPress={() => flip('names')} />
             </View>
           </View>
+          {groups.length > 0 && (
+            <View>
+              <Label>Shaded areas show</Label>
+              <ChoiceChips
+                options={[
+                  { value: 'types' as const, label: 'Relationship types' },
+                  { value: 'groups' as const, label: 'My groups' },
+                ]}
+                value={o.areas}
+                onChange={(v) => set('areas', v)}
+              />
+            </View>
+          )}
           <View>
             <Label>Colour people by</Label>
             <ChoiceChips
@@ -105,6 +121,26 @@ export function DisplayPanel({
             </View>
             <Text style={[styles.hint, { color: t.muted }]}>Someone with several types shows if any of them is on.</Text>
           </View>
+          {groups.length > 0 && (
+            <View>
+              <Label>My groups</Label>
+              <View style={styles.chips}>
+                {groups.map((g) => (
+                  <ToggleChip
+                    key={g.id}
+                    label={g.name}
+                    on={o.groups.includes(g.id)}
+                    onPress={() =>
+                      set('groups', o.groups.includes(g.id) ? o.groups.filter((x) => x !== g.id) : [...o.groups, g.id])
+                    }
+                  />
+                ))}
+              </View>
+              <Text style={[styles.hint, { color: t.muted }]}>
+                {o.groups.length ? 'Showing people in any chosen group.' : 'Choose groups to show only their people.'}
+              </Text>
+            </View>
+          )}
           <View>
             <Label>Importance</Label>
             <ChoiceChips options={MIN_IMPORTANCE} value={o.minImportance} onChange={(v) => set('minImportance', v)} />

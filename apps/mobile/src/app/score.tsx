@@ -1,10 +1,12 @@
 import { DEFAULT_CONFIG, computeScore } from '@sg/score-engine';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { HEALTH_LABELS, relationshipHealth, scoreOutOf10, type HealthBand } from '../data/health';
 import { usePrefs } from '../data/prefs';
 import { useStore } from '../data/store';
-import { Card, Label } from '../ui/components';
+import { TREND_RANGES, trendChange, trendPoints, type TrendRange } from '../data/trends';
+import { Card, ChoiceChips, Label } from '../ui/components';
+import { CatchUpTrend, ClosenessTrend, ScoreTrend } from '../ui/TrendCharts';
 import { ScoreBreakdown } from '../ui/ScoreBreakdown';
 import { ScoreRing } from '../ui/ScoreRing';
 import { useTheme } from '../ui/theme';
@@ -18,6 +20,9 @@ export default function ScoreDetails() {
   const { log } = useStore();
   const { prefs } = usePrefs();
   const result = useMemo(() => computeScore(log, DEFAULT_CONFIG, Date.now()), [log]);
+  const [range, setRange] = useState<TrendRange>('3m');
+  const points = useMemo(() => trendPoints(log, Date.now(), range), [log, range]);
+  const change = trendChange(points, scoreOutOf10);
   const counts = useMemo(() => {
     const c = new Map<HealthBand, number>(BANDS.map((b) => [b, 0]));
     for (const r of result.relationships) if (!RETIRED.has(r.state)) c.set(relationshipHealth(r), c.get(relationshipHealth(r))! + 1);
@@ -66,10 +71,36 @@ export default function ScoreDetails() {
         </Card>
       )}
 
+      <Label>Trends</Label>
+      <ChoiceChips
+        options={(Object.keys(TREND_RANGES) as TrendRange[]).map((r) => ({ value: r, label: TREND_RANGES[r].label }))}
+        value={range}
+        onChange={setRange}
+      />
+      {prefs.showScore && log.interactions.length > 0 && (
+        <Card>
+          <Label>Social Health over time</Label>
+          <Text style={{ color: t.muted, marginBottom: 6 }}>
+            {change === null
+              ? 'Not enough history yet.'
+              : change === 0
+                ? 'About the same as at the start of this period.'
+                : `${change > 0 ? 'Up' : 'Down'} ${Math.abs(change)} since the start of this period.`}
+          </Text>
+          <ScoreTrend points={points} range={range} />
+        </Card>
+      )}
       <Card>
-        <Label>Trends</Label>
-        <Text style={{ color: t.muted, lineHeight: 20 }}>Charts of how your score and relationships change over time are coming soon.</Text>
+        <Label>How close your relationships have been</Label>
+        <ClosenessTrend points={points} range={range} />
       </Card>
+      <Card>
+        <Label>Catch-ups {TREND_RANGES[range].stepDays === 1 ? 'per day' : TREND_RANGES[range].stepDays === 7 ? 'per week' : 'per month'}</Label>
+        <CatchUpTrend points={points} range={range} showCalls={log.calls !== undefined} />
+      </Card>
+      <Text style={{ color: t.muted, fontSize: 12, lineHeight: 17 }}>
+        Each point shows things as they were then. Social Health is for information and reflection only.
+      </Text>
     </ScrollView>
   );
 }

@@ -1,7 +1,7 @@
 /** Milliseconds since the Unix epoch, always UTC. */
 export type Timestamp = number;
 
-export type Category = 'family' | 'friend' | 'work' | 'neighbour' | 'community';
+export type Category = 'family' | 'friend' | 'work' | 'neighbour' | 'community' | 'other';
 export type InteractionType = 'in_person' | 'video' | 'voice' | 'message';
 export type Rhythm = 'weekly' | 'fortnightly' | 'monthly' | 'quarterly' | 'yearly' | 'occasional';
 export type RelationshipState = 'active' | 'paused' | 'long_distance' | 'archived' | 'in_memoriam';
@@ -42,6 +42,8 @@ export interface Interaction {
   /** One interaction may involve several people (e.g. a group dinner). */
   participants: string[];
   source: InteractionSource;
+  /** A private note or journal entry about the catch-up. Never used in scoring. */
+  note?: string;
 }
 
 export interface SupportReport {

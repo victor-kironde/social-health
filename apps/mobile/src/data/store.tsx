@@ -9,15 +9,19 @@ import {
   appendEvents,
   deleteCallData,
   deleteEverything,
+  deleteGroup as dbDeleteGroup,
   erasePerson,
   loadGraphLayout,
+  loadGroups,
   loadPhotos,
   loadRows,
   saveGraphLayout,
   savePhoto,
+  saveGroup as dbSaveGroup,
   type SavedLayout,
 } from './db';
 import { newInteractionEvents, type NewInteractionInput } from './interactions';
+import type { PersonGroup } from './groups';
 import { editPersonEvents, newPersonEvents, type NewPersonInput, type PersonDraft } from './people';
 
 interface Store {
@@ -42,6 +46,16 @@ interface Store {
   photos: Map<string, string>;
   /** Sets or (with null) removes a person's photo. */
   setPhoto(personId: string, jpeg: string | null): Promise<void>;
+  /** Adds a synthetic scenario's events (testing and trying the app; only into an empty network). */
+  loadSample(events: StoredEvent[]): Promise<void>;
+  /** Your own groups of people, sorted by name. */
+  groups: PersonGroup[];
+  /** Creates a group; returns its id. */
+  addGroup(name: string, members: string[]): Promise<string>;
+  /** Saves a group's new name and members. */
+  updateGroup(group: PersonGroup): Promise<void>;
+  /** Deletes a group for good (its people are untouched). */
+  deleteGroup(groupId: string): Promise<void>;
   /** Erases a person and everything recorded about them (see erase.ts). */
   deletePerson(personId: string): Promise<void>;
   /** Deletes the whole database and its key; the app starts again empty. */
@@ -55,14 +69,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<Store['status']>('loading');
   const [error, setError] = useState<string | null>(null);
   const [photos, setPhotos] = useState<Map<string, string>>(() => new Map());
+  const [groups, setGroups] = useState<PersonGroup[]>([]);
   const graphLayout = useRef<SavedLayout>({ positions: new Map(), tieSignature: '' }).current;
   const logRef = useRef(log);
   logRef.current = log;
 
   useEffect(() => {
-    Promise.all([loadRows(), loadGraphLayout(), loadPhotos()])
-      .then(([rows, layout, savedPhotos]) => {
+    Promise.all([loadRows(), loadGraphLayout(), loadPhotos(), loadGroups()])
+      .then(([rows, layout, savedPhotos, savedGroups]) => {
         setPhotos(savedPhotos);
+        setGroups(savedGroups);
         layout.positions.forEach((p, id) => graphLayout.positions.set(id, p));
         graphLayout.tieSignature = layout.tieSignature;
         setLog(logFromRows(rows));
@@ -157,9 +173,35 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const loadSample = useCallback(
+    async (events: StoredEvent[]) => {
+      if (logRef.current.people.length > 0) throw new Error('Sample data can only be loaded into an empty network.');
+      await commit(events);
+    },
+    [commit],
+  );
+
+  const addGroup = useCallback(async (name: string, members: string[]) => {
+    const group: PersonGroup = { id: randomUUID(), name: name.trim(), members, createdAt: Date.now() };
+    await dbSaveGroup(group);
+    setGroups(await loadGroups());
+    return group.id;
+  }, []);
+
+  const updateGroup = useCallback(async (group: PersonGroup) => {
+    await dbSaveGroup(group);
+    setGroups(await loadGroups());
+  }, []);
+
+  const deleteGroup = useCallback(async (groupId: string) => {
+    await dbDeleteGroup(groupId);
+    setGroups((prev) => prev.filter((g) => g.id !== groupId));
+  }, []);
+
   const deletePerson = useCallback(
     async (personId: string) => {
       await erasePerson(personId);
+      setGroups(await loadGroups());
       graphLayout.positions.delete(personId);
       setPhotos((prev) => {
         const next = new Map(prev);
@@ -177,6 +219,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     graphLayout.positions.clear();
     graphLayout.tieSignature = '';
     setPhotos(new Map());
+    setGroups([]);
     setLog(emptyLog());
   }, [graphLayout]);
 
@@ -196,6 +239,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       disconnectCallLog,
       photos,
       setPhoto,
+      groups,
+      addGroup,
+      updateGroup,
+      deleteGroup,
+      loadSample,
       deletePerson,
       deleteAllData,
     }),
@@ -214,6 +262,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       disconnectCallLog,
       photos,
       setPhoto,
+      groups,
+      addGroup,
+      updateGroup,
+      deleteGroup,
+      loadSample,
       deletePerson,
       deleteAllData,
     ],

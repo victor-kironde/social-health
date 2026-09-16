@@ -22,6 +22,15 @@ its mitigation and residual risk.
 | Database key | Android Keystore-backed SecureStore | Critical: unlocks everything |
 | Export files | user-chosen location, after sharing | As sensitive as all of the above |
 
+### Free text: catch-up notes and group names
+
+Catch-up notes (a private journal) and the names of your own groups are free text, so they can
+hold anything, including details about other people. They are stored like every other record
+(in the SQLCipher database, included in encrypted exports) and are never used for scoring.
+Erasing a person removes them from groups and from catch-ups, but cannot rewrite what a note
+says about them in a catch-up shared with others; a deleted group is removed outright (its
+single record is deleted, not tombstoned), and a rename replaces the old name.
+
 ## Actors
 
 1. **Someone holding the unlocked phone** (partner, family member,

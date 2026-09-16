@@ -7,6 +7,8 @@ import { Easing, cancelAnimation, useDerivedValue, useSharedValue, withRepeat, w
 import { relationshipHealth } from '../data/health';
 import { hasSeenIntro } from '../data/onboarding';
 import { usePrefs } from '../data/prefs';
+import { membership } from '../data/groups';
+import { mixHex } from '../data/health';
 import { restrictLog } from '../data/subset';
 import { SCENARIO_AS_OF, findScenario, scenarioNames } from '../data/scenarioCatalog';
 import { useStore } from '../data/store';
@@ -51,7 +53,7 @@ const PULSE_MS = 2800;
 
 export default function GraphScreen() {
   const t = useTheme();
-  const { log, graphLayout, saveGraphLayout, photos, status } = useStore();
+  const { log, graphLayout, saveGraphLayout, photos, status, groups } = useStore();
   const { prefs } = usePrefs();
   const insets = useSafeAreaInsets();
   const { demo, scenario: scenarioId } = useLocalSearchParams<{ demo?: string; scenario?: string }>();
@@ -112,6 +114,21 @@ export default function GraphScreen() {
     [relationships, ties],
   );
   const bridges = useMemo(() => [...metrics.nodes.values()].filter((m) => m.groupsTouched >= 2).length, [metrics]);
+  // Your own groups (never in samples), and whether the shaded areas show them instead of types.
+  const myGroups = useMemo(() => (sample ? [] : groups), [sample, groups]);
+  const groupsOf = useMemo(() => membership(myGroups), [myGroups]);
+  const groupAreas = display.areas === 'groups' && myGroups.length > 0;
+  /** The areas someone sits in: their relationship types, or their groups. */
+  const areasOf = useCallback(
+    (r: { personId: string; category: string; alsoCategories: string[] }) =>
+      groupAreas ? (groupsOf.get(r.personId) ?? []) : [r.category, ...r.alsoCategories],
+    [groupAreas, groupsOf],
+  );
+  // Group filters for groups that no longer exist are ignored.
+  const options = useMemo(
+    () => ({ ...display, groups: display.groups.filter((id) => myGroups.some((g) => g.id === id)) }),
+    [display, myGroups],
+  );
   // Size from contact frequency; ring (and tiers row) from the chosen order; sector from relationship types.
   const radii = useMemo(() => nodeRadii(relationships, display.sizeByFrequency), [relationships, display.sizeByFrequency]);
   const tiers = useMemo(() => orderTiers(relationships, display.orderBy), [relationships, display.orderBy]);
@@ -121,10 +138,10 @@ export default function GraphScreen() {
         id: r.personId,
         importance: tiers.get(r.personId)!,
         radius: radii.get(r.personId)!,
-        categories: [r.category, ...r.alsoCategories],
+        categories: areasOf(r),
         outward: relationshipHealth(r) === 'lost' ? LOST_OUTWARD : 0,
       })),
-    [relationships, tiers, radii],
+    [relationships, tiers, radii, areasOf],
   );
   const links = useMemo(() => ties.map((t) => ({ source: t.a, target: t.b, weight: t.weight })), [ties]);
   // A remembered layout built without the current ties, rings, sizes or types should relax into them.
@@ -183,9 +200,9 @@ export default function GraphScreen() {
     }, [isLive, reducedMotion, pulse]),
   );
 
-  const visible = useMemo(() => applyFilters(relationships, display), [relationships, display]);
+  const visible = useMemo(() => applyFilters(relationships, options, groupsOf), [relationships, options, groupsOf]);
   // With filters on, the score describes only the people shown (e.g. just family).
-  const filtered = activeFilterCount(display) > 0;
+  const filtered = activeFilterCount(options) > 0;
   const shownTotal = useMemo(() => {
     if (total === null || !sourceLog || !filtered) return total;
     if (visible.length === 0) return null;
@@ -202,7 +219,7 @@ export default function GraphScreen() {
       visible.map((r) => ({
         id: r.personId,
         tier: tiers.get(r.personId)!,
-        categories: [r.category, ...r.alsoCategories],
+        categories: areasOf(r),
         label: names.get(r.personId) ?? '?',
         radius: radii.get(r.personId)!,
       })),
@@ -251,8 +268,9 @@ export default function GraphScreen() {
   const [renderMs, setRenderMs] = useState<number | null>(null);
   const graph = useMemo(() => {
     renderStart.current = performance.now();
-    return buildGraph(visible, names, ties, metrics.nodes, radii, sample ? undefined : photos);
-  }, [visible, names, ties, metrics, radii, photos, sample]);
+    const g = buildGraph(visible, names, ties, metrics.nodes, radii, sample ? undefined : photos);
+    return groupAreas ? { ...g, nodes: g.nodes.map((n) => ({ ...n, areas: groupsOf.get(n.id) ?? [] })) } : g;
+  }, [visible, names, ties, metrics, radii, photos, sample, groupAreas, groupsOf]);
   // A selection that is filtered out of view simply disappears.
   const selectedPerson =
     selectedPersonId && graph.nodes.some((n) => n.id === selectedPersonId) ? byId.get(selectedPersonId) ?? null : null;
@@ -307,8 +325,18 @@ export default function GraphScreen() {
       rows: tierView?.rows,
       setMaxLink: tierView ? TIER_SET_LINK : undefined,
       categoryNames: CATEGORY_LABELS,
+      areas: groupAreas
+        ? {
+            order: myGroups.map((g) => g.id),
+            names: Object.fromEntries(myGroups.map((g) => [g.id, g.name])),
+            // Each group's own colour (when colouring by type/group): the group palette, muted.
+            colours: Object.fromEntries(
+              myGroups.map((g, i) => [g.id, mixHex(t.groups[i % t.groups.length]!, t.health.lost, 0.3)]),
+            ),
+          }
+        : undefined,
     }),
-    [t, display, showLabels, selectedPerson?.personId, ties.length, tierView],
+    [t, display, showLabels, selectedPerson?.personId, ties.length, tierView, groupAreas, myGroups],
   );
   const openPerson = (id: string) => router.push({ pathname: '/person/[id]', params: { id } });
   const selectPerson = (id: string) => setSelectedPersonId(id);
@@ -338,7 +366,7 @@ export default function GraphScreen() {
     );
   }
 
-  const filters = activeFilterCount(display);
+  const filters = activeFilterCount(options);
   const settleText = settleStats
     ? ` · settled in ${(settleStats.ms / 1000).toFixed(1)} s (${settleStats.ticks} ticks, ${settleStats.frames} frames)`
     : ' · settling…';
@@ -461,6 +489,7 @@ export default function GraphScreen() {
         onChange={setDisplay}
         onClose={() => setPanelOpen(false)}
         hasTies={ties.length > 0}
+        groups={myGroups}
       />
 
       <View style={[styles.legend, { borderTopColor: t.border, paddingBottom: 10 + insets.bottom }]}>

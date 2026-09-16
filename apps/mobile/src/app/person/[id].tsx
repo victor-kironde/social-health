@@ -7,7 +7,7 @@ import { HealthPill } from '../../graph/PersonStatsCard';
 import { pickPersonPhoto, photoUri } from '../../data/photos';
 import { draftFromSnapshot, editPersonEvents, validatePerson, type PersonDraft } from '../../data/people';
 import { useStore } from '../../data/store';
-import { Button, Card, Label } from '../../ui/components';
+import { Button, Card, Label, MultiChoiceChips } from '../../ui/components';
 import { INTERACTION_LABELS, formatDate, lastContactText } from '../../ui/labels';
 import { PersonFields } from '../../ui/PersonFields';
 import { useTheme } from '../../ui/theme';
@@ -43,7 +43,19 @@ function PersonEditor({
   rel: RelationshipContribution;
 }) {
   const t = useTheme();
-  const { log, updatePerson, deletePerson, photos, setPhoto } = useStore();
+  const { log, updatePerson, deletePerson, photos, setPhoto, groups, updateGroup } = useStore();
+  const myGroups = groups.filter((g) => g.members.includes(personId)).map((g) => g.id);
+  // Joining or leaving a group saves straight away.
+  const setGroups = (ids: string[]) => {
+    for (const g of groups) {
+      const was = g.members.includes(personId);
+      const now = ids.includes(g.id);
+      if (was === now) continue;
+      updateGroup({ ...g, members: now ? [...g.members, personId] : g.members.filter((m) => m !== personId) }).catch(
+        (e: unknown) => setError(`Could not update the group: ${String(e)}`),
+      );
+    }
+  };
   const photo = photos.get(personId);
   const [photoBusy, setPhotoBusy] = useState(false);
   const [draft, setDraft] = useState<PersonDraft>(() => draftFromSnapshot(name, rel));
@@ -165,17 +177,42 @@ function PersonEditor({
             return (
               <View
                 key={x.id}
-                style={[styles.historyRow, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.border }]}
+                style={[styles.historyItem, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.border }]}
               >
-                <Text style={{ color: t.text, flexShrink: 1 }}>
-                  {INTERACTION_LABELS[x.type]}
-                  {others.length > 0 ? ` with ${others.join(', ')}` : ''}
-                </Text>
-                <Text style={{ color: t.muted }}>{formatDate(x.ts)}</Text>
+                <View style={styles.historyRow}>
+                  <Text style={{ color: t.text, flexShrink: 1 }}>
+                    {INTERACTION_LABELS[x.type]}
+                    {others.length > 0 ? ` with ${others.join(', ')}` : ''}
+                  </Text>
+                  <Text style={{ color: t.muted }}>{formatDate(x.ts)}</Text>
+                </View>
+                {x.note && (
+                  <Text style={{ color: t.muted, fontStyle: 'italic', lineHeight: 19 }} numberOfLines={4}>
+                    {x.note}
+                  </Text>
+                )}
               </View>
             );
           })
         )}
+      </Card>
+
+      <Card>
+        <Label>Groups</Label>
+        {groups.length === 0 ? (
+          <Text style={{ color: t.muted, marginBottom: 8 }}>You have no groups yet.</Text>
+        ) : (
+          <MultiChoiceChips options={groups.map((g) => ({ value: g.id, label: g.name }))} values={myGroups} onChange={setGroups} />
+        )}
+        <View style={{ marginTop: 10 }}>
+          <Button
+            title={groups.length === 0 ? 'Create a group' : 'Manage groups'}
+            variant="secondary"
+            onPress={() =>
+              router.push(groups.length === 0 ? { pathname: '/group/[id]', params: { id: 'new', with: personId } } : '/groups')
+            }
+          />
+        </View>
       </Card>
 
       <PersonFields
@@ -205,5 +242,6 @@ const styles = StyleSheet.create({
   content: { padding: 16, gap: 20 },
   photoRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   photo: { width: 96, height: 96, borderRadius: 48, borderWidth: 3, alignItems: 'center', justifyContent: 'center' },
-  historyRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, gap: 12 },
+  historyItem: { paddingVertical: 10, gap: 4 },
+  historyRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
 });

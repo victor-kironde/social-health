@@ -15,7 +15,7 @@ const RETIRED = new Set(['archived', 'in_memoriam']);
 /** Overview: the Social Health score, recent changes, and everyone as a list (from the graph's "People"). */
 export default function People() {
   const t = useTheme();
-  const { log, status, error } = useStore();
+  const { log, status, error, groups } = useStore();
   const { prefs } = usePrefs();
 
   const [showRetired, setShowRetired] = useState(false);
@@ -151,6 +151,13 @@ export default function People() {
         variant={people.length > 0 ? 'secondary' : 'primary'}
         onPress={() => router.push('/person/new')}
       />
+      {people.length > 0 && (
+        <Button
+          title={groups.length ? `Groups (${groups.length})` : 'Groups'}
+          variant="secondary"
+          onPress={() => router.push('/groups')}
+        />
+      )}
 
       {people.length > 0 && (
         <Card style={{ gap: 0 }}>

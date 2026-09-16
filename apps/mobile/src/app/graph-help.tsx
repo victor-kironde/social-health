@@ -169,8 +169,22 @@ export default function GraphHelp() {
         on their page), and then they sit where the areas overlap, like a relative you also work with. When you
         colour people by type, each area uses its type colour instead:{' '}
         <Swatch colour={c.family}>family</Swatch>, <Swatch colour={c.friend}>friends</Swatch>,{' '}
-        <Swatch colour={c.work}>work</Swatch>, <Swatch colour={c.neighbour}>neighbours</Swatch> and{' '}
-        <Swatch colour={c.community}>community</Swatch>.
+        <Swatch colour={c.work}>work</Swatch>, <Swatch colour={c.neighbour}>neighbours</Swatch>,{' '}
+        <Swatch colour={c.community}>community</Swatch> and <Swatch colour={c.other}>other</Swatch>.
+      </Item>
+      <Item
+        title="Your own groups"
+        art={
+          <Art>
+            <Circle cx={26} cy={30} r={16} fill={t.groups[0]} opacity={0.25} />
+            <Circle cx={50} cy={26} r={16} fill={t.groups[2]} opacity={0.25} />
+            <Circle cx={38} cy={28} r={5} fill={t.card} stroke={h[5]} strokeWidth={2} />
+          </Art>
+        }
+      >
+        Make your own groups, like a book club or old university friends, from the People page or anyone's page.
+        In Display & filters you can show your groups as the shaded areas instead of relationship types, and show
+        only the people in chosen groups.
       </Item>
 
       <Heading>Lines</Heading>
@@ -262,7 +276,7 @@ export default function GraphHelp() {
       <Gesture icon={<PeopleIcon colour={t.text} />} text="Everyone as a list, with your Social Health score and recent changes." />
       <Gesture
         icon="Display & filters"
-        text="Choose rings or tiers, what to order by, what to show (type areas, sizes, lines, names), what colours people (health, type or group), and who to show (types, importance, behind rhythm, never contacted)."
+        text="Choose rings or tiers, what to order by, what to show (areas, sizes, lines, names), whether areas show types or your groups, what colours people (health, type or group), and who to show (types, your groups, importance, behind rhythm, not yet caught up)."
       />
 
       <Text style={[styles.note, { color: t.muted }]}>

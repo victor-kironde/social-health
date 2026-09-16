@@ -16,27 +16,35 @@ export interface LayoutInput {
   importance: Rating;
   /** Drawn radius (e.g. sized by contact frequency); collision spacing uses it. Default NODE_RADIUS. */
   radius?: number;
-  /** Relationship types, primary first. When given, people are pulled towards their types' sectors. */
-  categories?: Category[];
+  /**
+   * Area keys, primary first: relationship types, or group ids. When given, people are pulled
+   * towards their areas' sectors so each area gathers in one direction.
+   */
+  categories?: string[];
   /** Extra distance beyond their ring (e.g. lost touch drifts outward). Default 0. */
   outward?: number;
 }
 
 /** Fixed order of type sectors around the circle, so a type always sits in the same direction. */
-export const SECTOR_ORDER: Category[] = ['family', 'friend', 'work', 'neighbour', 'community'];
+export const SECTOR_ORDER: Category[] = ['family', 'friend', 'work', 'neighbour', 'community', 'other'];
 /** Gentle pull towards the sector target: rings stay dominant, types group together. */
 const SECTOR_STRENGTH = 0.12;
 /** Primary type counts a little more than "also" types when averaging directions. */
 const PRIMARY_WEIGHT = 1.5;
 
-/** Angle of each type present, evenly spaced, starting at the top and going clockwise. */
-export function sectorAngles(present: Category[]): Map<Category, number> {
-  const types = SECTOR_ORDER.filter((c) => present.includes(c));
-  return new Map(types.map((c, k) => [c, -Math.PI / 2 + (2 * Math.PI * k) / types.length]));
+/**
+ * Angle of each area present, evenly spaced, starting at the top and going clockwise:
+ * relationship types in their fixed order, then any other keys (groups) alphabetically.
+ */
+export function sectorAngles(present: string[]): Map<string, number> {
+  const known = SECTOR_ORDER.filter((c) => present.includes(c)) as string[];
+  const others = [...new Set(present.filter((c) => !(SECTOR_ORDER as string[]).includes(c)))].sort();
+  const keys = [...known, ...others];
+  return new Map(keys.map((c, k) => [c, -Math.PI / 2 + (2 * Math.PI * k) / keys.length]));
 }
 
 /** Direction for someone with these types: weighted circular mean of their sectors. */
-export function sectorDirection(categories: Category[], angles: Map<Category, number>): number | null {
+export function sectorDirection(categories: string[], angles: Map<string, number>): number | null {
   if (!categories.length) return null;
   let x = 0;
   let y = 0;

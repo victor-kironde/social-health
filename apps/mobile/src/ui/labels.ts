@@ -35,6 +35,7 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   work: 'Work',
   neighbour: 'Neighbour',
   community: 'Community',
+  other: 'Other',
 };
 
 export const RHYTHM_LABELS: Record<Rhythm, string> = {

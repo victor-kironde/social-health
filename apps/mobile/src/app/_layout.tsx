@@ -36,6 +36,8 @@ export default function RootLayout() {
                 }}
               />
               <Stack.Screen name="people" options={{ title: 'People & score' }} />
+              <Stack.Screen name="groups" options={{ title: 'Groups' }} />
+              <Stack.Screen name="group/[id]" options={{ title: '' }} />
               <Stack.Screen name="settings" options={{ title: 'Settings' }} />
               <Stack.Screen
                 name="intro"

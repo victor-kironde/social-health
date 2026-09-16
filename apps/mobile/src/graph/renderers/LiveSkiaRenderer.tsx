@@ -163,11 +163,12 @@ function LiveSkia({
 
     const sets: SetSpec[] = [];
     if (style.showSets) {
-      const members = new Map<Category, { members: number[]; radii: number[]; primary: boolean[]; health: HealthBand[] }>();
+      const custom = style.areas;
+      const members = new Map<string, { members: number[]; radii: number[]; primary: boolean[]; health: HealthBand[] }>();
       for (const n of data.nodes) {
         const i = index.get(n.id);
         if (i === undefined) continue;
-        n.categories.forEach((cat, k) => {
+        (custom ? (n.areas ?? []) : n.categories).forEach((cat, k) => {
           let m = members.get(cat);
           if (!m) members.set(cat, (m = { members: [], radii: [], primary: [], health: [] }));
           m.members.push(i);
@@ -176,15 +177,16 @@ function LiveSkia({
           m.health.push(n.health);
         });
       }
-      for (const cat of SECTOR_ORDER) {
+      for (const cat of custom ? custom.order : (SECTOR_ORDER as string[])) {
         const m = members.get(cat);
         if (!m) continue;
-        // Coloured by health: the group takes the overall health of the relationships in it.
-        // Otherwise each type keeps its own muted colour.
-        const colour = (style.colourBy ?? 'health') === 'health' ? groupHealthColour(m.health, c.health) : c.category[cat];
+        // Coloured by health: the area takes the overall health of the relationships in it.
+        // Otherwise each type (or group) keeps its own muted colour.
+        const own = custom ? (custom.colours[cat] ?? c.edge) : c.category[cat as Category];
+        const colour = (style.colourBy ?? 'health') === 'health' ? groupHealthColour(m.health, c.health) : own;
         const bar = paint(colour, { stroke: 1 });
         bar.setStrokeCap(StrokeCap.Round);
-        const name = style.categoryNames?.[cat] ?? cat;
+        const name = custom ? (custom.names[cat] ?? cat) : (style.categoryNames?.[cat as Category] ?? cat);
         sets.push({
           layer: paint('#000000', { alpha: SET_ALPHA }),
           fill: paint(colour),

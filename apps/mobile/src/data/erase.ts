@@ -29,6 +29,12 @@ export function eraseFromLog(events: StoredEvent[], personId: string): { remove:
         else replace.push({ ...e, body: { ...e.body, participants: others } });
         break;
       }
+      case 'group':
+        // Groups keep going without them.
+        if (e.body.members.includes(personId)) {
+          replace.push({ ...e, body: { ...e.body, members: e.body.members.filter((m) => m !== personId) } });
+        }
+        break;
       default:
         break;
     }

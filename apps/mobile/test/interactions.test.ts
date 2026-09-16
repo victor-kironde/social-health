@@ -51,3 +51,22 @@ describe('validateInteraction', () => {
     expect(validateInteraction({ participants: ['a'], type: 'message', daysAgo: 365 })).toBeNull();
   });
 });
+
+describe('catch-up notes', () => {
+  const ids = () => {
+    let n = 0;
+    return () => `n${n++}`;
+  };
+  it('stores a trimmed note, and none when blank', () => {
+    const base = { participants: ['a'], type: 'in_person' as const, daysAgo: 0 };
+    const [withNote] = newInteractionEvents({ ...base, note: '  Talked about her new job.  ' }, 1_000_000, 0, ids());
+    expect((withNote!.body as { note?: string }).note).toBe('Talked about her new job.');
+    const [blank] = newInteractionEvents({ ...base, note: '   ' }, 1_000_000, 0, ids());
+    expect('note' in (blank!.body as object)).toBe(false);
+  });
+
+  it('rejects notes that are too long', () => {
+    expect(validateInteraction({ participants: ['a'], type: 'in_person', daysAgo: 0, note: 'x'.repeat(2001) })).toMatch(/under/);
+    expect(validateInteraction({ participants: ['a'], type: 'in_person', daysAgo: 0, note: 'x'.repeat(2000) })).toBeNull();
+  });
+});

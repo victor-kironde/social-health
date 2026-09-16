@@ -19,6 +19,7 @@ export const DEFAULT_CONFIG: ModelConfig = {
     work: 'weekly',
     neighbour: 'monthly',
     community: 'monthly',
+    other: 'monthly',
   },
   longDistanceFactor: 2,
   importantThreshold: 4,
