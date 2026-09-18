@@ -21,6 +21,7 @@ function rel(personId: string, over: Partial<RelationshipContribution> = {}): Re
     quality: null,
     rhythm: 'monthly',
     state: 'active',
+    ideal: 10,
     included: true,
     expectedIntervalDays: 30,
     level: 0,

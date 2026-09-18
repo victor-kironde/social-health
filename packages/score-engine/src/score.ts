@@ -38,7 +38,21 @@ function expectedIntervalDays(rel: RelationshipSnapshot, config: ModelConfig): n
 
 function isIncluded(rel: RelationshipSnapshot, config: ModelConfig): boolean {
   if (RETIRED.has(rel.state)) return false;
+  // "Don't mind": the user has no hope for where this relationship stands.
+  if (rel.ideal === null) return false;
   return rel.quality === null || rel.quality > config.excludeQualityAtOrBelow;
+}
+
+/**
+ * How well a per-relationship value x in [0, 1] matches the user's ideal (1–10): 1 at the target
+ * t = (ideal - 1) / 9, falling linearly to 0 at the far end of the scale. Being further from the
+ * ideal in either direction (too distant, or closer than hoped) counts the same. With the default
+ * ideal of 10 the target is 1 and the fit is x itself, so the standard model is the special case.
+ */
+export function fitToIdeal(x: number, ideal: number): number {
+  const t = (ideal - 1) / 9;
+  const span = Math.max(t, 1 - t);
+  return span === 0 ? 1 : clamp01(1 - Math.abs(x - t) / span);
 }
 
 /**
@@ -120,21 +134,25 @@ export function computeScore(log: EventLog, config: ModelConfig, asOf: Timestamp
 
   const included = contributions.filter((c) => c.included);
   const withRhythm = included.filter((c) => c.expectedIntervalDays !== null);
+  // Contact-based values are scored by how close they are to each relationship's ideal
+  // (identical to the raw value at the default ideal of 10). Quality is not: a relationship
+  // going well is never a problem, whatever closeness the user hopes for.
+  const fit = (c: RelationshipContribution, x: number) => fitToIdeal(x, c.ideal ?? 10);
 
   const components: Record<ComponentName, number | null> = {
-    rhythm: weightedMean(withRhythm, (c) => c.level),
+    rhythm: weightedMean(withRhythm, (c) => fit(c, c.level)),
     coverage: weightedMean(
       withRhythm.filter((c) => c.importance >= config.importantThreshold),
-      (c) => c.onRhythm ?? 0,
+      (c) => fit(c, c.onRhythm ?? 0),
     ),
     diversity: diversity(included),
     quality: qualityAndSupport(
-      contributions.filter((c) => !RETIRED.has(c.state)),
+      contributions.filter((c) => !RETIRED.has(c.state) && c.ideal !== null),
       log.supportReports,
       asOf,
     ),
-    calls: callsConnected ? weightedMean(withRhythm, (c) => c.callLevel ?? 0) : null,
-    frecency: weightedMean(withRhythm, (c) => frecencyRatio(c.frecency, c.expectedIntervalDays!, config)),
+    calls: callsConnected ? weightedMean(withRhythm, (c) => fit(c, c.callLevel ?? 0)) : null,
+    frecency: weightedMean(withRhythm, (c) => fit(c, frecencyRatio(c.frecency, c.expectedIntervalDays!, config))),
   };
 
   let num = 0;
@@ -183,7 +201,9 @@ function diversity(included: RelationshipContribution[]): number | null {
   }
   if (byCategory.size === 0) return null;
   let sum = 0;
-  for (const group of byCategory.values()) sum += Math.sqrt(weightedMean(group, (c) => c.level) ?? 0);
+  for (const group of byCategory.values()) {
+    sum += Math.sqrt(weightedMean(group, (c) => fitToIdeal(c.level, c.ideal ?? 10)) ?? 0);
+  }
   return sum / byCategory.size;
 }
 

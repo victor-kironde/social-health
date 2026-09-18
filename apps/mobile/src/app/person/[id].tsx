@@ -2,7 +2,7 @@ import { DEFAULT_CONFIG, computeScore, type RelationshipContribution } from '@sg
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { HEALTH_LABELS, personalHealth, relationshipHealth } from '../../data/health';
+import { HEALTH_LABELS, IDEAL_COMPARISON_LABELS, bandLabelOf, compareToIdeal, personalHealth, relationshipHealth } from '../../data/health';
 import { HealthPill } from '../../graph/PersonStatsCard';
 import { pickPersonPhoto, photoUri } from '../../data/photos';
 import { draftFromSnapshot, editPersonEvents, validatePerson, type PersonDraft } from '../../data/people';
@@ -151,7 +151,16 @@ function PersonEditor({
         <Text style={{ color: t.text, fontSize: 16 }}>{lastContactText(rel.lastContactAgeDays)}</Text>
         {(() => {
           const { score, band } = personalHealth(rel);
-          return <HealthPill score={score} label={`${HEALTH_LABELS[band]} (out of 10)`} colour={t.health[band]} large />;
+          return (
+            <>
+              <HealthPill score={score} label={`${HEALTH_LABELS[band]} (out of 10)`} colour={t.health[band]} large />
+              <Text style={{ color: t.muted, marginTop: 6 }}>
+                {rel.ideal === null
+                  ? "Your ideal: don't mind, so this relationship is left out of your score."
+                  : `Your ideal: ${rel.ideal} (${bandLabelOf(rel.ideal)}) · ${IDEAL_COMPARISON_LABELS[compareToIdeal(score, rel.ideal)]}`}
+              </Text>
+            </>
+          );
         })()}
         {rel.expectedIntervalDays !== null && (
           <Text style={{ color: t.muted }}>

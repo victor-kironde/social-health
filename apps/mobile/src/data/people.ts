@@ -19,9 +19,12 @@ export interface NewPersonInput {
   /** Omit (or pass the category default) to follow the category default, so later default changes still apply. */
   rhythm?: Rhythm;
   quality: Rating | null;
+  /** How close they would like it to be, 1–10, or null for "don't mind". Default 10. */
+  ideal?: number | null;
 }
 
 export const MAX_NAME_LENGTH = 60;
+export const DEFAULT_IDEAL = 10;
 
 export function validatePerson(input: NewPersonInput): string | null {
   const name = input.displayName.trim();
@@ -41,6 +44,7 @@ export function newPersonEvents(input: NewPersonInput, now: Timestamp, newId: ()
     changes.push({ field: 'rhythm', value: input.rhythm });
   }
   if (input.quality !== null) changes.push({ field: 'quality', value: input.quality });
+  if (input.ideal !== undefined && input.ideal !== DEFAULT_IDEAL) changes.push({ field: 'ideal', value: input.ideal });
   const also = (input.alsoCategories ?? []).filter((c) => c !== input.category);
   if (also.length) changes.push({ field: 'alsoCategories', value: [...new Set(also)].sort() });
 
@@ -62,6 +66,8 @@ export interface PersonDraft {
   rhythm: Rhythm | null;
   quality: Rating | null;
   state: RelationshipState;
+  /** Hoped-for closeness 1–10, or null = "don't mind". */
+  ideal: number | null;
 }
 
 export function draftFromSnapshot(displayName: string, rel: RelationshipSnapshot): PersonDraft {
@@ -73,6 +79,7 @@ export function draftFromSnapshot(displayName: string, rel: RelationshipSnapshot
     rhythm: rel.rhythm === DEFAULT_CONFIG.defaultRhythm[rel.category] ? null : rel.rhythm,
     quality: rel.quality,
     state: rel.state,
+    ideal: rel.ideal,
   };
 }
 
@@ -102,6 +109,7 @@ export function editPersonEvents(
   }
   if (draft.quality !== rel.quality) changes.push({ field: 'quality', value: draft.quality });
   if (draft.state !== rel.state) changes.push({ field: 'state', value: draft.state });
+  if (draft.ideal !== rel.ideal) changes.push({ field: 'ideal', value: draft.ideal });
   const also = [...new Set(draft.alsoCategories.filter((c) => c !== draft.category))].sort();
   if (also.join() !== [...rel.alsoCategories].sort().join()) changes.push({ field: 'alsoCategories', value: also });
 

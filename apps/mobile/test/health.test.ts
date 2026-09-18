@@ -11,6 +11,7 @@ function rel(over: Partial<RelationshipContribution> = {}): RelationshipContribu
     quality: null,
     rhythm: 'monthly',
     state: 'active',
+    ideal: 10,
     included: true,
     expectedIntervalDays: 30,
     level: 0.8,
@@ -115,5 +116,17 @@ describe('personalHealth (a relationship out of 10)', () => {
     const strong = personalHealth(rel({ onRhythm: 1, level: 1, callLevel: 1 }));
     expect(weak.band).toBe(strong.band);
     expect(strong.score).toBeGreaterThan(weak.score);
+  });
+});
+
+describe('ideals in the app', () => {
+  it('compares a relationship with its ideal, allowing one point either way', async () => {
+    const { compareToIdeal, bandLabelOf } = await import('../src/data/health');
+    expect(compareToIdeal(7, 8)).toBe('at');
+    expect(compareToIdeal(3, 8)).toBe('below');
+    expect(compareToIdeal(9, 3)).toBe('beyond');
+    expect(compareToIdeal(2, null)).toBe('none');
+    expect(bandLabelOf(3)).toBe('Distant');
+    expect(bandLabelOf(10)).toBe('Close');
   });
 });

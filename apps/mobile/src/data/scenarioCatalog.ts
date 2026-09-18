@@ -8,7 +8,7 @@ import * as s from '@sg/synth/scenarios';
 export interface ScenarioInfo {
   id: string;
   label: string;
-  group: 'Catch-ups' | 'Life events' | 'Quality' | 'Calls' | 'Network';
+  group: 'Catch-ups' | 'Life events' | 'Quality' | 'Ideals' | 'Calls' | 'Network';
   description: string;
   build: () => EventLog;
 }
@@ -34,6 +34,10 @@ export const SCENARIOS: ScenarioInfo[] = [
   { id: 'ratedStrained', label: 'Rated strained', group: 'Quality', description: 'Close-knit, every relationship rated strained.', build: () => s.rated(2) },
   { id: 'harmfulContact', label: 'Harmful, still in touch', group: 'Quality', description: 'A relationship rated harmful, with frequent catch-ups (left out of the score).', build: () => s.withHarmful(true) },
   { id: 'harmfulNoContact', label: 'Harmful, not in touch', group: 'Quality', description: 'The same, with no catch-ups.', build: () => s.withHarmful(false) },
+  { id: 'coParentDistant', label: 'Co-parenting, ideal 3', group: 'Ideals', description: 'Close family and friends, plus an ex rated strained with brief messages every few weeks, kept distant on purpose (ideal 3).', build: () => s.coParenting(3) },
+  { id: 'coParentDefault', label: 'Co-parenting, ideal 10', group: 'Ideals', description: 'The same, with the default ideal of 10: the distance now counts against the score.', build: () => s.coParenting(undefined) },
+  { id: 'coParentClose', label: 'Ideal 3, weekly meetings', group: 'Ideals', description: 'Ideal 3, but meeting the ex every week: closer than hoped.', build: () => s.coParenting(3, 'close') },
+  { id: 'coParentDontMind', label: "Don't mind", group: 'Ideals', description: "The ex set to \"don't mind\": left out of the score entirely.", build: () => s.coParenting(null) },
   { id: 'callsRegular', label: 'Regular calls', group: 'Calls', description: 'Call history connected; a call with each friend every two weeks.', build: s.callsRegular },
   { id: 'callsNone', label: 'No calls', group: 'Calls', description: 'Call history connected, but no calls.', build: s.callsNone },
   { id: 'callsSpread', label: 'Calls spread', group: 'Calls', description: 'Four recent calls, one with each friend.', build: s.callsSpread },
@@ -43,7 +47,7 @@ export const SCENARIOS: ScenarioInfo[] = [
   { id: 'circles', label: 'Two circles and a bridge', group: 'Network', description: 'Family and friends who meet as groups, one friend who joins both, a colleague who is also family, plus strained, lost-touch and new relationships.', build: s.circles },
 ];
 
-export const SCENARIO_GROUPS = ['Catch-ups', 'Life events', 'Quality', 'Calls', 'Network'] as const;
+export const SCENARIO_GROUPS = ['Catch-ups', 'Life events', 'Quality', 'Ideals', 'Calls', 'Network'] as const;
 
 export function findScenario(id: string | undefined): ScenarioInfo | undefined {
   return id ? SCENARIOS.find((x) => x.id === id) : undefined;

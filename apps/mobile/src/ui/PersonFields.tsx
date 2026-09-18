@@ -1,11 +1,15 @@
 import { DEFAULT_CONFIG, type Rating, type RelationshipState } from '@sg/score-engine';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { bandLabelOf } from '../data/health';
 import { MAX_NAME_LENGTH, type PersonDraft } from '../data/people';
 import { ChoiceChips, Label, MultiChoiceChips } from './components';
 import { CATEGORY_LABELS, IMPORTANCE_LABELS, QUALITY_LABELS, RHYTHM_LABELS, STATE_LABELS } from './labels';
 import { useTheme } from './theme';
 
 const RATINGS: Rating[] = [1, 2, 3, 4, 5];
+const IDEALS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+/** The "Don't mind" chip (no ideal). */
+const DONT_MIND = 0;
 const NOT_RATED = 0;
 
 const options = <K extends string>(labels: Record<K, string>) =>
@@ -80,6 +84,30 @@ export function PersonFields({
           value={draft.importance}
           onChange={(v) => set('importance', v)}
         />
+      </View>
+
+      <View>
+        <Label>How close would you like to be?</Label>
+        <ChoiceChips
+          options={[
+            ...IDEALS.map((v) => ({ value: v, label: String(v) })),
+            { value: DONT_MIND, label: "Don't mind" },
+          ]}
+          value={draft.ideal ?? DONT_MIND}
+          onChange={(v) => set('ideal', v === DONT_MIND ? null : v)}
+        />
+        <Text style={[styles.hint, { color: t.muted }]}>
+          {draft.ideal === null
+            ? "Left out of your score: you don't mind where this relationship stands."
+            : `${draft.ideal} · ${bandLabelOf(draft.ideal)}. ${
+                draft.ideal === 10
+                  ? 'As close as possible (the usual hope).'
+                  : 'Your score counts this relationship as doing well when it is near this, not when it is as close as possible.'
+              }`}
+        </Text>
+        <Text style={[styles.hint, { color: t.muted, marginTop: 2 }]}>
+          Lower it for relationships you would like to keep at a distance, such as co-parenting with an ex.
+        </Text>
       </View>
 
       <View>

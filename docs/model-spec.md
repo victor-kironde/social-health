@@ -1,10 +1,11 @@
-# Social Health Score: Model Specification (v0.2.0)
+# Social Health Score: Model Specification (v0.3.0)
 
 The score is an experimental, interpretable measure for personal reflection. It
 is **not** a clinical or validated measure. All parameters live in
 `DEFAULT_CONFIG` (`packages/score-engine/src/config.ts`) and are user-visible
 model assumptions. v0.2 adds two weighted terms suggested in the proposal
-feedback: passive call-log metadata and frecency.
+feedback: passive call-log metadata and frecency. v0.3 adds a per-relationship
+**ideal**: how close the user hopes each relationship to be.
 
 ## Inputs
 
@@ -39,8 +40,29 @@ For relationship *i* at time *t*:
 | `C_i` (call level) | `1 − exp(−Σ_calls c(call) · m_i · 0.5^(age/H_i) / k)`; `c` = 1 for answered calls ≥ 60 s, 0.3 for shorter, 0 for missed. Null if the call log is not connected. |
 | `F_i` (frecency) | Σ over every logged interaction and call: `w · 0.5^(age / 30 days)`. Unbounded; used to rank people by how much and how recently they have been in touch. |
 
-A relationship is **included** unless it is `archived`, `in_memoriam` or rated
-quality 1 (harmful). Contact with excluded relationships never raises the score.
+A relationship is **included** unless it is `archived`, `in_memoriam`, rated
+quality 1 (harmful), or set to "don't mind". Contact with excluded relationships never raises the score.
+
+## Ideals (v0.3)
+
+Each relationship has an ideal *g_i* ∈ {1, …, 10} (default 10) or **don't mind**.
+The standard model assumed every relationship should be as close as possible; the
+ideal replaces that assumption per relationship (for example *g* = 3 for an ex-partner
+one co-parents with).
+
+- Target *t_i* = (*g_i* − 1) / 9.
+- Fit of a per-relationship value *x* ∈ [0, 1]: `fit(x, g) = 1 − |x − t| / max(t, 1 − t)`,
+  clamped to [0, 1]. It is 1 at the target and falls linearly to 0 at the far end of the
+  scale, symmetrically: too distant and closer than hoped count the same.
+- With *g* = 10, *t* = 1 and `fit(x, 10) = x`: **the standard model is the special case**,
+  so existing scores are unchanged until an ideal is lowered (property P17).
+- The contact-based values (*L_i* in rhythm and diversity, *S_i* in coverage, *C_i* in
+  calls, the frecency ratio) are replaced by their fit before averaging. These are the
+  same measures a relationship's own 1–10 score is made of, so the ideal is in effect a
+  target for that score. The quality and support component is **not** fitted: a
+  relationship going well is never a problem, whatever closeness the user hopes for.
+- **Don't mind**: the relationship is not included in any component, so nothing about
+  it can change the score (P18).
 
 ## Components (each 0–1, or null if undefined)
 
@@ -108,7 +130,16 @@ P10 empty network = 0 · **P11** an answered call never lowers the score ·
 **P12** a missed call changes nothing · **P13** diminishing returns for calls ·
 **P14** an unconnected call source is left out, a connected empty one counts as
 no calls · **P15** frecency cannot be inflated by contacting one person a lot ·
-**P16** frecency ranks frequent recent contact above one old contact.
+**P16** frecency ranks frequent recent contact above one old contact ·
+**P17** setting every ideal to the default 10 changes nothing · **P18** a "don't mind"
+relationship never changes the score · **P19** fit is 1 at the ideal and never rises
+moving away from it, in either direction · **P20** for a relationship hoped to be
+distant, a lot of contact eventually lowers the score.
+
+P3, P4, P5, P9, P11, P13 and P14 describe the standard model and are tested on
+networks with default ideals: with a lower ideal, drifting towards it raises the score
+and contact far beyond it lowers it, by design. The others are tested on random
+networks that include random ideals and "don't mind".
 
 ## Scenario orderings (tests in `packages/synth/test/orderings.test.ts`)
 
@@ -119,7 +150,9 @@ not help · O8 paused gap > unpaused gap · O9 single-category not heavily
 penalised · O10 healthy ≥ 60, neglected ≤ 40 · **O11** regular calls > no calls ·
 **O12** calls spread across people > the same calls with one person ·
 **O13** calls alone cannot stand in for logged contact · **O14** good,
-supportive relationships > strained ones · **O15** proper calls > very brief ones.
+supportive relationships > strained ones · **O15** proper calls > very brief ones · **O16** a relationship kept distant on purpose
+scores higher once its ideal says so (co-parenting, ideal 3 > ideal 10) · **O17** with a
+distant ideal, sparse contact > weekly closeness.
 
 ## Sensitivity
 
@@ -129,6 +162,14 @@ variance-share dominance check over 500 seeded random networks. Reference
 values for the named scenarios are in its section A.
 
 ## Known limitations / open questions
+
+- The ideal targets contact *relative to the relationship's own rhythm*, so for a
+  distant ideal, keeping strictly to a frequent rhythm also counts as closer than hoped
+  (coverage for the co-parenting scenario falls from 1.00 to 0.79). Users wanting
+  frequent but distant contact (logistics) should either keep the ideal moderate or set
+  the rhythm to what the relationship actually needs. The O16 advantage comes mostly
+  through the rhythm component (removing it breaks O16 in the ablation).
+- Fit is symmetric; some users may mind being too distant more than too close.
 
 - Interaction duration is recorded but not used (call duration is).
 - Diversity is derived from the same contact levels as rhythm, so it accounts

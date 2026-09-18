@@ -1,5 +1,12 @@
 /**
  * Properties the Social Health Score must satisfy for any well-formed input.
+ *
+ * Model v0.3 added ideals (how close each relationship is hoped to be). Properties about
+ * the shape of the standard model (P3 more contact never hurts, P4 no inflation over time,
+ * P5 and P13 diminishing returns, P9 pauses protect, P11 calls never hurt, P14 an empty
+ * connected call log counts as no calls) hold for the default ideal of 10 and are tested on
+ * networks without other ideals: with a lower ideal, drifting towards it raises the score and
+ * contact beyond it lowers it, by design (P19, P20). The others are tested with random ideals.
  * These were written before the formula was chosen (see git history) and act
  * as its specification: a candidate formula that fails one is rejected rather
  * than the property being weakened.
@@ -11,6 +18,7 @@ import {
   DAY,
   DEFAULT_CONFIG,
   computeScore,
+  fitToIdeal,
   type EventLog,
   type Interaction,
   type InteractionType,
@@ -31,7 +39,7 @@ function withInteraction(log: EventLog, x: Omit<Interaction, 'id' | 'source'>): 
 describe('score properties', () => {
   it('P1 bounded: total in [0, 100], components and confidence in [0, 1]', () => {
     fc.assert(
-      fc.property(arbEventLog(), (log) => {
+      fc.property(arbEventLog({ ideals: true }), (log) => {
         const r = score(log);
         expect(r.total).toBeGreaterThanOrEqual(0);
         expect(r.total).toBeLessThanOrEqual(100);
@@ -50,7 +58,7 @@ describe('score properties', () => {
 
   it('P2 deterministic: same input gives the same result', () => {
     fc.assert(
-      fc.property(arbEventLog(), (log) => {
+      fc.property(arbEventLog({ ideals: true }), (log) => {
         expect(score(structuredClone(log))).toEqual(score(log));
       }),
       RUNS,
@@ -109,7 +117,7 @@ describe('score properties', () => {
 
   it('P6 invariance: relabelling people and reordering records does not change the score', () => {
     fc.assert(
-      fc.property(arbEventLog(), fc.integer({ min: 0, max: 2 ** 31 - 1 }), (log, seed) => {
+      fc.property(arbEventLog({ ideals: true }), fc.integer({ min: 0, max: 2 ** 31 - 1 }), (log, seed) => {
         const rename = (id: string) => `x-${id.split('').reverse().join('')}`;
         const shuffle = <T>(xs: T[]): T[] => {
           const out = [...xs];
@@ -182,7 +190,7 @@ describe('score properties', () => {
   it('P8 exclusion: contact with archived, in-memoriam or harmful relationships never raises the score', () => {
     fc.assert(
       fc.property(
-        arbEventLog(),
+        arbEventLog({ ideals: true }),
         fc.constantFrom('archived', 'in_memoriam', 'harmful'),
         fc.integer({ min: 0, max: 60 }),
         arbType,
@@ -261,7 +269,7 @@ describe('call metadata and frecency (model v0.2)', () => {
 
   it('P12 a missed call changes nothing', () => {
     fc.assert(
-      fc.property(arbEventLog(), fc.integer({ min: 0, max: 400 }), fc.nat(), (log, daysAgo, pick) => {
+      fc.property(arbEventLog({ ideals: true }), fc.integer({ min: 0, max: 400 }), fc.nat(), (log, daysAgo, pick) => {
         const connected = { ...log, calls: log.calls ?? [] };
         const personId = log.people[pick % log.people.length]!.id;
         const after = withCall(connected, { personId, ts: ARB_AS_OF - daysAgo * DAY, durationSec: 0, direction: 'missed' });
@@ -348,5 +356,98 @@ describe('call metadata and frecency (model v0.2)', () => {
     const rels = score(base).relationships;
     const f = (id: string) => rels.find((r) => r.personId === id)!.frecency;
     expect(f('often')).toBeGreaterThan(f('once'));
+  });
+});
+
+describe('ideals: how close each relationship is hoped to be (model v0.3)', () => {
+  /** The log with an ideal set for person `id`, after everything else about them. */
+  const withIdeal = (log: EventLog, id: string, ideal: number | null): EventLog => ({
+    ...log,
+    relationshipEvents: [
+      ...log.relationshipEvents,
+      { id: `ideal-${id}`, personId: id, ts: ARB_AS_OF - 450 * DAY, field: 'ideal', value: ideal },
+    ],
+  });
+
+  it('P17 the default ideal is the standard model: setting every ideal to 10 changes nothing', () => {
+    fc.assert(
+      fc.property(arbEventLog(), (log) => {
+        let explicit = log;
+        for (const p of log.people) explicit = withIdeal(explicit, p.id, 10);
+        expect(score(explicit).total).toBeCloseTo(score(log).total, 9);
+      }),
+      RUNS,
+    );
+  });
+
+  it('P18 "don\'t mind": a relationship with no ideal never changes the score, whatever happens in it', () => {
+    fc.assert(
+      fc.property(arbEventLog({ ideals: true }), fc.integer({ min: 0, max: 60 }), arbType, (log, daysAgo, type) => {
+        const base: EventLog = withIdeal(
+          {
+            ...log,
+            people: [...log.people, { id: 'z', displayName: 'z' }],
+            relationshipEvents: [
+              ...log.relationshipEvents,
+              { id: 'z-cat', personId: 'z', ts: ARB_AS_OF - 500 * DAY, field: 'category', value: 'friend' },
+              { id: 'z-imp', personId: 'z', ts: ARB_AS_OF - 500 * DAY, field: 'importance', value: 5 },
+            ],
+          },
+          'z',
+          null,
+        );
+        const ts = ARB_AS_OF - daysAgo * DAY;
+        const after = withInteraction(base, { ts, loggedAt: ts, type, participants: ['z'] });
+        expect(score(after).total).toBeCloseTo(score(base).total, 9);
+        // Removing them entirely gives the same score too.
+        expect(score(base).total).toBeCloseTo(score(log).total, 9);
+      }),
+      RUNS,
+    );
+  });
+
+  it('P19 an ideal is a target: fit is 1 at it and never rises moving away from it, either way', () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 1, max: 10 }),
+        fc.double({ min: 0, max: 1, noNaN: true }),
+        fc.double({ min: 0, max: 1, noNaN: true }),
+        (ideal, a, b) => {
+          const t = (ideal - 1) / 9;
+          expect(fitToIdeal(t, ideal)).toBeCloseTo(1, 12);
+          // b at least as far from the target as a, on the same side: fit(b) <= fit(a).
+          if ((a - t) * (b - t) >= 0 && Math.abs(b - t) >= Math.abs(a - t)) {
+            expect(fitToIdeal(b, ideal)).toBeLessThanOrEqual(fitToIdeal(a, ideal) + EPS);
+          }
+          expect(fitToIdeal(a, 10)).toBeCloseTo(a, 12); // default ideal: the raw value
+          expect(fitToIdeal(a, ideal)).toBeGreaterThanOrEqual(0);
+          expect(fitToIdeal(a, ideal)).toBeLessThanOrEqual(1);
+        },
+      ),
+      { numRuns: 1000 },
+    );
+  });
+
+  it('P20 for a relationship hoped to be distant, a lot of contact eventually lowers the score', () => {
+    fc.assert(
+      fc.property(fc.integer({ min: 1, max: 4 }), arbType, (ideal, type) => {
+        let log: EventLog = {
+          people: [{ id: 'ex', displayName: 'ex' }],
+          relationshipEvents: [
+            { id: 'c', personId: 'ex', ts: ARB_AS_OF - 400 * DAY, field: 'category', value: 'other' },
+            { id: 'r', personId: 'ex', ts: ARB_AS_OF - 400 * DAY, field: 'rhythm', value: 'monthly' },
+            { id: 'i', personId: 'ex', ts: ARB_AS_OF - 400 * DAY, field: 'ideal', value: ideal },
+          ],
+          interactions: [],
+          supportReports: [],
+          loggingActivity: [],
+          pauses: [],
+        };
+        const sparse = score(withInteraction(log, { ts: ARB_AS_OF - 20 * DAY, loggedAt: ARB_AS_OF - 20 * DAY, type, participants: ['ex'] })).total;
+        for (let d = 0; d < 60; d += 2) log = withInteraction(log, { ts: ARB_AS_OF - d * DAY, loggedAt: ARB_AS_OF - d * DAY, type: 'in_person', participants: ['ex'] });
+        expect(score(log).total).toBeLessThan(sparse);
+      }),
+      { numRuns: 40 },
+    );
   });
 });

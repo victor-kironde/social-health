@@ -218,3 +218,21 @@ export function circles(): EventLog {
   b.contactEvery('zoe', 30, { fromDaysAgo: 365, toDaysAgo: 200 });
   return b.build();
 }
+
+/**
+ * Co-parenting after a divorce: a close family and friends on rhythm, plus an ex-partner rated
+ * strained with only brief, occasional contact about the children. With `ideal`, the user says how
+ * close they hope that relationship to be (3 = distant on purpose); without it, the default of 10.
+ * `contact`: 'sparse' (a short call every few weeks) or 'close' (meeting in person every week).
+ */
+export function coParenting(ideal: number | null | undefined, contact: 'sparse' | 'close' = 'sparse'): EventLog {
+  const b = new ScenarioBuilder(AS_OF);
+  ['mum', 'sis', 'ana'].forEach((id, i) => {
+    b.person(id, { category: i < 2 ? 'family' : 'friend', importance: 5, rhythm: 'monthly' });
+    b.contactEvery(id, 30, { toDaysAgo: 3 + i });
+  });
+  b.person('ex', { category: 'other', importance: 4, rhythm: 'monthly', quality: 2, ...(ideal === undefined ? {} : { ideal }) });
+  if (contact === 'sparse') b.contactEvery('ex', 45, { toDaysAgo: 20 }, { type: 'message' });
+  else b.contactEvery('ex', 7, { toDaysAgo: 1 });
+  return b.build();
+}

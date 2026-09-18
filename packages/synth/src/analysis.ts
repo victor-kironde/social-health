@@ -35,6 +35,9 @@ export const NAMED_SCENARIOS: Record<string, () => EventLog> = {
   'Calls: all with one person': s.callsConcentrated,
   'Calls only, nothing logged': s.callsOnly,
   'Calls: regular but all brief': s.callsBrief,
+  'Co-parenting, ideal distant (3)': () => s.coParenting(3),
+  'Co-parenting, ideal unchanged (10)': () => s.coParenting(undefined),
+  'Co-parenting, ideal 3, close contact': () => s.coParenting(3, 'close'),
   'Rated very good, supportive': () => s.rated(5),
   'Rated strained, unsupportive': () => s.rated(2),
 };
@@ -51,6 +54,8 @@ export const ORDERINGS: [label: string, higher: string, lower: string][] = [
   ['O12', 'Calls: spread across people', 'Calls: all with one person'],
   ['O14', 'Rated very good, supportive', 'Rated strained, unsupportive'],
   ['O15', 'Calls: regular with everyone', 'Calls: regular but all brief'],
+  ['O16', 'Co-parenting, ideal distant (3)', 'Co-parenting, ideal unchanged (10)'],
+  ['O17', 'Co-parenting, ideal distant (3)', 'Co-parenting, ideal 3, close contact'],
 ];
 
 export type Weights = Record<ComponentName, number>;

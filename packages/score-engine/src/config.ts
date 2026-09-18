@@ -1,6 +1,6 @@
 import type { ModelConfig } from './types';
 
-export const MODEL_VERSION = '0.2.0';
+export const MODEL_VERSION = '0.3.0';
 
 /**
  * Initial parameters. These are configurable model assumptions, not

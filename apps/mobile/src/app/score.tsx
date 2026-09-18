@@ -1,7 +1,16 @@
 import { DEFAULT_CONFIG, computeScore } from '@sg/score-engine';
 import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { HEALTH_LABELS, relationshipHealth, scoreOutOf10, type HealthBand } from '../data/health';
+import {
+  HEALTH_LABELS,
+  IDEAL_COMPARISON_LABELS,
+  compareToIdeal,
+  personalHealth,
+  relationshipHealth,
+  scoreOutOf10,
+  type HealthBand,
+  type IdealComparison,
+} from '../data/health';
 import { usePrefs } from '../data/prefs';
 import { useStore } from '../data/store';
 import { TREND_RANGES, trendChange, trendPoints, type TrendRange } from '../data/trends';
@@ -13,6 +22,7 @@ import { useTheme } from '../ui/theme';
 
 const RETIRED = new Set(['archived', 'in_memoriam']);
 const BANDS: HealthBand[] = [5, 4, 3, 2, 1, 'lost'];
+const COMPARISONS: IdealComparison[] = ['at', 'below', 'beyond', 'none'];
 
 /** Details behind the Social Health score. Charts of how it changes over time come next. */
 export default function ScoreDetails() {
@@ -23,6 +33,16 @@ export default function ScoreDetails() {
   const [range, setRange] = useState<TrendRange>('3m');
   const points = useMemo(() => trendPoints(log, Date.now(), range), [log, range]);
   const change = trendChange(points, scoreOutOf10);
+  // How each relationship stands against the ideal the user set for it.
+  const vsIdeal = useMemo(() => {
+    const c = new Map<IdealComparison, number>(COMPARISONS.map((k) => [k, 0]));
+    for (const r of result.relationships) {
+      if (RETIRED.has(r.state)) continue;
+      const k = compareToIdeal(personalHealth(r).score, r.ideal);
+      c.set(k, c.get(k)! + 1);
+    }
+    return c;
+  }, [result]);
   const counts = useMemo(() => {
     const c = new Map<HealthBand, number>(BANDS.map((b) => [b, 0]));
     for (const r of result.relationships) if (!RETIRED.has(r.state)) c.set(relationshipHealth(r), c.get(relationshipHealth(r))! + 1);
@@ -62,6 +82,20 @@ export default function ScoreDetails() {
             <Text style={{ color: t.muted }}>{counts.get(b)}</Text>
           </View>
         ))}
+      </Card>
+
+      <Card>
+        <Label>Compared with how close you hope to be</Label>
+        {COMPARISONS.map((k) => (
+          <View key={k} style={styles.bandRow}>
+            <Text style={{ color: t.text, flex: 1 }}>{IDEAL_COMPARISON_LABELS[k]}</Text>
+            <Text style={{ color: t.muted }}>{vsIdeal.get(k)}</Text>
+          </View>
+        ))}
+        <Text style={{ color: t.muted, fontSize: 12, marginTop: 6, lineHeight: 17 }}>
+          Your score measures how close each relationship is to the ideal you set for it (10 unless you change it), so a
+          relationship you want to keep distant counts as doing well when it is. "Don't mind" relationships are left out.
+        </Text>
       </Card>
 
       {prefs.showScore && log.interactions.length > 0 && (

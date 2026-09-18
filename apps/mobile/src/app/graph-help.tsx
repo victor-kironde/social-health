@@ -246,6 +246,22 @@ export default function GraphHelp() {
         time.
       </Item>
       <Item
+        title="Your ideal for each relationship"
+        art={
+          <Art>
+            <Line x1={8} y1={28} x2={64} y2={28} stroke={t.border} strokeWidth={3} strokeLinecap="round" />
+            <Circle cx={22} cy={28} r={6} fill={h[2]} />
+            <Circle cx={22} cy={28} r={11} fill="none" stroke={t.text} strokeWidth={1.5} strokeDasharray="3 3" />
+          </Art>
+        }
+      >
+        On each person's page you can say how close you would like the relationship to be, from 1 to 10. It starts at
+        10 (as close as possible). Lower it for a relationship you want to keep at a distance, such as co-parenting with
+        an ex: the score then counts it as doing well when it stays near that, and contact far beyond it counts against
+        it. Choose "Don't mind" to leave someone out of the score altogether. Their colour on the graph still shows how
+        close you actually are; the details card says how that compares with your ideal.
+      </Item>
+      <Item
         title="Person details"
         art={
           <Art>

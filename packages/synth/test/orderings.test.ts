@@ -108,4 +108,22 @@ describe('model v0.2 orderings (ratings and call length)', () => {
   it('O15 regular proper calls beat the same number of very brief calls', () => {
     expect(total(s.callsRegular())).toBeGreaterThan(total(s.callsBrief()));
   });
+
+  it('O16 a relationship kept distant on purpose scores as intended once its ideal says so', () => {
+    expect(total(s.coParenting(3))).toBeGreaterThan(total(s.coParenting(undefined)));
+  });
+
+  it('O17 with a distant ideal, weekly closeness is further from what the user hopes than sparse contact', () => {
+    expect(total(s.coParenting(3))).toBeGreaterThan(total(s.coParenting(3, 'close')));
+  });
+
+  it('ideal "don\'t mind" removes the relationship from the score entirely', () => {
+    const b = new ScenarioBuilder(AS_OF);
+    ['mum', 'sis', 'ana'].forEach((id, i) => {
+      b.person(id, { category: i < 2 ? 'family' : 'friend', importance: 5, rhythm: 'monthly' });
+      b.contactEvery(id, 30, { toDaysAgo: 3 + i });
+    });
+    const without = total(b.build());
+    expect(total(s.coParenting(null))).toBeCloseTo(without, 6);
+  });
 });

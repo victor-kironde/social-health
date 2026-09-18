@@ -1,7 +1,7 @@
 import type { RelationshipContribution } from '@sg/score-engine';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { HEALTH_LABELS, personalHealth } from '../data/health';
+import { HEALTH_LABELS, IDEAL_COMPARISON_LABELS, bandLabelOf, compareToIdeal, personalHealth } from '../data/health';
 import { photoUri } from '../data/photos';
 import { IMPORTANCE_LABELS, QUALITY_LABELS, lastContactText, typesLabel } from '../ui/labels';
 import { useTheme } from '../ui/theme';
@@ -42,7 +42,12 @@ export function PersonStatsCard({
     .filter(Boolean)
     .join(' · ');
 
+  const idealText =
+    rel.ideal === null
+      ? "Don't mind (not scored)"
+      : `${rel.ideal} · ${bandLabelOf(rel.ideal)} · ${IDEAL_COMPARISON_LABELS[compareToIdeal(score, rel.ideal)].toLowerCase()}`;
   const rows: [string, string][] = [
+    ['Ideal', idealText],
     ['Importance', IMPORTANCE_LABELS[rel.importance]],
     ['Last catch-up', lastContactText(rel.lastContactAgeDays).replace(/^Last catch-up /, '')],
     ...(rhythm ? ([['Rhythm', rhythm]] as [string, string][]) : []),

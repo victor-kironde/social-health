@@ -145,6 +145,7 @@ export default function Preview() {
         <View style={[styles.tableHead, { borderBottomColor: t.border }]}>
           <Text style={[styles.colName, styles.th, { color: t.muted }]}>Person</Text>
           <Text style={[styles.colHealth, styles.th, { color: t.muted }]}>Health</Text>
+          <Text style={[styles.colNum, styles.th, { color: t.muted }]}>Ideal</Text>
           <Text style={[styles.colNum, styles.th, { color: t.muted }]}>Size</Text>
           <Text style={[styles.colNum, styles.th, { color: t.muted }]}>Last</Text>
         </View>
@@ -169,6 +170,7 @@ export default function Preview() {
                   {HEALTH_LABELS[health]}
                 </Text>
               </View>
+              <Text style={[styles.colNum, { color: t.text, fontSize: 12 }]}>{r.ideal ?? '–'}</Text>
               <Text style={[styles.colNum, { color: t.text, fontSize: 12 }]}>
                 {size} ({NODE_SIZES[size]})
               </Text>
@@ -179,7 +181,7 @@ export default function Preview() {
           );
         })}
         <Text style={{ color: t.muted, fontSize: 11, marginTop: 8, lineHeight: 16 }}>
-          Health is the weaker of the rating and keeping to rhythm; lost touch after 3× the rhythm. Size is the
+          Ideal is how close the user hopes to be (– = don't mind, left out of the score). Health is the weaker of the rating and keeping to rhythm; lost touch after 3× the rhythm. Size is the
           catch-up frequency step (1 not yet caught up … 5 most in touch) and its radius.
         </Text>
       </Card>

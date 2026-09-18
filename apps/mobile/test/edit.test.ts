@@ -88,6 +88,7 @@ describe('draftFromSnapshot', () => {
       quality: null,
       rhythm: DEFAULT_CONFIG.defaultRhythm.friend,
       state: 'active',
+      ideal: 10,
     };
     expect(draftFromSnapshot('Ana', rel).rhythm).toBeNull();
     expect(draftFromSnapshot('Ana', { ...rel, rhythm: 'weekly' }).rhythm).toBe('weekly');
@@ -115,5 +116,24 @@ describe('also part of (several relationship types)', () => {
       d.alsoCategories = ['family', 'work'];
     });
     expect(events).toEqual([]);
+  });
+});
+
+describe('ideal closeness', () => {
+  it('defaults to 10 and records only a change', () => {
+    const plain = roundTrip(ana, () => {});
+    expect(plain.rel.ideal).toBe(10);
+    expect(plain.events).toEqual([]);
+  });
+
+  it('can be lowered, set to "don\'t mind", and back', () => {
+    expect(roundTrip(ana, (d) => (d.ideal = 3)).rel.ideal).toBe(3);
+    expect(roundTrip(ana, (d) => (d.ideal = null)).rel.ideal).toBeNull();
+    expect(roundTrip({ ...ana, ideal: 4 }, (d) => (d.ideal = 10)).rel.ideal).toBe(10);
+  });
+
+  it('a new person can start with an ideal', () => {
+    expect(roundTrip({ ...ana, ideal: 2 }, () => {}).rel.ideal).toBe(2);
+    expect(roundTrip({ ...ana, ideal: null }, () => {}).rel.ideal).toBeNull();
   });
 });

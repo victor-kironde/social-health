@@ -31,15 +31,24 @@ const arbChange: fc.Arbitrary<RelationshipChange> = fc.oneof(
     .map((value) => ({ field: 'state' as const, value })),
 );
 
-/** Random but well-formed event logs with 1-8 people and all data at or before ARB_AS_OF. */
-export function arbEventLog(): fc.Arbitrary<EventLog> {
+/** A hoped-for closeness 1–10, or null for "don't mind". */
+const arbIdealChange: fc.Arbitrary<RelationshipChange> = fc
+  .option(fc.integer({ min: 1, max: 10 }), { nil: null })
+  .map((value) => ({ field: 'ideal' as const, value }));
+
+/**
+ * Random but well-formed event logs with 1-8 people and all data at or before ARB_AS_OF.
+ * With `ideals`, relationships may also get ideals other than the default 10 (or "don't mind").
+ */
+export function arbEventLog(opts: { ideals?: boolean } = {}): fc.Arbitrary<EventLog> {
+  const change = opts.ideals ? fc.oneof({ arbitrary: arbChange, weight: 4 }, { arbitrary: arbIdealChange, weight: 1 }) : arbChange;
   return fc.integer({ min: 1, max: 8 }).chain((n) => {
     const ids = Array.from({ length: n }, (_, i) => `p${i}`);
     const arbId = fc.constantFrom(...ids);
     return fc
       .record({
         categories: fc.array(arbCategory, { minLength: n, maxLength: n }),
-        changes: fc.array(fc.record({ personId: arbId, ts: arbTs, change: arbChange }), { maxLength: 24 }),
+        changes: fc.array(fc.record({ personId: arbId, ts: arbTs, change }), { maxLength: 24 }),
         interactions: fc.array(
           fc.record({
             ts: arbTs,

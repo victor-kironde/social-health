@@ -21,7 +21,12 @@ export type RelationshipChange =
   | { field: 'rhythm'; value: Rhythm | null } // null = follow the category default
   | { field: 'state'; value: RelationshipState }
   /** Further relationship types beyond the primary `category` (e.g. family who are also colleagues). */
-  | { field: 'alsoCategories'; value: Category[] };
+  | { field: 'alsoCategories'; value: Category[] }
+  /**
+   * How close the user would like this relationship to be, 1–10 (10 = as close as possible, the
+   * default), or null for "don't mind": the relationship is then left out of the score.
+   */
+  | { field: 'ideal'; value: number | null };
 
 /**
  * Append-only record of a change to the owner's private view of a relationship.
@@ -132,10 +137,12 @@ export interface RelationshipSnapshot {
   quality: Rating | null;
   rhythm: Rhythm;
   state: RelationshipState;
+  /** Hoped-for closeness 1–10 (default 10), or null = "don't mind" (left out of the score). */
+  ideal: number | null;
 }
 
 export interface RelationshipContribution extends RelationshipSnapshot {
-  /** Counted in rhythm, coverage and diversity. */
+  /** Counted in rhythm, coverage and diversity (false when retired, rated harmful, or "don't mind"). */
   included: boolean;
   /** Effective expected interval in days, or null when there is no expectation. */
   expectedIntervalDays: number | null;

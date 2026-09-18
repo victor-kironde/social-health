@@ -79,6 +79,32 @@ export function groupHealthColour(bands: HealthBand[], palette: Record<HealthBan
   return mixHex(mixHex(health, grey, lostShare), grey, GROUP_MUTE);
 }
 
+/** Where a relationship stands against the user's ideal for it. */
+export type IdealComparison = 'none' | 'at' | 'below' | 'beyond';
+
+/**
+ * Compares a relationship's own 1–10 score with the ideal: within one point counts as "at" it
+ * (scores move in steps, so exact equality would be too strict), lower is "below", higher is
+ * "beyond" (closer than hoped), and no ideal is "none" ("don't mind").
+ */
+export function compareToIdeal(score: number, ideal: number | null): IdealComparison {
+  if (ideal === null) return 'none';
+  if (Math.abs(score - ideal) <= 1) return 'at';
+  return score < ideal ? 'below' : 'beyond';
+}
+
+export const IDEAL_COMPARISON_LABELS: Record<IdealComparison, string> = {
+  none: "Don't mind",
+  at: 'At your ideal',
+  below: 'Less close than you hope',
+  beyond: 'Closer than you hope',
+};
+
+/** Name of the closeness band a 1–10 value falls in (e.g. an ideal of 3 → "Distant"). */
+export function bandLabelOf(value: number): string {
+  return HEALTH_LABELS[scoreBand(value)];
+}
+
 /** A relationship's own score from 1 to 10, with the health band it sits in. */
 export interface PersonalHealth {
   score: number;

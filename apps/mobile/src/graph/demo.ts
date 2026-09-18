@@ -19,6 +19,7 @@ export function demoNetwork(n: number): { relationships: RelationshipContributio
       quality: i % 4 === 0 ? null : ((((i * 3) % 5) + 1) as Rating),
       rhythm: 'monthly',
       state: 'active',
+      ideal: 10,
       included: true,
       expectedIntervalDays: 30,
       level: (i % 10) / 10,

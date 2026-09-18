@@ -17,6 +17,8 @@ export interface PersonAttrs {
   quality?: Rating | null;
   rhythm?: Rhythm;
   state?: RelationshipState;
+  /** Hoped-for closeness 1–10, or null for "don't mind" (default 10). */
+  ideal?: number | null;
 }
 
 export interface ContactOptions {
@@ -59,6 +61,7 @@ export class ScenarioBuilder {
     if (attrs.quality !== undefined) this.change(id, { field: 'quality', value: attrs.quality }, ts);
     if (attrs.rhythm !== undefined) this.change(id, { field: 'rhythm', value: attrs.rhythm }, ts);
     if (attrs.state !== undefined) this.change(id, { field: 'state', value: attrs.state }, ts);
+    if (attrs.ideal !== undefined) this.change(id, { field: 'ideal', value: attrs.ideal }, ts);
     return this;
   }
 
