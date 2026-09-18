@@ -1,6 +1,6 @@
 import { DEFAULT_CONFIG, computeScore, type RelationshipContribution } from '@sg/score-engine';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { HEALTH_LABELS, IDEAL_COMPARISON_LABELS, bandLabelOf, compareToIdeal, personalHealth, relationshipHealth } from '../../data/health';
 import { HealthPill } from '../../graph/PersonStatsCard';
@@ -44,6 +44,15 @@ function PersonEditor({
 }) {
   const t = useTheme();
   const { log, updatePerson, deletePerson, photos, setPhoto, groups, updateGroup } = useStore();
+  // Opened from "Set ideal": scroll straight to that question once it is laid out.
+  const { focus } = useLocalSearchParams<{ focus?: string }>();
+  const scroller = useRef<ScrollView>(null);
+  const scrolledToIdeal = useRef(false);
+  const onIdealLayout = (y: number) => {
+    if (focus !== 'ideal' || scrolledToIdeal.current) return;
+    scrolledToIdeal.current = true;
+    setTimeout(() => scroller.current?.scrollTo({ y: Math.max(0, y - 16), animated: true }), 250);
+  };
   const myGroups = groups.filter((g) => g.members.includes(personId)).map((g) => g.id);
   // Joining or leaving a group saves straight away.
   const setGroups = (ids: string[]) => {
@@ -127,7 +136,7 @@ function PersonEditor({
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <ScrollView ref={scroller} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Stack.Screen options={{ title: name }} />
 
       <View style={styles.photoRow}>
@@ -155,9 +164,11 @@ function PersonEditor({
             <>
               <HealthPill score={score} label={`${HEALTH_LABELS[band]} (out of 10)`} colour={t.health[band]} large />
               <Text style={{ color: t.muted, marginTop: 6 }}>
-                {rel.ideal === null
-                  ? "Your ideal: don't mind, so this relationship is left out of your score."
-                  : `Your ideal: ${rel.ideal} (${bandLabelOf(rel.ideal)}) · ${IDEAL_COMPARISON_LABELS[compareToIdeal(score, rel.ideal)]}`}
+                {!rel.idealSet
+                  ? 'Your ideal: not set, so counted as 10 (as close as possible). Set it below.'
+                  : rel.ideal === null
+                    ? "Your ideal: don't mind, so this relationship is left out of your score."
+                    : `Your ideal: ${rel.ideal} (${bandLabelOf(rel.ideal)}) · ${IDEAL_COMPARISON_LABELS[compareToIdeal(score, rel.ideal)]}`}
               </Text>
             </>
           );
@@ -225,6 +236,7 @@ function PersonEditor({
       </Card>
 
       <PersonFields
+        onIdealLayout={onIdealLayout}
         draft={draft}
         onChange={(d) => {
           setDraft(d);

@@ -10,6 +10,8 @@ const RATINGS: Rating[] = [1, 2, 3, 4, 5];
 const IDEALS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 /** The "Don't mind" chip (no ideal). */
 const DONT_MIND = 0;
+/** No chip selected: the ideal has not been set yet. */
+const NOT_SET = -1;
 const NOT_RATED = 0;
 
 const options = <K extends string>(labels: Record<K, string>) =>
@@ -30,12 +32,15 @@ export function PersonFields({
   nameError,
   showState = false,
   autoFocusName = false,
+  onIdealLayout,
 }: {
   draft: PersonDraft;
   onChange: (draft: PersonDraft) => void;
   nameError?: string | null;
   showState?: boolean;
   autoFocusName?: boolean;
+  /** Where the ideal question sits in the scroll content (to scroll straight to it). */
+  onIdealLayout?: (y: number) => void;
 }) {
   const t = useTheme();
   const set = <K extends keyof PersonDraft>(key: K, value: PersonDraft[K]) => onChange({ ...draft, [key]: value });
@@ -86,18 +91,20 @@ export function PersonFields({
         />
       </View>
 
-      <View>
+      <View onLayout={(e) => onIdealLayout?.(e.nativeEvent.layout.y)}>
         <Label>How close would you like to be?</Label>
         <ChoiceChips
           options={[
             ...IDEALS.map((v) => ({ value: v, label: String(v) })),
             { value: DONT_MIND, label: "Don't mind" },
           ]}
-          value={draft.ideal ?? DONT_MIND}
+          value={draft.ideal === undefined ? NOT_SET : (draft.ideal ?? DONT_MIND)}
           onChange={(v) => set('ideal', v === DONT_MIND ? null : v)}
         />
         <Text style={[styles.hint, { color: t.muted }]}>
-          {draft.ideal === null
+          {draft.ideal === undefined
+            ? 'Not set yet: counted as 10 (as close as possible) until you choose.'
+            : draft.ideal === null
             ? "Left out of your score: you don't mind where this relationship stands."
             : `${draft.ideal} · ${bandLabelOf(draft.ideal)}. ${
                 draft.ideal === 10

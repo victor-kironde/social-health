@@ -139,6 +139,8 @@ export interface RelationshipSnapshot {
   state: RelationshipState;
   /** Hoped-for closeness 1–10 (default 10), or null = "don't mind" (left out of the score). */
   ideal: number | null;
+  /** Whether the user has chosen an ideal; when not, `ideal` is the default 10. */
+  idealSet: boolean;
 }
 
 export interface RelationshipContribution extends RelationshipSnapshot {

@@ -27,6 +27,7 @@ export function resolveRelationships(
         rhythm: null,
         state: 'active',
         ideal: 10,
+        idealSet: false,
       };
       drafts.set(e.personId, draft);
     }
@@ -51,6 +52,7 @@ export function resolveRelationships(
         break;
       case 'ideal':
         draft.ideal = e.value === null ? null : Math.min(10, Math.max(1, Math.round(e.value)));
+        draft.idealSet = true;
         break;
     }
   }

@@ -255,8 +255,8 @@ export default function GraphHelp() {
           </Art>
         }
       >
-        On each person's page you can say how close you would like the relationship to be, from 1 to 10. It starts at
-        10 (as close as possible). Lower it for a relationship you want to keep at a distance, such as co-parenting with
+        On each person's page you can say how close you would like the relationship to be, from 1 to 10. Until you set it,
+        it counts as 10 (as close as possible), and the details card shows it as not set with a link to set it. Lower it for a relationship you want to keep at a distance, such as co-parenting with
         an ex: the score then counts it as doing well when it stays near that, and contact far beyond it counts against
         it. Choose "Don't mind" to leave someone out of the score altogether. Their colour on the graph still shows how
         close you actually are; the details card says how that compares with your ideal.

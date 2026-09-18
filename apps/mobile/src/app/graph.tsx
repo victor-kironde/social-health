@@ -475,6 +475,12 @@ export default function GraphScreen() {
                 photo={sample ? undefined : photos.get(selectedPerson.personId)}
                 stats={stats}
                 onOpen={sample ? undefined : () => openPerson(selectedPerson.personId)}
+                onSetIdeal={
+                  sample
+                    ? undefined
+                    : () =>
+                        router.push({ pathname: '/person/[id]', params: { id: selectedPerson.personId, focus: 'ideal' } })
+                }
                 onClose={() => setSelectedPersonId(null)}
                 translucent
               />

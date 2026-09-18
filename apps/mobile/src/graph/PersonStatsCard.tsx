@@ -14,6 +14,7 @@ export function PersonStatsCard({
   photo,
   stats,
   onOpen,
+  onSetIdeal,
   onClose,
   translucent = false,
 }: {
@@ -23,6 +24,8 @@ export function PersonStatsCard({
   stats: PersonStats;
   /** Opens the person's page: double tap on the card, or tap on their photo. */
   onOpen?: () => void;
+  /** Opens the person's page at the ideal question (shown when no ideal is set). */
+  onSetIdeal?: () => void;
   onClose: () => void;
   /** See-through background, for floating over the graph. */
   translucent?: boolean;
@@ -47,7 +50,7 @@ export function PersonStatsCard({
       ? "Don't mind (not scored)"
       : `${rel.ideal} · ${bandLabelOf(rel.ideal)} · ${IDEAL_COMPARISON_LABELS[compareToIdeal(score, rel.ideal)].toLowerCase()}`;
   const rows: [string, string][] = [
-    ['Ideal', idealText],
+    ...(rel.idealSet ? ([['Ideal', idealText]] as [string, string][]) : []),
     ['Importance', IMPORTANCE_LABELS[rel.importance]],
     ['Last catch-up', lastContactText(rel.lastContactAgeDays).replace(/^Last catch-up /, '')],
     ...(rhythm ? ([['Rhythm', rhythm]] as [string, string][]) : []),
@@ -110,7 +113,25 @@ export function PersonStatsCard({
             <Text style={{ color: t.muted, fontSize: 18 }}>×</Text>
           </Pressable>
         </View>
-        {rows.map(([k, v]) => (
+        {!rel.idealSet && (
+        <View style={styles.row}>
+          <Text style={[styles.key, { color: t.muted }]}>Ideal</Text>
+          <Text style={[styles.value, { color: t.muted }]}>
+            Not set (counted as 10)
+            {onSetIdeal ? ' · ' : ''}
+            {onSetIdeal && (
+              <Text
+                onPress={onSetIdeal}
+                accessibilityRole="link"
+                style={{ color: t.accent, fontWeight: '600', textDecorationLine: 'underline' }}
+              >
+                Set ideal
+              </Text>
+            )}
+          </Text>
+        </View>
+      )}
+      {rows.map(([k, v]) => (
           <View key={k} style={styles.row}>
             <Text style={[styles.key, { color: t.muted }]}>{k}</Text>
             <Text style={[styles.value, { color: t.text }]}>{v}</Text>

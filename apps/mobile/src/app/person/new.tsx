@@ -18,7 +18,7 @@ export default function NewPerson() {
     rhythm: null,
     quality: null,
     state: 'active',
-    ideal: 10,
+    ideal: undefined,
   });
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -31,7 +31,7 @@ export default function NewPerson() {
       importance: draft.importance,
       ...(draft.rhythm ? { rhythm: draft.rhythm } : {}),
       quality: draft.quality,
-      ideal: draft.ideal,
+      ...(draft.ideal !== undefined ? { ideal: draft.ideal } : {}),
     };
     const invalid = validatePerson(input);
     if (invalid) {

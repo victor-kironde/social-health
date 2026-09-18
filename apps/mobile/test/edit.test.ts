@@ -89,6 +89,7 @@ describe('draftFromSnapshot', () => {
       rhythm: DEFAULT_CONFIG.defaultRhythm.friend,
       state: 'active',
       ideal: 10,
+      idealSet: false,
     };
     expect(draftFromSnapshot('Ana', rel).rhythm).toBeNull();
     expect(draftFromSnapshot('Ana', { ...rel, rhythm: 'weekly' }).rhythm).toBe('weekly');
@@ -120,10 +121,18 @@ describe('also part of (several relationship types)', () => {
 });
 
 describe('ideal closeness', () => {
-  it('defaults to 10 and records only a change', () => {
+  it('starts not set (counted as 10) and records nothing until chosen', () => {
     const plain = roundTrip(ana, () => {});
     expect(plain.rel.ideal).toBe(10);
+    expect(plain.rel.idealSet).toBe(false);
     expect(plain.events).toEqual([]);
+  });
+
+  it('choosing 10 explicitly marks it as set', () => {
+    const { rel, events } = roundTrip(ana, (d) => (d.ideal = 10));
+    expect(events).toHaveLength(1);
+    expect(rel.ideal).toBe(10);
+    expect(rel.idealSet).toBe(true);
   });
 
   it('can be lowered, set to "don\'t mind", and back', () => {

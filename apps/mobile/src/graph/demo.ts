@@ -20,6 +20,7 @@ export function demoNetwork(n: number): { relationships: RelationshipContributio
       rhythm: 'monthly',
       state: 'active',
       ideal: 10,
+      idealSet: false,
       included: true,
       expectedIntervalDays: 30,
       level: (i % 10) / 10,
