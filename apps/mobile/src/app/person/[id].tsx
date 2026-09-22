@@ -1,21 +1,21 @@
 import { DEFAULT_CONFIG, computeScore, type RelationshipContribution } from '@sg/score-engine';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useRef, useState } from 'react';
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { HEALTH_LABELS, IDEAL_COMPARISON_LABELS, bandLabelOf, compareToIdeal, personalHealth, relationshipHealth } from '../../data/health';
 import { HealthPill } from '../../graph/PersonStatsCard';
 import { pickPersonPhoto, photoUri } from '../../data/photos';
 import { draftFromSnapshot, editPersonEvents, validatePerson, type PersonDraft } from '../../data/people';
 import { useStore } from '../../data/store';
 import { Button, Card, Label, MultiChoiceChips } from '../../ui/components';
-import { INTERACTION_LABELS, formatDate, lastContactText } from '../../ui/labels';
+import { INTERACTION_LABELS, formatDate, frequencyText, lastContactText } from '../../ui/labels';
 import { PersonFields } from '../../ui/PersonFields';
 import { useTheme } from '../../ui/theme';
 
 export default function PersonDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const t = useTheme();
-  const { log } = useStore();
+  const { log, status } = useStore();
 
   const person = log.people.find((p) => p.id === id);
   const contribution = useMemo(
@@ -23,6 +23,14 @@ export default function PersonDetail() {
     [log, id],
   );
 
+  // Opened by a link on a cold start, the data may still be loading.
+  if (status === 'loading') {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator color={t.accent} />
+      </View>
+    );
+  }
   if (!person || !contribution) {
     return (
       <View style={styles.center}>
@@ -175,8 +183,10 @@ function PersonEditor({
         })()}
         {rel.expectedIntervalDays !== null && (
           <Text style={{ color: t.muted }}>
-            {rel.onRhythm !== null && rel.onRhythm >= 0.5 ? 'On rhythm' : 'Behind usual rhythm'} · hoping to catch up
-            every {Math.round(rel.expectedIntervalDays)} days
+            {rel.onRhythm !== null && rel.onRhythm >= 0.5 ? 'On rhythm' : 'Behind usual rhythm'} · hoping to catch up{' '}
+            {rel.frequency
+              ? frequencyText(rel.frequency).toLowerCase()
+              : `every ${Math.round(rel.expectedIntervalDays)} days`}
           </Text>
         )}
         <View style={{ marginTop: 12 }}>

@@ -1,7 +1,7 @@
 import { DEFAULT_CONFIG, resolveRelationships } from '@sg/score-engine';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { MAX_GROUP_NAME, validateGroup } from '../../data/groups';
 import { useStore } from '../../data/store';
 import { Button, Label, MultiChoiceChips } from '../../ui/components';
@@ -12,7 +12,7 @@ export default function GroupEditor() {
   const t = useTheme();
   // `with`: someone to start a new group with (e.g. from their page).
   const { id, with: withPerson } = useLocalSearchParams<{ id: string; with?: string }>();
-  const { groups, log, addGroup, updateGroup, deleteGroup } = useStore();
+  const { groups, log, addGroup, updateGroup, deleteGroup, status } = useStore();
   const existing = id === 'new' ? undefined : groups.find((g) => g.id === id);
   const [name, setName] = useState(existing?.name ?? '');
   const [members, setMembers] = useState<string[]>(existing?.members ?? (withPerson ? [withPerson] : []));
@@ -33,6 +33,13 @@ export default function GroupEditor() {
     ...people.filter((p) => !members.includes(p.id) && (!q || p.displayName.toLowerCase().includes(q))),
   ];
 
+  if (status === 'loading') {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator color={t.accent} />
+      </View>
+    );
+  }
   if (id !== 'new' && !existing) {
     return (
       <View style={styles.center}>

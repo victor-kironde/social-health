@@ -1,4 +1,4 @@
-import type { Category, InteractionType, Rating, RelationshipState, Rhythm, Timestamp } from '@sg/score-engine';
+import type { Category, Frequency, FrequencyPeriod, InteractionType, Rating, RelationshipState, Rhythm, Timestamp } from '@sg/score-engine';
 
 export const STATE_LABELS: Record<RelationshipState, string> = {
   active: 'Active',
@@ -80,4 +80,17 @@ export function daysAgoText(days: number): string {
 /** "Family + Work": primary type first. */
 export function typesLabel(category: Category, also: Category[] = []): string {
   return [category, ...also.filter((c) => c !== category)].map((c) => CATEGORY_LABELS[c]).join(' + ');
+}
+
+const TIMES = ['', 'once', 'twice'];
+const PER: Record<FrequencyPeriod, string> = { day: 'a day', week: 'a week', month: 'a month', year: 'a year' };
+
+/** "At least twice a month", "At least 5 times a week". */
+export function frequencyText(f: Frequency): string {
+  return `At least ${TIMES[f.times] ?? `${f.times} times`} ${PER[f.per]}`;
+}
+
+/** How often someone hopes to catch up, in words: their custom frequency, or the preset rhythm. */
+export function rhythmLabel(rel: { rhythm: Rhythm; frequency: Frequency | null }): string {
+  return rel.frequency ? frequencyText(rel.frequency) : RHYTHM_LABELS[rel.rhythm];
 }

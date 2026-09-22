@@ -28,6 +28,7 @@ export function resolveRelationships(
         state: 'active',
         ideal: 10,
         idealSet: false,
+        frequency: null,
       };
       drafts.set(e.personId, draft);
     }
@@ -43,12 +44,18 @@ export function resolveRelationships(
         break;
       case 'rhythm':
         draft.rhythm = e.value;
+        // The latest choice wins: picking a preset rhythm replaces any custom frequency.
+        draft.frequency = null;
         break;
       case 'state':
         draft.state = e.value;
         break;
       case 'alsoCategories':
         draft.alsoCategories = [...new Set(e.value)].sort();
+        break;
+      case 'frequency':
+        draft.frequency =
+          e.value === null ? null : { per: e.value.per, times: Math.min(31, Math.max(1, Math.round(e.value.times))) };
         break;
       case 'ideal':
         draft.ideal = e.value === null ? null : Math.min(10, Math.max(1, Math.round(e.value)));

@@ -4,6 +4,17 @@ export type Timestamp = number;
 export type Category = 'family' | 'friend' | 'work' | 'neighbour' | 'community' | 'other';
 export type InteractionType = 'in_person' | 'video' | 'voice' | 'message';
 export type Rhythm = 'weekly' | 'fortnightly' | 'monthly' | 'quarterly' | 'yearly' | 'occasional';
+
+export type FrequencyPeriod = 'day' | 'week' | 'month' | 'year';
+
+/**
+ * A minimum catch-up frequency the user chooses themselves: "at least `times` times a `per`"
+ * (e.g. at least twice a month, at least 5 times a week). When set, it replaces the preset rhythm.
+ */
+export interface Frequency {
+  times: number;
+  per: FrequencyPeriod;
+}
 export type RelationshipState = 'active' | 'paused' | 'long_distance' | 'archived' | 'in_memoriam';
 export type Rating = 1 | 2 | 3 | 4 | 5;
 export type InteractionSource = 'manual' | 'call_log' | 'confirmed';
@@ -26,7 +37,9 @@ export type RelationshipChange =
    * How close the user would like this relationship to be, 1–10 (10 = as close as possible, the
    * default), or null for "don't mind": the relationship is then left out of the score.
    */
-  | { field: 'ideal'; value: number | null };
+  | { field: 'ideal'; value: number | null }
+  /** A custom minimum catch-up frequency, or null to go back to the preset rhythm. */
+  | { field: 'frequency'; value: Frequency | null };
 
 /**
  * Append-only record of a change to the owner's private view of a relationship.
@@ -104,6 +117,8 @@ export interface ModelConfig {
   /** k in level = 1 - exp(-e / k). Larger k = slower saturation. */
   saturation: number;
   rhythmDays: Record<Exclude<Rhythm, 'occasional'>, number>;
+  /** Length of each custom-frequency period in days (a month matches the monthly rhythm). */
+  frequencyPeriodDays: Record<FrequencyPeriod, number>;
   defaultRhythm: Record<Category, Rhythm>;
   /** Expected interval is multiplied by this for long-distance relationships. */
   longDistanceFactor: number;
@@ -141,6 +156,8 @@ export interface RelationshipSnapshot {
   ideal: number | null;
   /** Whether the user has chosen an ideal; when not, `ideal` is the default 10. */
   idealSet: boolean;
+  /** A custom "at least N times a period" frequency; overrides `rhythm` when set. */
+  frequency: Frequency | null;
 }
 
 export interface RelationshipContribution extends RelationshipSnapshot {

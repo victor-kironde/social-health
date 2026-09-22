@@ -3,7 +3,7 @@ import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { HEALTH_LABELS, IDEAL_COMPARISON_LABELS, bandLabelOf, compareToIdeal, personalHealth } from '../data/health';
 import { photoUri } from '../data/photos';
-import { IMPORTANCE_LABELS, QUALITY_LABELS, lastContactText, typesLabel } from '../ui/labels';
+import { IMPORTANCE_LABELS, QUALITY_LABELS, frequencyText, lastContactText, typesLabel } from '../ui/labels';
 import { useTheme } from '../ui/theme';
 import { RECENT_WINDOW_DAYS, type PersonStats } from './personStats';
 
@@ -36,7 +36,9 @@ export function PersonStatsCard({
   const rhythm =
     rel.expectedIntervalDays === null
       ? null
-      : `${rel.onRhythm !== null && rel.onRhythm >= 0.5 ? 'On rhythm' : 'Behind'} · every ${Math.round(rel.expectedIntervalDays)} days`;
+      : `${rel.onRhythm !== null && rel.onRhythm >= 0.5 ? 'On rhythm' : 'Behind'} · ${
+          rel.frequency ? frequencyText(rel.frequency).toLowerCase() : `every ${Math.round(rel.expectedIntervalDays)} days`
+        }`;
   const network = [
     `Seen with ${stats.knows} ${stats.knows === 1 ? 'person' : 'people'} here`,
     stats.group ? `group of ${stats.group.size}` : null,

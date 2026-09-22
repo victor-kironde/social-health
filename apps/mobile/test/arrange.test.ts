@@ -23,6 +23,7 @@ function rel(personId: string, over: Partial<RelationshipContribution> = {}): Re
     state: 'active',
     ideal: 10,
     idealSet: false,
+    frequency: null,
     included: true,
     expectedIntervalDays: 30,
     level: 0,

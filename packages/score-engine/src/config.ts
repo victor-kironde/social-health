@@ -13,6 +13,7 @@ export const DEFAULT_CONFIG: ModelConfig = {
   interactionWeights: { in_person: 1, video: 0.7, voice: 0.5, message: 0.2 },
   saturation: 1,
   rhythmDays: { weekly: 7, fortnightly: 14, monthly: 30, quarterly: 91, yearly: 365 },
+  frequencyPeriodDays: { day: 1, week: 7, month: 30, year: 365 },
   defaultRhythm: {
     family: 'monthly',
     friend: 'monthly',

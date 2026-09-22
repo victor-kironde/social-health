@@ -31,8 +31,14 @@ function weightedMean<T extends { importance: number }>(rels: T[], value: (r: T)
 }
 
 function expectedIntervalDays(rel: RelationshipSnapshot, config: ModelConfig): number | null {
-  if (rel.state === 'paused' || rel.rhythm === 'occasional') return null;
-  const days = config.rhythmDays[rel.rhythm];
+  if (rel.state === 'paused') return null;
+  // A custom "at least N times a period" sets the interval directly: period / N.
+  const days = rel.frequency
+    ? config.frequencyPeriodDays[rel.frequency.per] / rel.frequency.times
+    : rel.rhythm === 'occasional'
+      ? null
+      : config.rhythmDays[rel.rhythm];
+  if (days === null) return null;
   return rel.state === 'long_distance' ? days * config.longDistanceFactor : days;
 }
 

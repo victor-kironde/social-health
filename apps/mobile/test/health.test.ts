@@ -13,6 +13,7 @@ function rel(over: Partial<RelationshipContribution> = {}): RelationshipContribu
     state: 'active',
     ideal: 10,
     idealSet: false,
+    frequency: null,
     included: true,
     expectedIntervalDays: 30,
     level: 0.8,
@@ -46,6 +47,9 @@ describe('relationshipHealth', () => {
     expect(relationshipHealth(rel({ lastContactAgeDays: 91, onRhythm: 0 }))).toBe('lost');
     expect(relationshipHealth(rel({ lastContactAgeDays: 89, onRhythm: 0 }))).toBe(2);
     expect(relationshipHealth(rel({ state: 'paused' }))).toBe('lost');
+    // Frequent rhythms do not lose touch within a month: 12 days at "5 a week" is behind, not lost.
+    expect(relationshipHealth(rel({ expectedIntervalDays: 1.4, lastContactAgeDays: 12, onRhythm: 0 }))).toBe(2);
+    expect(relationshipHealth(rel({ expectedIntervalDays: 1.4, lastContactAgeDays: 31, onRhythm: 0 }))).toBe('lost');
   });
 });
 

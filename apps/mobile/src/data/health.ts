@@ -7,8 +7,10 @@ import type { Rating, RelationshipContribution } from '@sg/score-engine';
  */
 export type HealthBand = Rating | 'lost';
 
-/** Lost touch: no contact for this many expected intervals (e.g. 3 months for a monthly rhythm). */
+/** Lost touch: no contact for this many expected intervals (e.g. 3 months for a monthly rhythm)… */
 export const LOST_FACTOR = 3;
+/** …and never sooner than this, so frequent rhythms (5 times a week) do not "lose touch" in days. */
+export const LOST_MIN_DAYS = 30;
 
 /**
  * A relationship is as healthy as its weakest side: how you said it is going (quality, if
@@ -18,7 +20,9 @@ export const LOST_FACTOR = 3;
 export function relationshipHealth(r: RelationshipContribution): HealthBand {
   if (r.state === 'paused' || r.state === 'archived' || r.state === 'in_memoriam') return 'lost';
   if (r.lastContactAgeDays === null) return 'lost';
-  if (r.expectedIntervalDays !== null && r.lastContactAgeDays > LOST_FACTOR * r.expectedIntervalDays) return 'lost';
+  if (r.expectedIntervalDays !== null && r.lastContactAgeDays > Math.max(LOST_MIN_DAYS, LOST_FACTOR * r.expectedIntervalDays)) {
+    return 'lost';
+  }
   const rhythm = r.onRhythm ?? 1;
   const rhythmBand: Rating = rhythm >= 0.75 ? 5 : rhythm >= 0.5 ? 4 : rhythm >= 0.25 ? 3 : 2;
   return Math.min(r.quality ?? 5, rhythmBand) as Rating;

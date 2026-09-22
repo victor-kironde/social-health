@@ -90,6 +90,7 @@ describe('draftFromSnapshot', () => {
       state: 'active',
       ideal: 10,
       idealSet: false,
+      frequency: null,
     };
     expect(draftFromSnapshot('Ana', rel).rhythm).toBeNull();
     expect(draftFromSnapshot('Ana', { ...rel, rhythm: 'weekly' }).rhythm).toBe('weekly');
@@ -144,5 +145,45 @@ describe('ideal closeness', () => {
   it('a new person can start with an ideal', () => {
     expect(roundTrip({ ...ana, ideal: 2 }, () => {}).rel.ideal).toBe(2);
     expect(roundTrip({ ...ana, ideal: null }, () => {}).rel.ideal).toBeNull();
+  });
+});
+
+describe('custom catch-up frequency', () => {
+  it('sets "at least N times a period", and the expected interval follows it', () => {
+    const { rel, log } = roundTrip(ana, (d) => (d.frequency = { times: 2, per: 'month' }));
+    expect(rel.frequency).toEqual({ times: 2, per: 'month' });
+    expect(computeScore(log, DEFAULT_CONFIG, NOW + 1).relationships[0]!.expectedIntervalDays).toBe(15);
+  });
+
+  it('records nothing when unchanged, and a change when the count changes', () => {
+    const start = { ...ana, frequency: { times: 5, per: 'week' as const } };
+    expect(roundTrip(start, () => {}).events).toEqual([]);
+    expect(roundTrip(start, (d) => (d.frequency = { times: 3, per: 'week' })).rel.frequency).toEqual({ times: 3, per: 'week' });
+  });
+
+  it('going back to a preset clears the custom frequency, even the same preset as before', () => {
+    const start = { ...ana, rhythm: 'monthly' as const, frequency: { times: 5, per: 'week' as const } };
+    const back = roundTrip(start, (d) => {
+      d.frequency = null;
+      d.rhythm = 'monthly';
+    });
+    expect(back.rel.frequency).toBeNull();
+    expect(back.rel.rhythm).toBe('monthly');
+    const toDefault = roundTrip(start, (d) => {
+      d.frequency = null;
+      d.rhythm = null;
+    });
+    expect(toDefault.rel.frequency).toBeNull();
+    expect(toDefault.rel.rhythm).toBe(DEFAULT_CONFIG.defaultRhythm.friend);
+  });
+});
+
+describe('frequency wording', () => {
+  it('reads naturally', async () => {
+    const { frequencyText, rhythmLabel } = await import('../src/ui/labels');
+    expect(frequencyText({ times: 1, per: 'week' })).toBe('At least once a week');
+    expect(frequencyText({ times: 2, per: 'month' })).toBe('At least twice a month');
+    expect(frequencyText({ times: 5, per: 'week' })).toBe('At least 5 times a week');
+    expect(rhythmLabel({ rhythm: 'monthly', frequency: null })).toBe('Monthly');
   });
 });

@@ -451,3 +451,55 @@ describe('ideals: how close each relationship is hoped to be (model v0.3)', () =
     );
   });
 });
+
+describe('custom catch-up frequency: "at least N times a period" (model v0.3)', () => {
+  /** Swap every preset rhythm event for the equivalent custom frequency. */
+  const asCustom = (log: EventLog): EventLog => ({
+    ...log,
+    relationshipEvents: log.relationshipEvents.map((e) => {
+      if (e.field !== 'rhythm') return e;
+      const map: Record<string, { times: number; per: 'week' | 'month' | 'year' } | undefined> = {
+        weekly: { times: 1, per: 'week' },
+        fortnightly: { times: 2, per: 'week' }, // 3.5 days: not equivalent, so not used below
+        monthly: { times: 1, per: 'month' },
+        yearly: { times: 1, per: 'year' },
+      };
+      const f = e.value === null ? undefined : map[e.value];
+      return f && e.value !== 'fortnightly' ? { id: e.id, personId: e.personId, ts: e.ts, field: 'frequency' as const, value: f } : e;
+    }),
+  });
+
+  it('P21 presets are special cases: "at least once a week/month/year" scores exactly like weekly/monthly/yearly', () => {
+    fc.assert(
+      fc.property(arbEventLog({ ideals: true }), (log) => {
+        expect(score(asCustom(log)).total).toBeCloseTo(score(log).total, 9);
+      }),
+      RUNS,
+    );
+  });
+
+  it('a higher minimum frequency expects contact sooner', () => {
+    const base: EventLog = {
+      people: [{ id: 'a', displayName: 'a' }],
+      relationshipEvents: [
+        { id: 'c', personId: 'a', ts: ARB_AS_OF - 400 * DAY, field: 'category', value: 'friend' },
+        { id: 'i', personId: 'a', ts: ARB_AS_OF - 400 * DAY, field: 'importance', value: 5 },
+      ],
+      interactions: [{ id: 'x', ts: ARB_AS_OF - 10 * DAY, loggedAt: ARB_AS_OF - 10 * DAY, type: 'in_person', participants: ['a'], source: 'manual' }],
+      supportReports: [],
+      loggingActivity: [],
+      pauses: [],
+    };
+    const withFreq = (times: number, per: 'week' | 'month') => ({
+      ...base,
+      relationshipEvents: [...base.relationshipEvents, { id: 'f', personId: 'a', ts: ARB_AS_OF - 400 * DAY, field: 'frequency' as const, value: { times, per } }],
+    });
+    const monthlyish = score(withFreq(2, 'month')).relationships[0]!;
+    const fiveAWeek = score(withFreq(5, 'week')).relationships[0]!;
+    expect(monthlyish.expectedIntervalDays).toBeCloseTo(15, 9);
+    expect(fiveAWeek.expectedIntervalDays).toBeCloseTo(1.4, 9);
+    // Ten days since the last catch-up: on rhythm for twice a month, well behind for five a week.
+    expect(monthlyish.onRhythm).toBe(1);
+    expect(fiveAWeek.onRhythm).toBe(0);
+  });
+});

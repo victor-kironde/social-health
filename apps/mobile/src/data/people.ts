@@ -1,6 +1,7 @@
 import {
   DEFAULT_CONFIG,
   type Category,
+  type Frequency,
   type Rating,
   type RelationshipChange,
   type RelationshipSnapshot,
@@ -21,6 +22,8 @@ export interface NewPersonInput {
   quality: Rating | null;
   /** How close they would like it to be, 1–10, or null for "don't mind". Omit to leave it not set (counted as 10). */
   ideal?: number | null;
+  /** A custom "at least N times a period" catch-up frequency, instead of a preset rhythm. */
+  frequency?: Frequency | null;
 }
 
 export const MAX_NAME_LENGTH = 60;
@@ -45,6 +48,7 @@ export function newPersonEvents(input: NewPersonInput, now: Timestamp, newId: ()
   }
   if (input.quality !== null) changes.push({ field: 'quality', value: input.quality });
   if (input.ideal !== undefined) changes.push({ field: 'ideal', value: input.ideal });
+  if (input.frequency) changes.push({ field: 'frequency', value: input.frequency });
   const also = (input.alsoCategories ?? []).filter((c) => c !== input.category);
   if (also.length) changes.push({ field: 'alsoCategories', value: [...new Set(also)].sort() });
 
@@ -68,6 +72,8 @@ export interface PersonDraft {
   state: RelationshipState;
   /** Hoped-for closeness 1–10, null = "don't mind", undefined = not set yet (counted as 10). */
   ideal: number | null | undefined;
+  /** Custom minimum frequency; when set it replaces `rhythm`. */
+  frequency: Frequency | null;
 }
 
 export function draftFromSnapshot(displayName: string, rel: RelationshipSnapshot): PersonDraft {
@@ -80,6 +86,7 @@ export function draftFromSnapshot(displayName: string, rel: RelationshipSnapshot
     quality: rel.quality,
     state: rel.state,
     ideal: rel.idealSet ? rel.ideal : undefined,
+    frequency: rel.frequency,
   };
 }
 
@@ -101,9 +108,15 @@ export function editPersonEvents(
   const changes: RelationshipChange[] = [];
   if (draft.category !== rel.category) changes.push({ field: 'category', value: draft.category });
   if (draft.importance !== rel.importance) changes.push({ field: 'importance', value: draft.importance });
-  if (draft.rhythm !== null) {
-    if (draft.rhythm !== rel.rhythm) changes.push({ field: 'rhythm', value: draft.rhythm });
-  } else if (rel.rhythm !== DEFAULT_CONFIG.defaultRhythm[draft.category]) {
+  // Going back from a custom frequency to a preset needs a rhythm event (it clears the custom one).
+  const leavingCustom = rel.frequency !== null && draft.frequency === null;
+  if (draft.frequency !== null) {
+    if (draft.frequency.times !== rel.frequency?.times || draft.frequency.per !== rel.frequency?.per) {
+      changes.push({ field: 'frequency', value: draft.frequency });
+    }
+  } else if (draft.rhythm !== null) {
+    if (draft.rhythm !== rel.rhythm || leavingCustom) changes.push({ field: 'rhythm', value: draft.rhythm });
+  } else if (rel.rhythm !== DEFAULT_CONFIG.defaultRhythm[draft.category] || leavingCustom) {
     // Clear any explicit rhythm so it follows the (possibly new) category default.
     changes.push({ field: 'rhythm', value: null });
   }
