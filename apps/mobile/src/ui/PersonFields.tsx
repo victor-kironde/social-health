@@ -1,47 +1,14 @@
-import { DEFAULT_CONFIG, type Frequency, type FrequencyPeriod, type Rating, type RelationshipState } from '@sg/score-engine';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import type { Rating, RelationshipState } from '@sg/score-engine';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { bandLabelOf } from '../data/health';
 import { MAX_NAME_LENGTH, type PersonDraft } from '../data/people';
+import { usePrefs } from '../data/prefs';
 import { ChoiceChips, Label, MultiChoiceChips } from './components';
-import { CATEGORY_LABELS, IMPORTANCE_LABELS, QUALITY_LABELS, RHYTHM_LABELS, STATE_LABELS, frequencyText } from './labels';
+import { CATEGORY_LABELS, IMPORTANCE_LABELS, QUALITY_LABELS, STATE_LABELS } from './labels';
+import { RhythmPicker, choiceText } from './RhythmPicker';
 import { useTheme } from './theme';
 
 const RATINGS: Rating[] = [1, 2, 3, 4, 5];
-/** The "Custom…" rhythm chip: an "at least N times a period" frequency. */
-const CUSTOM = 'custom' as const;
-const PERIODS: FrequencyPeriod[] = ['day', 'week', 'month', 'year'];
-
-/** "15 days", "1.4 days", "8 hours": the interval a custom frequency expects. */
-function intervalText(f: Frequency): string {
-  const days = DEFAULT_CONFIG.frequencyPeriodDays[f.per] / f.times;
-  if (days < 1) return `${Math.round(days * 24)} hours`;
-  const rounded = days < 10 ? Math.round(days * 10) / 10 : Math.round(days);
-  return `${rounded} ${rounded === 1 ? 'day' : 'days'}`;
-}
-
-/** − n + control. */
-function Stepper({ value, min, max, onChange }: { value: number; min: number; max: number; onChange: (v: number) => void }) {
-  const t = useTheme();
-  const button = (label: string, next: number, disabled: boolean) => (
-    <Pressable
-      onPress={() => onChange(next)}
-      disabled={disabled}
-      accessibilityRole="button"
-      accessibilityLabel={label === '−' ? 'Fewer' : 'More'}
-      hitSlop={6}
-      style={[styles.stepButton, { borderColor: t.border, opacity: disabled ? 0.4 : 1 }]}
-    >
-      <Text style={{ color: t.text, fontSize: 18, fontWeight: '600' }}>{label}</Text>
-    </Pressable>
-  );
-  return (
-    <View style={styles.stepper} accessibilityLabel={`${value} times`}>
-      {button('−', value - 1, value <= min)}
-      <Text style={{ color: t.text, fontSize: 17, fontWeight: '700', minWidth: 24, textAlign: 'center' }}>{value}</Text>
-      {button('+', value + 1, value >= max)}
-    </View>
-  );
-}
 const IDEALS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 /** The "Don't mind" chip (no ideal). */
 const DONT_MIND = 0;
@@ -79,7 +46,7 @@ export function PersonFields({
 }) {
   const t = useTheme();
   const set = <K extends keyof PersonDraft>(key: K, value: PersonDraft[K]) => onChange({ ...draft, [key]: value });
-  const effectiveRhythm = draft.rhythm ?? DEFAULT_CONFIG.defaultRhythm[draft.category];
+  const { prefs } = usePrefs();
 
   return (
     <>
@@ -154,43 +121,11 @@ export function PersonFields({
 
       <View>
         <Label>How often would you like to catch up?</Label>
-        <ChoiceChips
-          options={[...options(RHYTHM_LABELS), { value: CUSTOM, label: 'Custom…' }]}
-          value={draft.frequency ? CUSTOM : effectiveRhythm}
-          onChange={(v) =>
-            v === CUSTOM
-              ? onChange({ ...draft, frequency: draft.frequency ?? { times: 2, per: 'month' } })
-              : onChange({ ...draft, rhythm: v, frequency: null })
-          }
+        <RhythmPicker
+          value={{ rhythm: draft.rhythm, frequency: draft.frequency }}
+          onChange={(c) => onChange({ ...draft, rhythm: c.rhythm, frequency: c.frequency })}
+          defaultText={choiceText(prefs.defaultRhythm)}
         />
-        {draft.frequency && (
-          <View style={styles.custom}>
-            <Text style={{ color: t.text, fontSize: 15 }}>At least</Text>
-            <Stepper
-              value={draft.frequency.times}
-              min={1}
-              max={31}
-              onChange={(times) => set('frequency', { ...draft.frequency!, times })}
-            />
-            <Text style={{ color: t.text, fontSize: 15 }}>{draft.frequency.times === 1 ? 'time' : 'times'}</Text>
-            <ChoiceChips
-              options={PERIODS.map((p) => ({ value: p, label: `a ${p}` }))}
-              value={draft.frequency.per}
-              onChange={(per) => set('frequency', { ...draft.frequency!, per })}
-            />
-          </View>
-        )}
-        {draft.frequency && (
-          <Text style={[styles.hint, { color: t.muted }]}>
-            {frequencyText(draft.frequency)} (about every {intervalText(draft.frequency)}). Catching up more often
-            than this never counts against you.
-          </Text>
-        )}
-        {!draft.frequency && draft.rhythm === null && (
-          <Text style={[styles.hint, { color: t.muted }]}>
-            Suggested for {CATEGORY_LABELS[draft.category].toLowerCase()}.
-          </Text>
-        )}
       </View>
 
       <View>
@@ -224,7 +159,4 @@ export function PersonFields({
 const styles = StyleSheet.create({
   input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 16 },
   hint: { fontSize: 13, marginTop: 6 },
-  custom: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginTop: 10 },
-  stepper: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  stepButton: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
 });

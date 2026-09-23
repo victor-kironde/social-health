@@ -14,14 +14,16 @@ export const DEFAULT_CONFIG: ModelConfig = {
   saturation: 1,
   rhythmDays: { weekly: 7, fortnightly: 14, monthly: 30, quarterly: 91, yearly: 365 },
   frequencyPeriodDays: { day: 1, week: 7, month: 30, year: 365 },
+  // One default for every type: at least once a month (users can change it).
   defaultRhythm: {
     family: 'monthly',
     friend: 'monthly',
-    work: 'weekly',
+    work: 'monthly',
     neighbour: 'monthly',
     community: 'monthly',
     other: 'monthly',
   },
+  defaultFrequency: null,
   longDistanceFactor: 2,
   importantThreshold: 4,
   qualityMultiplier: { 1: 0, 2: 0.4, 3: 0.75, 4: 0.9, 5: 1 },

@@ -1,8 +1,8 @@
-import { DAY, DEFAULT_CONFIG, computeScore, explain, type RelationshipContribution } from '@sg/score-engine';
+import { DAY, computeScore, explain, type RelationshipContribution } from '@sg/score-engine';
 import { Link, router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { usePrefs } from '../data/prefs';
+import { usePrefs, useModelConfig } from '../data/prefs';
 import { useStore } from '../data/store';
 import { Button, Card, Label } from '../ui/components';
 import { IMPORTANCE_LABELS, rhythmLabel, STATE_LABELS, lastContactText, typesLabel } from '../ui/labels';
@@ -16,22 +16,23 @@ const RETIRED = new Set(['archived', 'in_memoriam']);
 export default function People() {
   const t = useTheme();
   const { log, status, error, groups } = useStore();
+  const config = useModelConfig();
   const { prefs } = usePrefs();
 
   const [showRetired, setShowRetired] = useState(false);
 
   const { result, explanations, isNewUser } = useMemo(() => {
     const now = Date.now();
-    const result = computeScore(log, DEFAULT_CONFIG, now);
-    const monthAgo = computeScore(log, DEFAULT_CONFIG, now - 30 * DAY);
+    const result = computeScore(log, config, now);
+    const monthAgo = computeScore(log, config, now - 30 * DAY);
     const firstLogged = Math.min(...log.interactions.map((x) => x.loggedAt));
     return {
       result,
       // The low-data warning is shown separately, above.
       explanations: explain(monthAgo, result).filter((e) => e.kind !== 'low_data'),
-      isNewUser: now - firstLogged < DEFAULT_CONFIG.confidence.windowDays * DAY,
+      isNewUser: now - firstLogged < config.confidence.windowDays * DAY,
     };
-  }, [log]);
+  }, [log, config]);
 
   const names = useMemo(() => new Map(log.people.map((p) => [p.id, p.displayName])), [log.people]);
   const byImportance = (a: RelationshipContribution, b: RelationshipContribution) =>

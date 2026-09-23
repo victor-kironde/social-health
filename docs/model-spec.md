@@ -31,7 +31,7 @@ For relationship *i* at time *t*:
 
 | Symbol | Definition |
 |---|---|
-| `I_i` | Expected interval in days from its rhythm (weekly 7 … yearly 365), or from a **custom minimum frequency** "at least N times a day/week/month/year" as period ÷ N (periods 1, 7, 30, 365 days, so "at least once a month" equals the monthly preset; P21). ×2 if `long_distance`. None for `occasional` or `paused`. The latest choice wins: picking a preset clears a custom frequency. Contact more often than the minimum is never penalised by rhythm terms (the ideal handles "closer than hoped"). |
+| `I_i` | Expected interval in days from its rhythm (default for everyone: at least once a month, i.e. monthly, changeable by the user to any preset or custom frequency; people who have not had a rhythm chosen follow it) (weekly 7 … yearly 365), or from a **custom minimum frequency** "at least N times a day/week/month/year" as period ÷ N (periods 1, 7, 30, 365 days, so "at least once a month" equals the monthly preset; P21). ×2 if `long_distance`. None for `occasional` or `paused`. The latest choice wins: picking a preset clears a custom frequency. Contact more often than the minimum is never penalised by rhythm terms (the ideal handles "closer than hoped"). |
 | `age(x)` | Days from event *x* to *t*, **excluding globally paused time**. |
 | `m_i` | Quality multiplier: unrated 1; rated 1→0, 2→0.4, 3→0.75, 4→0.9, 5→1. |
 | `E_i` | Σ over logged interactions *x* with *i*: `w(type) · m_i · 0.5^(age(x)/H_i)`, `H_i = I_i` (or 365 days if no rhythm). Weights: in person 1, video 0.7, voice 0.5, message 0.2. |

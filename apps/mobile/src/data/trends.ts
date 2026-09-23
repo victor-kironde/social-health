@@ -1,4 +1,4 @@
-import { DAY, DEFAULT_CONFIG, computeScore, type EventLog, type Timestamp } from '@sg/score-engine';
+import { DAY, DEFAULT_CONFIG, computeScore, type EventLog, type ModelConfig, type Timestamp } from '@sg/score-engine';
 import { relationshipHealth, type HealthBand } from './health';
 
 /** How far back the trends look, and how finely. */
@@ -31,7 +31,7 @@ export interface TrendPoint {
  * point. Every point only sees what had happened by then, so later entries never rewrite history
  * (except catch-ups logged late, which count on the day they happened).
  */
-export function trendPoints(log: EventLog, now: Timestamp, range: TrendRange): TrendPoint[] {
+export function trendPoints(log: EventLog, now: Timestamp, range: TrendRange, config: ModelConfig = DEFAULT_CONFIG): TrendPoint[] {
   const { points, stepDays } = TREND_RANGES[range];
   const step = stepDays * DAY;
   const firstAdded = Math.min(...log.relationshipEvents.map((e) => e.ts));
@@ -42,7 +42,7 @@ export function trendPoints(log: EventLog, now: Timestamp, range: TrendRange): T
     const bands = Object.fromEntries(BAND_ORDER.map((b) => [b, 0])) as Record<HealthBand, number>;
     let total: number | null = null;
     if (ts >= firstAdded) {
-      const result = computeScore(log, DEFAULT_CONFIG, ts);
+      const result = computeScore(log, config, ts);
       total = result.total;
       for (const r of result.relationships) if (!RETIRED.has(r.state)) bands[relationshipHealth(r)]++;
     }

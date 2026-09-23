@@ -1,5 +1,4 @@
 import {
-  DEFAULT_CONFIG,
   type Category,
   type Frequency,
   type Rating,
@@ -43,9 +42,8 @@ export function newPersonEvents(input: NewPersonInput, now: Timestamp, newId: ()
     { field: 'category', value: input.category },
     { field: 'importance', value: input.importance },
   ];
-  if (input.rhythm && input.rhythm !== DEFAULT_CONFIG.defaultRhythm[input.category]) {
-    changes.push({ field: 'rhythm', value: input.rhythm });
-  }
+  // A rhythm chosen here is kept even if it matches today's default; omit it to follow the default.
+  if (input.rhythm && !input.frequency) changes.push({ field: 'rhythm', value: input.rhythm });
   if (input.quality !== null) changes.push({ field: 'quality', value: input.quality });
   if (input.ideal !== undefined) changes.push({ field: 'ideal', value: input.ideal });
   if (input.frequency) changes.push({ field: 'frequency', value: input.frequency });
@@ -82,11 +80,12 @@ export function draftFromSnapshot(displayName: string, rel: RelationshipSnapshot
     category: rel.category,
     alsoCategories: rel.alsoCategories,
     importance: rel.importance,
-    rhythm: rel.rhythm === DEFAULT_CONFIG.defaultRhythm[rel.category] ? null : rel.rhythm,
+    // Following the default shows as "Default", not as the default's current value.
+    rhythm: rel.rhythmSet && rel.frequency === null ? rel.rhythm : null,
     quality: rel.quality,
     state: rel.state,
     ideal: rel.idealSet ? rel.ideal : undefined,
-    frequency: rel.frequency,
+    frequency: rel.rhythmSet ? rel.frequency : null,
   };
 }
 
@@ -108,16 +107,16 @@ export function editPersonEvents(
   const changes: RelationshipChange[] = [];
   if (draft.category !== rel.category) changes.push({ field: 'category', value: draft.category });
   if (draft.importance !== rel.importance) changes.push({ field: 'importance', value: draft.importance });
-  // Going back from a custom frequency to a preset needs a rhythm event (it clears the custom one).
-  const leavingCustom = rel.frequency !== null && draft.frequency === null;
+  // Rhythm: a custom frequency, a chosen preset, or "follow the default" (both null).
+  const own = draftFromSnapshot('', rel);
   if (draft.frequency !== null) {
-    if (draft.frequency.times !== rel.frequency?.times || draft.frequency.per !== rel.frequency?.per) {
+    if (draft.frequency.times !== own.frequency?.times || draft.frequency.per !== own.frequency?.per) {
       changes.push({ field: 'frequency', value: draft.frequency });
     }
   } else if (draft.rhythm !== null) {
-    if (draft.rhythm !== rel.rhythm || leavingCustom) changes.push({ field: 'rhythm', value: draft.rhythm });
-  } else if (rel.rhythm !== DEFAULT_CONFIG.defaultRhythm[draft.category] || leavingCustom) {
-    // Clear any explicit rhythm so it follows the (possibly new) category default.
+    if (draft.rhythm !== own.rhythm) changes.push({ field: 'rhythm', value: draft.rhythm });
+  } else if (rel.rhythmSet) {
+    // Back to following the default (a null rhythm also clears any custom frequency).
     changes.push({ field: 'rhythm', value: null });
   }
   if (draft.quality !== rel.quality) changes.push({ field: 'quality', value: draft.quality });

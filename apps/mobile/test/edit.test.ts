@@ -79,7 +79,7 @@ describe('editPersonEvents', () => {
 });
 
 describe('draftFromSnapshot', () => {
-  it('treats a rhythm equal to the category default as "follow default"', () => {
+  it('shows "follow default" only when no rhythm was chosen', () => {
     const rel: RelationshipSnapshot = {
       personId: 'a',
       category: 'friend',
@@ -91,9 +91,12 @@ describe('draftFromSnapshot', () => {
       ideal: 10,
       idealSet: false,
       frequency: null,
+      rhythmSet: false,
     };
     expect(draftFromSnapshot('Ana', rel).rhythm).toBeNull();
-    expect(draftFromSnapshot('Ana', { ...rel, rhythm: 'weekly' }).rhythm).toBe('weekly');
+    // Chosen, even though it equals the default.
+    expect(draftFromSnapshot('Ana', { ...rel, rhythmSet: true }).rhythm).toBe('monthly');
+    expect(draftFromSnapshot('Ana', { ...rel, rhythm: 'weekly', rhythmSet: true }).rhythm).toBe('weekly');
   });
 });
 
@@ -185,5 +188,41 @@ describe('frequency wording', () => {
     expect(frequencyText({ times: 2, per: 'month' })).toBe('At least twice a month');
     expect(frequencyText({ times: 5, per: 'week' })).toBe('At least 5 times a week');
     expect(rhythmLabel({ rhythm: 'monthly', frequency: null })).toBe('Monthly');
+  });
+});
+
+describe('default rhythm', () => {
+  const cfgWith = (rhythm: 'monthly' | 'weekly', frequency: { times: number; per: 'week' | 'month' } | null = null) => ({
+    ...DEFAULT_CONFIG,
+    defaultRhythm: Object.fromEntries(Object.keys(DEFAULT_CONFIG.defaultRhythm).map((c) => [c, rhythm])) as typeof DEFAULT_CONFIG.defaultRhythm,
+    defaultFrequency: frequency,
+  });
+
+  it('is at least once a month for every type', () => {
+    expect(new Set(Object.values(DEFAULT_CONFIG.defaultRhythm))).toEqual(new Set(['monthly']));
+    expect(DEFAULT_CONFIG.defaultFrequency).toBeNull();
+  });
+
+  it('people following the default pick up a changed default, chosen rhythms do not', () => {
+    const next = ids();
+    const log = logFromRows(
+      [...newPersonEvents(ana, NOW, next), ...newPersonEvents({ ...ana, displayName: 'Ben', rhythm: 'yearly' }, NOW, next)].map(toRow),
+    );
+    const [a, b] = log.people.map((p) => p.id);
+    const rels = resolveRelationships(log.relationshipEvents, cfgWith('weekly', { times: 3, per: 'week' }), NOW);
+    expect(rels.get(a!)!.frequency).toEqual({ times: 3, per: 'week' });
+    expect(rels.get(a!)!.rhythmSet).toBe(false);
+    expect(rels.get(b!)!.rhythm).toBe('yearly');
+    expect(rels.get(b!)!.frequency).toBeNull();
+  });
+
+  it('going back to "default" from a custom frequency clears it', () => {
+    const { rel } = roundTrip({ ...ana, frequency: { times: 4, per: 'week' } }, (d) => {
+      d.frequency = null;
+      d.rhythm = null;
+    });
+    expect(rel.rhythmSet).toBe(false);
+    expect(rel.frequency).toBeNull();
+    expect(rel.rhythm).toBe('monthly');
   });
 });

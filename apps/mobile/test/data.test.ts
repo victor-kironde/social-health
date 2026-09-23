@@ -60,9 +60,14 @@ describe('newPersonEvents', () => {
     expect(rel).toMatchObject({ category: 'friend', importance: 5, quality: 4, rhythm: 'monthly', state: 'active' });
   });
 
-  it('does not store a rhythm that equals the category default', () => {
-    const events = newPersonEvents({ ...ana, rhythm: DEFAULT_CONFIG.defaultRhythm.friend }, NOW, ids());
+  it('follows the default rhythm unless one is chosen', () => {
+    const events = newPersonEvents(ana, NOW, ids());
     expect(events.some((e) => e.kind === 'relationship' && e.body.field === 'rhythm')).toBe(false);
+  });
+
+  it('keeps a chosen rhythm even when it matches the current default', () => {
+    const events = newPersonEvents({ ...ana, rhythm: 'monthly' }, NOW, ids());
+    expect(events.some((e) => e.kind === 'relationship' && e.body.field === 'rhythm' && e.body.value === 'monthly')).toBe(true);
   });
 
   it('stores a chosen non-default rhythm', () => {

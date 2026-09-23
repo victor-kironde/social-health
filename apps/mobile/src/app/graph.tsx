@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Easing, cancelAnimation, useDerivedValue, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 import { relationshipHealth } from '../data/health';
 import { hasSeenIntro } from '../data/onboarding';
-import { usePrefs } from '../data/prefs';
+import { usePrefs, useModelConfig } from '../data/prefs';
 import { membership } from '../data/groups';
 import { mixHex } from '../data/health';
 import { restrictLog } from '../data/subset';
@@ -55,6 +55,7 @@ export default function GraphScreen() {
   const t = useTheme();
   const { log, graphLayout, saveGraphLayout, photos, status, groups } = useStore();
   const { prefs } = usePrefs();
+  const config = useModelConfig();
   const insets = useSafeAreaInsets();
   const { demo, scenario: scenarioId } = useLocalSearchParams<{ demo?: string; scenario?: string }>();
   const demoSize = demo ? Math.min(500, Math.max(1, Number(demo) || 150)) : null;
@@ -95,7 +96,8 @@ export default function GraphScreen() {
     }
     const source = scenario ? scenario.build() : log;
     const now = scenario ? SCENARIO_AS_OF : Date.now();
-    const score = computeScore(source, DEFAULT_CONFIG, now);
+    const cfg = scenario ? DEFAULT_CONFIG : config;
+    const score = computeScore(source, cfg, now);
     const rels = score.relationships.filter((r) => !RETIRED.has(r.state));
     const ties = deriveTies(source.interactions, now, new Set(rels.map((r) => r.personId)));
     return {
@@ -106,7 +108,7 @@ export default function GraphScreen() {
       total: score.total,
       sourceLog: source,
     };
-  }, [log, demoSize, demoLinks, scenario]);
+  }, [log, demoSize, demoLinks, scenario, config]);
   const byId = useMemo(() => new Map(relationships.map((r) => [r.personId, r])), [relationships]);
   // Network structure over everyone shown on the graph (filters only hide; they do not change it).
   const metrics = useMemo(
@@ -207,8 +209,8 @@ export default function GraphScreen() {
     if (total === null || !sourceLog || !filtered) return total;
     if (visible.length === 0) return null;
     const ids = new Set(visible.map((r) => r.personId));
-    return computeScore(restrictLog(sourceLog, ids), DEFAULT_CONFIG, now).total;
-  }, [total, sourceLog, filtered, visible, now]);
+    return computeScore(restrictLog(sourceLog, ids), scenario ? DEFAULT_CONFIG : config, now).total;
+  }, [total, sourceLog, filtered, visible, now, scenario, config]);
   const showLabels = display.names && (visible.length <= LABEL_LIMIT || zoomedIn);
 
   // Tiers: a list-like arrangement of the people shown, you at the top.

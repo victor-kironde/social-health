@@ -14,7 +14,7 @@ export function resolveRelationships(
     .filter((e) => e.ts <= asOf)
     .sort((a, b) => a.ts - b.ts || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 
-  const drafts = new Map<string, Omit<RelationshipSnapshot, 'rhythm'> & { rhythm: Rhythm | null }>();
+  const drafts = new Map<string, Omit<RelationshipSnapshot, 'rhythm' | 'rhythmSet'> & { rhythm: Rhythm | null }>();
   for (const e of ordered) {
     let draft = drafts.get(e.personId);
     if (!draft) {
@@ -44,7 +44,7 @@ export function resolveRelationships(
         break;
       case 'rhythm':
         draft.rhythm = e.value;
-        // The latest choice wins: picking a preset rhythm replaces any custom frequency.
+        // The latest choice wins: picking a preset rhythm (or "follow the default") replaces any custom frequency.
         draft.frequency = null;
         break;
       case 'state':
@@ -70,7 +70,10 @@ export function resolveRelationships(
       ...d,
       // The primary type is never repeated among the others, whichever changed last.
       alsoCategories: d.alsoCategories.filter((c) => c !== d.category),
+      // Not chosen (no rhythm and no custom frequency): follow the default, which may itself be custom.
+      rhythmSet: d.rhythm !== null || d.frequency !== null,
       rhythm: d.rhythm ?? config.defaultRhythm[d.category],
+      frequency: d.rhythm !== null || d.frequency !== null ? d.frequency : config.defaultFrequency,
     });
   }
   return result;

@@ -120,6 +120,8 @@ export interface ModelConfig {
   /** Length of each custom-frequency period in days (a month matches the monthly rhythm). */
   frequencyPeriodDays: Record<FrequencyPeriod, number>;
   defaultRhythm: Record<Category, Rhythm>;
+  /** A custom default "at least N times a period"; when set it replaces `defaultRhythm` for everyone following the default. */
+  defaultFrequency: Frequency | null;
   /** Expected interval is multiplied by this for long-distance relationships. */
   longDistanceFactor: number;
   /** Relationships at or above this importance count towards coverage. */
@@ -158,6 +160,8 @@ export interface RelationshipSnapshot {
   idealSet: boolean;
   /** A custom "at least N times a period" frequency; overrides `rhythm` when set. */
   frequency: Frequency | null;
+  /** Whether the user chose this relationship's rhythm; when not, it follows the default. */
+  rhythmSet: boolean;
 }
 
 export interface RelationshipContribution extends RelationshipSnapshot {

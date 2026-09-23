@@ -1,4 +1,4 @@
-import { DEFAULT_CONFIG, computeScore } from '@sg/score-engine';
+import { computeScore } from '@sg/score-engine';
 import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import {
@@ -11,7 +11,7 @@ import {
   type HealthBand,
   type IdealComparison,
 } from '../data/health';
-import { usePrefs } from '../data/prefs';
+import { usePrefs, useModelConfig } from '../data/prefs';
 import { useStore } from '../data/store';
 import { TREND_RANGES, trendChange, trendPoints, type TrendRange } from '../data/trends';
 import { Card, ChoiceChips, Label } from '../ui/components';
@@ -29,9 +29,10 @@ export default function ScoreDetails() {
   const t = useTheme();
   const { log } = useStore();
   const { prefs } = usePrefs();
-  const result = useMemo(() => computeScore(log, DEFAULT_CONFIG, Date.now()), [log]);
+  const config = useModelConfig();
+  const result = useMemo(() => computeScore(log, config, Date.now()), [log, config]);
   const [range, setRange] = useState<TrendRange>('3m');
-  const points = useMemo(() => trendPoints(log, Date.now(), range), [log, range]);
+  const points = useMemo(() => trendPoints(log, Date.now(), range, config), [log, range, config]);
   const change = trendChange(points, scoreOutOf10);
   // How each relationship stands against the ideal the user set for it.
   const vsIdeal = useMemo(() => {

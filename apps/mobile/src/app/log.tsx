@@ -1,8 +1,9 @@
-import { DEFAULT_CONFIG, resolveRelationships, type InteractionType } from '@sg/score-engine';
+import { resolveRelationships, type InteractionType } from '@sg/score-engine';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { MAX_BACKDATE_DAYS, MAX_NOTE_LENGTH, validateInteraction } from '../data/interactions';
+import { useModelConfig } from '../data/prefs';
 import { useStore } from '../data/store';
 import { Button, ChoiceChips, Label, MultiChoiceChips } from '../ui/components';
 import { INTERACTION_LABELS, WHEN_OPTIONS } from '../ui/labels';
@@ -17,6 +18,7 @@ const PICK_DATE = -1;
 export default function LogContact() {
   const t = useTheme();
   const { log, logInteraction } = useStore();
+  const config = useModelConfig();
   // `person` (one id) or `people` (comma-separated ids) preselect who was there.
   const { person, people: preselected } = useLocalSearchParams<{ person?: string; people?: string }>();
 
@@ -31,13 +33,13 @@ export default function LogContact() {
   const [saving, setSaving] = useState(false);
 
   const people = useMemo(() => {
-    const rels = resolveRelationships(log.relationshipEvents, DEFAULT_CONFIG, Date.now());
+    const rels = resolveRelationships(log.relationshipEvents, config, Date.now());
     const retired = (id: string) => ['archived', 'in_memoriam'].includes(rels.get(id)?.state ?? 'active');
     return log.people
       .filter((p) => !retired(p.id))
       .sort((a, b) => a.displayName.localeCompare(b.displayName))
       .map((p) => ({ value: p.id, label: p.displayName }));
-  }, [log.people, log.relationshipEvents]);
+  }, [log.people, log.relationshipEvents, config]);
 
   async function save() {
     const input = { participants, type, daysAgo, note };

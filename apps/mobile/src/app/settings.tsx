@@ -12,6 +12,7 @@ import { useStore } from '../data/store';
 import { useSecurity } from '../security/AppLock';
 import { RELOCK_GRACE_MS } from '../security/policy';
 import { Button, Card, Label } from '../ui/components';
+import { RhythmPicker } from '../ui/RhythmPicker';
 import { useTheme } from '../ui/theme';
 
 const CONFIRM_WORD = 'DELETE';
@@ -207,6 +208,34 @@ export default function Settings() {
           value={prefs.showScore}
           onChange={(v) => setPrefs({ ...prefs, showScore: v })}
         />
+      </Card>
+
+      <Card>
+        <Label>Default catch-up rhythm</Label>
+        <Text style={{ color: t.muted, lineHeight: 20, marginBottom: 10 }}>
+          How often you hope to catch up with someone, unless you choose otherwise on their page.
+        </Text>
+        <RhythmPicker
+          value={{
+            rhythm: prefs.defaultRhythm.frequency ? null : prefs.defaultRhythm.rhythm,
+            frequency: prefs.defaultRhythm.frequency,
+          }}
+          onChange={(c) =>
+            setPrefs({
+              ...prefs,
+              defaultRhythm: { rhythm: c.rhythm ?? prefs.defaultRhythm.rhythm, frequency: c.frequency },
+            })
+          }
+        />
+        {(prefs.defaultRhythm.rhythm !== 'monthly' || prefs.defaultRhythm.frequency) && (
+          <View style={{ marginTop: 10 }}>
+            <Button
+              title="Back to at least once a month"
+              variant="secondary"
+              onPress={() => setPrefs({ ...prefs, defaultRhythm: { rhythm: 'monthly', frequency: null } })}
+            />
+          </View>
+        )}
       </Card>
 
       <Card>

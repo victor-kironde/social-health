@@ -1,3 +1,4 @@
+import { DEFAULT_CONFIG, type Frequency, type FrequencyPeriod, type ModelConfig, type Rhythm } from '@sg/score-engine';
 import * as SecureStore from 'expo-secure-store';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
@@ -10,17 +11,52 @@ export interface DisplayPrefs {
    * explanations and history without the score.
    */
   showScore: boolean;
+  /**
+   * The catch-up rhythm everyone follows unless you choose one for them: a preset, or a custom
+   * "at least N times a period" (which wins when set). Default: at least once a month.
+   */
+  defaultRhythm: { rhythm: Rhythm; frequency: Frequency | null };
 }
 
-const DEFAULTS: DisplayPrefs = { showScore: true };
+const DEFAULTS: DisplayPrefs = { showScore: true, defaultRhythm: { rhythm: 'monthly', frequency: null } };
+
+const RHYTHMS: Rhythm[] = ['weekly', 'fortnightly', 'monthly', 'quarterly', 'yearly', 'occasional'];
+const PERIODS: FrequencyPeriod[] = ['day', 'week', 'month', 'year'];
+
+function parseFrequency(v: unknown): Frequency | null {
+  if (!v || typeof v !== 'object') return null;
+  const f = v as Partial<Frequency>;
+  if (typeof f.times !== 'number' || !PERIODS.includes(f.per as FrequencyPeriod)) return null;
+  return { times: Math.min(31, Math.max(1, Math.round(f.times))), per: f.per as FrequencyPeriod };
+}
 
 export function parsePrefs(raw: string | null): DisplayPrefs {
   try {
     const v = raw ? (JSON.parse(raw) as Partial<DisplayPrefs>) : {};
-    return { showScore: typeof v.showScore === 'boolean' ? v.showScore : DEFAULTS.showScore };
+    const d = v.defaultRhythm;
+    return {
+      showScore: typeof v.showScore === 'boolean' ? v.showScore : DEFAULTS.showScore,
+      defaultRhythm: {
+        rhythm: d && RHYTHMS.includes(d.rhythm) ? d.rhythm : DEFAULTS.defaultRhythm.rhythm,
+        frequency: parseFrequency(d?.frequency),
+      },
+    };
   } catch {
     return DEFAULTS;
   }
+}
+
+/** The scoring model with the user's defaults applied. */
+export function modelConfigFor(prefs: DisplayPrefs): ModelConfig {
+  const { rhythm, frequency } = prefs.defaultRhythm;
+  const all = Object.fromEntries(Object.keys(DEFAULT_CONFIG.defaultRhythm).map((c) => [c, rhythm])) as ModelConfig['defaultRhythm'];
+  return { ...DEFAULT_CONFIG, defaultRhythm: all, defaultFrequency: frequency };
+}
+
+/** The scoring model to use on screen: the standard one with your defaults. */
+export function useModelConfig(): ModelConfig {
+  const { prefs } = usePrefs();
+  return useMemo(() => modelConfigFor(prefs), [prefs]);
 }
 
 const PrefsContext = createContext<{ prefs: DisplayPrefs; setPrefs(next: DisplayPrefs): void } | null>(null);

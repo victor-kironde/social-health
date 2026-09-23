@@ -14,6 +14,7 @@ function rel(over: Partial<RelationshipContribution> = {}): RelationshipContribu
     ideal: 10,
     idealSet: false,
     frequency: null,
+    rhythmSet: false,
     included: true,
     expectedIntervalDays: 30,
     level: 0.8,

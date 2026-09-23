@@ -246,6 +246,21 @@ export default function GraphHelp() {
         time.
       </Item>
       <Item
+        title="How often you hope to catch up"
+        art={
+          <Art>
+            <Rect x={10} y={14} width={52} height={30} rx={6} fill="none" stroke={t.border} strokeWidth={2} />
+            {[0, 1, 2, 3].map((k) => (
+              <Circle key={k} cx={20 + k * 11} cy={29} r={3} fill={k < 2 ? h[5] : t.border} />
+            ))}
+          </Art>
+        }
+      >
+        Everyone starts with your default rhythm, at least once a month unless you change it in Settings. On anyone's
+        page you can choose their own: a preset like weekly, or Custom, such as "at least twice a month" or "at least 5
+        times a week". Catching up more often than that never counts against you.
+      </Item>
+      <Item
         title="Your ideal for each relationship"
         art={
           <Art>

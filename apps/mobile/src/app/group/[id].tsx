@@ -1,8 +1,9 @@
-import { DEFAULT_CONFIG, resolveRelationships } from '@sg/score-engine';
+import { resolveRelationships } from '@sg/score-engine';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { MAX_GROUP_NAME, validateGroup } from '../../data/groups';
+import { useModelConfig } from '../../data/prefs';
 import { useStore } from '../../data/store';
 import { Button, Label, MultiChoiceChips } from '../../ui/components';
 import { useTheme } from '../../ui/theme';
@@ -20,12 +21,13 @@ export default function GroupEditor() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  const config = useModelConfig();
   const people = useMemo(() => {
-    const rels = resolveRelationships(log.relationshipEvents, DEFAULT_CONFIG, Date.now());
+    const rels = resolveRelationships(log.relationshipEvents, config, Date.now());
     return log.people
       .filter((p) => !['archived', 'in_memoriam'].includes(rels.get(p.id)?.state ?? 'active') || members.includes(p.id))
       .sort((a, b) => a.displayName.localeCompare(b.displayName));
-  }, [log, members]);
+  }, [log, members, config]);
   const q = search.trim().toLowerCase();
   // Members first, then everyone matching the search.
   const shown = [

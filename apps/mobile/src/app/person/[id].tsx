@@ -1,4 +1,4 @@
-import { DEFAULT_CONFIG, computeScore, type RelationshipContribution } from '@sg/score-engine';
+import { computeScore, type RelationshipContribution } from '@sg/score-engine';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -6,6 +6,7 @@ import { HEALTH_LABELS, IDEAL_COMPARISON_LABELS, bandLabelOf, compareToIdeal, pe
 import { HealthPill } from '../../graph/PersonStatsCard';
 import { pickPersonPhoto, photoUri } from '../../data/photos';
 import { draftFromSnapshot, editPersonEvents, validatePerson, type PersonDraft } from '../../data/people';
+import { useModelConfig } from '../../data/prefs';
 import { useStore } from '../../data/store';
 import { Button, Card, Label, MultiChoiceChips } from '../../ui/components';
 import { INTERACTION_LABELS, formatDate, frequencyText, lastContactText } from '../../ui/labels';
@@ -16,11 +17,12 @@ export default function PersonDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const t = useTheme();
   const { log, status } = useStore();
+  const config = useModelConfig();
 
   const person = log.people.find((p) => p.id === id);
   const contribution = useMemo(
-    () => computeScore(log, DEFAULT_CONFIG, Date.now()).relationships.find((r) => r.personId === id),
-    [log, id],
+    () => computeScore(log, config, Date.now()).relationships.find((r) => r.personId === id),
+    [log, id, config],
   );
 
   // Opened by a link on a cold start, the data may still be loading.
