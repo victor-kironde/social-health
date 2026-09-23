@@ -187,7 +187,7 @@ describe('frequency wording', () => {
     expect(frequencyText({ times: 1, per: 'week' })).toBe('At least once a week');
     expect(frequencyText({ times: 2, per: 'month' })).toBe('At least twice a month');
     expect(frequencyText({ times: 5, per: 'week' })).toBe('At least 5 times a week');
-    expect(rhythmLabel({ rhythm: 'monthly', frequency: null })).toBe('Monthly');
+    expect(rhythmLabel({ rhythm: 'monthly', frequency: null })).toBe('At least once a month');
   });
 });
 

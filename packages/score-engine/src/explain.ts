@@ -2,7 +2,6 @@ import type { ComponentName, Explanation, ScoreResult } from './types';
 
 const LABELS: Record<ComponentName, string> = {
   rhythm: 'Catch-up rhythm',
-  coverage: 'Coverage of important relationships',
   quality: 'Quality and support',
   diversity: 'Balance across types',
   calls: 'Calls',
@@ -22,7 +21,7 @@ export function explain(
   opts: { threshold?: number; importantThreshold?: number } = {},
 ): Explanation[] {
   const threshold = opts.threshold ?? 0.05;
-  const important = opts.importantThreshold ?? 4;
+  const important = opts.importantThreshold ?? 7;
   const out: Explanation[] = [];
 
   for (const name of Object.keys(LABELS) as ComponentName[]) {
@@ -73,7 +72,7 @@ export function explain(
     out.push({
       kind: 'importance_changed',
       personIds: reweighted,
-      text: `Importance changed for ${n} ${plural(n, 'relationship', 'relationships')}, which also changes coverage and the overall score.`,
+      text: `Importance changed for ${n} ${plural(n, 'relationship', 'relationships')}, which changes how much they count in your score.`,
     });
   }
   if (curr.lowData) {

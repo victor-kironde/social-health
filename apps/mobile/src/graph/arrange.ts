@@ -1,4 +1,5 @@
 import type { Category, Rating, RelationshipContribution } from '@sg/score-engine';
+import { importanceBand } from '../ui/labels';
 import { NODE_RADIUS, SECTOR_ORDER, type Point } from './layout';
 
 /**
@@ -56,7 +57,8 @@ export const TIER_LABELS: Record<OrderBy, Record<Rating, string>> = {
  * so tiers stay meaningful however much is logged.
  */
 export function orderTiers(relationships: RelationshipContribution[], by: OrderBy): Map<string, Rating> {
-  if (by === 'importance') return new Map(relationships.map((r) => [r.personId, r.importance]));
+  // Importance 1–10 falls into five rings by its guide range (1–2 outermost … 9–10 innermost).
+  if (by === 'importance') return new Map(relationships.map((r) => [r.personId, importanceBand(r.importance)]));
   if (by === 'recent') {
     return new Map(
       relationships.map((r) => {

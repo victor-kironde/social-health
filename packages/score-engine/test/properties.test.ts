@@ -149,7 +149,7 @@ describe('score properties', () => {
     );
   });
 
-  it('P7 moving contact from a well-covered person to a neglected one of equal importance raises coverage', () => {
+  it('P7 moving contact from a well-kept relationship to a neglected one of equal importance raises the rhythm part', () => {
     fc.assert(
       fc.property(
         fc.constantFrom<Rhythm>('weekly', 'fortnightly', 'monthly', 'quarterly', 'yearly'),
@@ -178,8 +178,8 @@ describe('score properties', () => {
             loggingActivity: [],
             pauses: [],
           });
-          const before = score(base('a')).components.coverage!;
-          const after = score(base('b')).components.coverage!;
+          const before = score(base('a')).components.rhythm!;
+          const after = score(base('b')).components.rhythm!;
           expect(after).toBeGreaterThan(before);
         },
       ),

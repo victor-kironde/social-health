@@ -14,7 +14,7 @@ import * as s from './scenarios';
  * scripts/sensitivity.ts.
  */
 
-export const COMPONENTS: ComponentName[] = ['rhythm', 'coverage', 'quality', 'diversity', 'calls', 'frecency'];
+export const COMPONENTS: ComponentName[] = ['rhythm', 'quality', 'diversity', 'calls', 'frecency'];
 
 export const NAMED_SCENARIOS: Record<string, () => EventLog> = {
   'Close-knit, in person': () => s.closeKnit(),

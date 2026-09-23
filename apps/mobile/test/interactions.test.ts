@@ -35,7 +35,7 @@ describe('newInteractionEvents', () => {
     const contact = newInteractionEvents({ participants: [personId], type: 'in_person', daysAgo: 2 }, NOW, 0, next);
     const r = computeScore(logFromRows([...person, ...contact].map(toRow)), DEFAULT_CONFIG, NOW);
     expect(r.relationships[0]!.lastContactAgeDays).toBeCloseTo(2, 9);
-    expect(r.components.coverage).toBe(1);
+    expect(r.relationships[0]!.onRhythm).toBe(1);
   });
 });
 

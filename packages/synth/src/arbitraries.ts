@@ -21,7 +21,7 @@ const arbCategory = fc.constantFrom<Category>('family', 'friend', 'work', 'neigh
 
 const arbChange: fc.Arbitrary<RelationshipChange> = fc.oneof(
   arbCategory.map((value) => ({ field: 'category' as const, value })),
-  arbRating.map((value) => ({ field: 'importance' as const, value })),
+  fc.integer({ min: 1, max: 10 }).map((value) => ({ field: 'importance' as const, value, scale: 10 as const })),
   fc.option(arbRating, { nil: null }).map((value) => ({ field: 'quality' as const, value })),
   fc
     .constantFrom<Rhythm | null>('weekly', 'fortnightly', 'monthly', 'quarterly', 'yearly', 'occasional', null)

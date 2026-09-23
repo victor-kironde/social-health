@@ -47,6 +47,7 @@ export const RHYTHM_LABELS: Record<Rhythm, string> = {
   occasional: 'No set rhythm',
 };
 
+/** Guides for ranges of the 1–10 importance scale (band 1 = 1–2 … band 5 = 9–10), not meanings of each step. */
 export const IMPORTANCE_LABELS: Record<Rating, string> = {
   1: 'Peripheral',
   2: 'Casual',
@@ -54,6 +55,21 @@ export const IMPORTANCE_LABELS: Record<Rating, string> = {
   4: 'Close',
   5: 'Very close',
 };
+
+/** Which guide range an importance of 1–10 falls in (1–2 → 1 … 9–10 → 5). */
+export function importanceBand(importance: number): Rating {
+  return Math.min(5, Math.max(1, Math.ceil(importance / 2))) as Rating;
+}
+
+/** "7 · Close": the number with the guide for its range. */
+export function importanceLabel(importance: number): string {
+  return `${importance} · ${IMPORTANCE_LABELS[importanceBand(importance)]}`;
+}
+
+/** "Close (7–8)": a range guide with its numbers. */
+export function importanceRangeText(band: Rating): string {
+  return `${IMPORTANCE_LABELS[band]} (${2 * band - 1}–${2 * band})`;
+}
 
 export const QUALITY_LABELS: Record<Rating, string> = {
   1: 'Harmful',
@@ -90,7 +106,17 @@ export function frequencyText(f: Frequency): string {
   return `At least ${TIMES[f.times] ?? `${f.times} times`} ${PER[f.per]}`;
 }
 
-/** How often someone hopes to catch up, in words: their custom frequency, or the preset rhythm. */
+/** Presets in words, as minimums ("At least once a month"). */
+export const PRESET_TEXT: Record<Rhythm, string> = {
+  weekly: 'At least once a week',
+  fortnightly: 'At least once a fortnight',
+  monthly: 'At least once a month',
+  quarterly: 'At least once every three months',
+  yearly: 'At least once a year',
+  occasional: 'No set rhythm',
+};
+
+/** How often someone hopes to catch up, in words: their custom frequency, or the preset as a minimum. */
 export function rhythmLabel(rel: { rhythm: Rhythm; frequency: Frequency | null }): string {
-  return rel.frequency ? frequencyText(rel.frequency) : RHYTHM_LABELS[rel.rhythm];
+  return rel.frequency ? frequencyText(rel.frequency) : PRESET_TEXT[rel.rhythm];
 }

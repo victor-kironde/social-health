@@ -15,7 +15,7 @@ export function demoNetwork(n: number): { relationships: RelationshipContributio
       category: CATEGORIES[i % CATEGORIES.length]!,
       // Every seventh person also has a second type, so the set intersections show up.
       alsoCategories: i % 7 === 0 ? [CATEGORIES[(i + 2) % CATEGORIES.length]!] : [],
-      importance: (((i * 7) % 5) + 1) as Rating,
+      importance: ((i * 7) % 10) + 1,
       quality: i % 4 === 0 ? null : ((((i * 3) % 5) + 1) as Rating),
       rhythm: 'monthly',
       state: 'active',

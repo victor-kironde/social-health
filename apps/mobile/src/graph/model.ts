@@ -24,7 +24,8 @@ export interface GraphNode {
   categories: Category[];
   /** Which shaded areas this person sits in: their types (default) or their groups. */
   areas?: string[];
-  importance: Rating;
+  /** 1–10. */
+  importance: number;
   quality: Rating | null;
   /** Drawn radius in graph units (sized by contact frequency, or uniform). */
   radius: number;
@@ -50,7 +51,8 @@ export interface EgoEdge {
   kind: 'ego';
   source: typeof ME_ID;
   target: string;
-  importance: Rating;
+  /** 1–10. */
+  importance: number;
   quality: Rating | null;
   behind: boolean;
   health: HealthBand;
@@ -244,7 +246,8 @@ export function tieBand(weight: number): number {
 
 /** Shared visual rules, so every renderer encodes the data the same way. */
 export const encode = {
-  edgeWidth: (importance: Rating) => 0.75 + importance * 0.9,
+  /** Importance 1–10: thicker for more important (same range as the old 1–5 scale). */
+  edgeWidth: (importance: number) => 0.75 + importance * 0.45,
   /** Lost touch: faint; behind rhythm: a little faded. */
   edgeOpacity: (e: { behind: boolean; health: HealthBand }) => (e.health === 'lost' ? 0.25 : e.behind ? 0.6 : 0.9),
   nodeOpacity: (n: { behind: boolean; health: HealthBand }) => (n.health === 'lost' ? 0.38 : n.behind ? 0.8 : 1),

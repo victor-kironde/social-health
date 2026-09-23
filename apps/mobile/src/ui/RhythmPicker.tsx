@@ -1,7 +1,7 @@
 import { DEFAULT_CONFIG, type Frequency, type FrequencyPeriod, type Rhythm } from '@sg/score-engine';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ChoiceChips } from './components';
-import { RHYTHM_LABELS, frequencyText } from './labels';
+import { PRESET_TEXT, RHYTHM_LABELS, frequencyText } from './labels';
 import { useTheme } from './theme';
 
 /** A catch-up rhythm: a preset, a custom "at least N times a period", or (both null) the default. */
@@ -21,15 +21,6 @@ export function intervalText(f: Frequency): string {
   const rounded = days < 10 ? Math.round(days * 10) / 10 : Math.round(days);
   return `${rounded} ${rounded === 1 ? 'day' : 'days'}`;
 }
-
-const PRESET_TEXT: Record<Rhythm, string> = {
-  weekly: 'At least once a week',
-  fortnightly: 'At least once a fortnight',
-  monthly: 'At least once a month',
-  quarterly: 'At least once every three months',
-  yearly: 'At least once a year',
-  occasional: 'No set rhythm',
-};
 
 /** The rhythm in words: "At least twice a month", "At least once a month". */
 export function choiceText(c: { rhythm: Rhythm; frequency: Frequency | null }): string {

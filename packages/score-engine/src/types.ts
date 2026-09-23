@@ -27,7 +27,11 @@ export interface Person {
 
 export type RelationshipChange =
   | { field: 'category'; value: Category }
-  | { field: 'importance'; value: Rating }
+  /**
+   * How important the relationship is, 1–10 (default 1). Events recorded before v0.4 used a 1–5
+   * scale and have no `scale`; they are read as double (5 → 10).
+   */
+  | { field: 'importance'; value: number; scale?: 10 }
   | { field: 'quality'; value: Rating | null }
   | { field: 'rhythm'; value: Rhythm | null } // null = follow the category default
   | { field: 'state'; value: RelationshipState }
@@ -124,14 +128,12 @@ export interface ModelConfig {
   defaultFrequency: Frequency | null;
   /** Expected interval is multiplied by this for long-distance relationships. */
   longDistanceFactor: number;
-  /** Relationships at or above this importance count towards coverage. */
-  importantThreshold: Rating;
   /** Contact contribution multiplier by self-rated quality. Unrated = 1. */
   qualityMultiplier: Record<Rating, number>;
   /** Relationships rated at or below this are excluded from rhythm, coverage and diversity. */
   excludeQualityAtOrBelow: Rating | 0;
   /** On-rhythm falls linearly from 1 at the expected interval to 0 at (1 + grace) x interval. */
-  coverageGrace: number;
+  rhythmGrace: number;
   /** Decay half-life for relationships with no expected rhythm. */
   occasionalHalfLifeDays: number;
   confidence: { windowDays: number; expectedActiveDays: number; lowBelow: number };
@@ -142,7 +144,7 @@ export interface ModelConfig {
   frecencyHalfLifeDays: number;
 }
 
-export type ComponentName = 'rhythm' | 'coverage' | 'quality' | 'diversity' | 'calls' | 'frecency';
+export type ComponentName = 'rhythm' | 'quality' | 'diversity' | 'calls' | 'frecency';
 
 export interface RelationshipSnapshot {
   personId: string;
@@ -150,7 +152,8 @@ export interface RelationshipSnapshot {
   category: Category;
   /** Other types this person also belongs to; never includes `category`. Display and layout only. */
   alsoCategories: Category[];
-  importance: Rating;
+  /** 1–10, default 1: how much this relationship counts in every average. */
+  importance: number;
   quality: Rating | null;
   rhythm: Rhythm;
   state: RelationshipState;
@@ -165,7 +168,7 @@ export interface RelationshipSnapshot {
 }
 
 export interface RelationshipContribution extends RelationshipSnapshot {
-  /** Counted in rhythm, coverage and diversity (false when retired, rated harmful, or "don't mind"). */
+  /** Counted in rhythm, calls, frecency and diversity (false when retired, rated harmful, or "don't mind"). */
   included: boolean;
   /** Effective expected interval in days, or null when there is no expectation. */
   expectedIntervalDays: number | null;

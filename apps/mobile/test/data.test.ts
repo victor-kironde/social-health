@@ -79,7 +79,7 @@ describe('newPersonEvents', () => {
     const log = logFromRows(newPersonEvents(ana, NOW, ids()).map(toRow));
     const r = computeScore(log, DEFAULT_CONFIG, NOW);
     expect(r.relationships[0]!.lastContactAgeDays).toBeNull();
-    expect(r.components.coverage).toBe(0);
+    expect(r.components.rhythm).toBe(0);
   });
 });
 

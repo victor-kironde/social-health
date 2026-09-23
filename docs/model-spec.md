@@ -1,11 +1,14 @@
-# Social Health Score: Model Specification (v0.3.0)
+# Social Health Score: Model Specification (v0.4.0)
 
 The score is an experimental, interpretable measure for personal reflection. It
 is **not** a clinical or validated measure. All parameters live in
 `DEFAULT_CONFIG` (`packages/score-engine/src/config.ts`) and are user-visible
 model assumptions. v0.2 adds two weighted terms suggested in the proposal
 feedback: passive call-log metadata and frecency. v0.3 adds a per-relationship
-**ideal**: how close the user hopes each relationship to be.
+**ideal**: how close the user hopes each relationship to be. v0.4 simplifies: importance
+is 1–10 (default 1, optional; labels are guides for ranges), the coverage component is
+removed (a score filtered to importance 7+ shows the same thing), and every relationship
+type defaults to at least once a month, changeable by the user.
 
 ## Inputs
 
@@ -18,7 +21,7 @@ the whole history consistently. Every result carries `modelVersion`.
 
 Two sources of contact are kept apart on purpose:
 
-- **Logged contact** (self-report): what the user records. Feeds rhythm and coverage.
+- **Logged contact** (self-report): what the user records. Feeds rhythm.
 - **Call metadata** (passive): time, duration and direction of calls, matched to
   people on the device. Feeds its own component.
 
@@ -56,7 +59,7 @@ one co-parents with).
   scale, symmetrically: too distant and closer than hoped count the same.
 - With *g* = 10, *t* = 1 and `fit(x, 10) = x`: **the standard model is the special case**,
   so existing scores are unchanged until an ideal is lowered (property P17).
-- The contact-based values (*L_i* in rhythm and diversity, *S_i* in coverage, *C_i* in
+- The contact-based values (*L_i* in rhythm and diversity, *C_i* in
   calls, the frecency ratio) are replaced by their fit before averaging. These are the
   same measures a relationship's own 1–10 score is made of, so the ideal is in effect a
   target for that score. The quality and support component is **not** fitted: a
@@ -68,8 +71,7 @@ one co-parents with).
 
 | Component | Weight | Definition |
 |---|---|---|
-| Rhythm | 0.25 | importance-weighted mean of `L_i` over included relationships with an expected interval |
-| Coverage | 0.20 | importance-weighted mean of `S_i` over those with importance ≥ 4 |
+| Rhythm | 0.25 | importance-weighted (importance 1–10) mean of `L_i` over included relationships with an expected interval |
 | Quality and support | 0.10 | importance-weighted mean of each non-retired relationship's latest quality rating and support report (1–5 → 0–1); old reports are kept, not expired |
 | Diversity | 0.10 | mean over the user's categories of `sqrt(importance-weighted mean L_i)`: rewards *balance across the categories the user has*, not having more of them |
 | Calls | 0.25 | importance-weighted mean of `C_i`; **null (left out) when the call log is not connected** |
@@ -124,7 +126,7 @@ contacted, then frecency quartiles among the rest).
 P1 bounded · P2 deterministic · P3 adding contact never lowers the score ·
 P4 time passing without new data never raises it · P5 diminishing returns per
 person · P6 invariant to relabelling and record order · P7 moving contact to a
-neglected equally important person raises coverage · P8 contact with excluded
+neglected equally important person raises the rhythm part · P8 contact with excluded
 relationships never raises it · P9 adding a pause never lowers it ·
 P10 empty network = 0 · **P11** an answered call never lowers the score ·
 **P12** a missed call changes nothing · **P13** diminishing returns for calls ·
@@ -164,12 +166,7 @@ values for the named scenarios are in its section A.
 
 ## Known limitations / open questions
 
-- The ideal targets contact *relative to the relationship's own rhythm*, so for a
-  distant ideal, keeping strictly to a frequent rhythm also counts as closer than hoped
-  (coverage for the co-parenting scenario falls from 1.00 to 0.79). Users wanting
-  frequent but distant contact (logistics) should either keep the ideal moderate or set
-  the rhythm to what the relationship actually needs. The O16 advantage comes mostly
-  through the rhythm component (removing it breaks O16 in the ablation).
+- The ideal targets contact relative to the relationship's own rhythm: for a distant ideal, keeping strictly to a frequent rhythm also counts as closer than hoped.
 - Fit is symmetric; some users may mind being too distant more than too close.
 
 - Interaction duration is recorded but not used (call duration is).

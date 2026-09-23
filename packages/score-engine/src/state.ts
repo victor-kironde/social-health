@@ -22,7 +22,7 @@ export function resolveRelationships(
         personId: e.personId,
         category: 'friend',
         alsoCategories: [],
-        importance: 3,
+        importance: 1,
         quality: null,
         rhythm: null,
         state: 'active',
@@ -37,7 +37,8 @@ export function resolveRelationships(
         draft.category = e.value;
         break;
       case 'importance':
-        draft.importance = e.value;
+        // Before v0.4 importance was 1–5; those events are read on the 1–10 scale (×2).
+        draft.importance = Math.min(10, Math.max(1, Math.round(e.scale === 10 ? e.value : e.value * 2)));
         break;
       case 'quality':
         draft.quality = e.value;

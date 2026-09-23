@@ -82,7 +82,7 @@ export function computeScore(log: EventLog, config: ModelConfig, asOf: Timestamp
   }
 
   // Calls are a separate, passive source: they feed their own component and
-  // frecency, not rhythm/coverage, so neither source can stand in for the other.
+  // frecency, not rhythm, so neither source can stand in for the other.
   const callsByPerson = new Map<string, CallRecord[]>();
   for (const c of log.calls ?? []) {
     if (c.ts > asOf || !rels.has(c.personId)) continue;
@@ -124,7 +124,7 @@ export function computeScore(log: EventLog, config: ModelConfig, asOf: Timestamp
           ? null
           : lastAge === null
             ? 0
-            : clamp01(1 - (lastAge - expected) / (config.coverageGrace * expected));
+            : clamp01(1 - (lastAge - expected) / (config.rhythmGrace * expected));
 
       return {
         ...rel,
@@ -147,10 +147,6 @@ export function computeScore(log: EventLog, config: ModelConfig, asOf: Timestamp
 
   const components: Record<ComponentName, number | null> = {
     rhythm: weightedMean(withRhythm, (c) => fit(c, c.level)),
-    coverage: weightedMean(
-      withRhythm.filter((c) => c.importance >= config.importantThreshold),
-      (c) => fit(c, c.onRhythm ?? 0),
-    ),
     diversity: diversity(included),
     quality: qualityAndSupport(
       contributions.filter((c) => !RETIRED.has(c.state) && c.ideal !== null),

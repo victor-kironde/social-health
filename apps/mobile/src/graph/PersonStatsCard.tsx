@@ -3,7 +3,7 @@ import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { HEALTH_LABELS, IDEAL_COMPARISON_LABELS, bandLabelOf, compareToIdeal, personalHealth } from '../data/health';
 import { photoUri } from '../data/photos';
-import { IMPORTANCE_LABELS, QUALITY_LABELS, frequencyText, lastContactText, typesLabel } from '../ui/labels';
+import { importanceLabel, QUALITY_LABELS, frequencyText, lastContactText, typesLabel } from '../ui/labels';
 import { useTheme } from '../ui/theme';
 import { RECENT_WINDOW_DAYS, type PersonStats } from './personStats';
 
@@ -53,7 +53,7 @@ export function PersonStatsCard({
       : `${rel.ideal} · ${bandLabelOf(rel.ideal)} · ${IDEAL_COMPARISON_LABELS[compareToIdeal(score, rel.ideal)].toLowerCase()}`;
   const rows: [string, string][] = [
     ...(rel.idealSet ? ([['Ideal', idealText]] as [string, string][]) : []),
-    ['Importance', IMPORTANCE_LABELS[rel.importance]],
+    ['Importance', importanceLabel(rel.importance)],
     ['Last catch-up', lastContactText(rel.lastContactAgeDays).replace(/^Last catch-up /, '')],
     ...(rhythm ? ([['Rhythm', rhythm]] as [string, string][]) : []),
     [

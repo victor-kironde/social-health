@@ -27,7 +27,7 @@ import { networkMetrics } from '../graph/metrics';
 import { deriveTies, tieSignature } from '../graph/ties';
 import { DEFAULT_RENDERER, GRAPH_RENDERERS, type RendererId } from '../graph/renderers';
 import { Button, ToggleChip } from '../ui/components';
-import { CATEGORY_LABELS, IMPORTANCE_LABELS } from '../ui/labels';
+import { CATEGORY_LABELS, importanceRangeText } from '../ui/labels';
 import { ScoreRing } from '../ui/ScoreRing';
 import { useTheme } from '../ui/theme';
 import { useReduceMotion } from '../ui/useReduceMotion';
@@ -214,7 +214,10 @@ export default function GraphScreen() {
   const showLabels = display.names && (visible.length <= LABEL_LIMIT || zoomedIn);
 
   // Tiers: a list-like arrangement of the people shown, you at the top.
-  const tierLabels = display.orderBy === 'importance' ? IMPORTANCE_LABELS : TIER_LABELS[display.orderBy];
+  const tierLabels =
+    display.orderBy === 'importance'
+      ? ({ 1: importanceRangeText(1), 2: importanceRangeText(2), 3: importanceRangeText(3), 4: importanceRangeText(4), 5: importanceRangeText(5) } as const)
+      : TIER_LABELS[display.orderBy];
   const tierView = useMemo(() => {
     if (!tiersOn) return null;
     const { positions: p, rows } = tierLayout(

@@ -14,7 +14,7 @@ export default function NewPerson() {
     displayName: '',
     category: 'friend',
     alsoCategories: [],
-    importance: 3,
+    importance: 1,
     rhythm: null,
     quality: null,
     state: 'active',

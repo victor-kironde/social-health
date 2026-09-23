@@ -27,8 +27,8 @@ describe('explain', () => {
 
     const fell = out.find((e) => e.kind === 'fell_behind');
     expect(fell?.personIds?.sort()).toEqual(['a', 'b', 'c']);
-    const coverage = out.find((e) => e.kind === 'component_change' && e.component === 'coverage');
-    expect(coverage?.delta).toBeLessThan(0);
+    const rhythm = out.find((e) => e.kind === 'component_change' && e.component === 'rhythm');
+    expect(rhythm?.delta).toBeLessThan(0);
   });
 
   it('reports relationships back on rhythm', () => {
@@ -38,7 +38,7 @@ describe('explain', () => {
     expect(explain(prev, curr).find((e) => e.kind === 'back_on_rhythm')?.personIds?.sort()).toEqual(['a', 'b', 'c']);
   });
 
-  it('mentions importance changes so coverage gains are not misread', () => {
+  it('mentions importance changes so score changes are not misread', () => {
     const b = network(false);
     const prev = computeScore(b.build(), DEFAULT_CONFIG, AS_OF);
     b.change('a', { field: 'importance', value: 2 }, AS_OF);
@@ -65,5 +65,23 @@ describe('explain', () => {
     const log = network(true).build();
     const out = explain(computeScore(log, DEFAULT_CONFIG, AS_OF), computeScore(log, DEFAULT_CONFIG, AS_OF + 60 * DAY));
     for (const e of out) expect(e.text).not.toMatch(/\b(should|must|need to|try to)\b/i);
+  });
+});
+
+describe('importance scale (v0.4: 1–10, default 1)', () => {
+  it('reads old 1–5 ratings as double, new ones as given, and defaults to 1', async () => {
+    const { resolveRelationships } = await import('../src');
+    const ev = (id: string, personId: string, value: number, scale?: 10) => ({
+      id, personId, ts: AS_OF - DAY, field: 'importance' as const, value, ...(scale ? { scale } : {}),
+    });
+    const cat = (personId: string) => ({ id: `c-${personId}`, personId, ts: AS_OF - 2 * DAY, field: 'category' as const, value: 'friend' as const });
+    const rels = resolveRelationships(
+      [cat('old'), ev('1', 'old', 5), cat('new'), ev('2', 'new', 7, 10), cat('none')],
+      DEFAULT_CONFIG,
+      AS_OF,
+    );
+    expect(rels.get('old')!.importance).toBe(10);
+    expect(rels.get('new')!.importance).toBe(7);
+    expect(rels.get('none')!.importance).toBe(1);
   });
 });

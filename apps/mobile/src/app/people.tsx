@@ -5,7 +5,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { usePrefs, useModelConfig } from '../data/prefs';
 import { useStore } from '../data/store';
 import { Button, Card, Label } from '../ui/components';
-import { IMPORTANCE_LABELS, rhythmLabel, STATE_LABELS, lastContactText, typesLabel } from '../ui/labels';
+import { importanceLabel, rhythmLabel, STATE_LABELS, lastContactText, typesLabel } from '../ui/labels';
 import { ScoreBreakdown } from '../ui/ScoreBreakdown';
 import { ScoreRing } from '../ui/ScoreRing';
 import { useTheme } from '../ui/theme';
@@ -71,7 +71,7 @@ export default function People() {
     >
       <Text style={[styles.name, { color: t.text }]}>{names.get(r.personId) ?? 'Unknown'}</Text>
       <Text style={{ color: t.muted }}>
-        {typesLabel(r.category, r.alsoCategories)} · {IMPORTANCE_LABELS[r.importance]} · {rhythmLabel(r)}
+        {typesLabel(r.category, r.alsoCategories)} · {importanceLabel(r.importance)} · {rhythmLabel(r)}
         {r.state !== 'active' ? ` · ${STATE_LABELS[r.state]}` : ''}
       </Text>
       {!RETIRED.has(r.state) && <Text style={{ color: t.muted }}>{lastContactText(r.lastContactAgeDays)}</Text>}

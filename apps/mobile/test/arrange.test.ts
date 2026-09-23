@@ -53,8 +53,9 @@ describe('nodeRadii', () => {
 });
 
 describe('orderTiers', () => {
-  it('importance is used as is', () => {
-    expect(orderTiers([rel('a', { importance: 5 })], 'importance').get('a')).toBe(5);
+  it('importance 1–10 falls into five rings by guide range', () => {
+    const t = orderTiers([1, 2, 5, 6, 7, 10].map((i) => rel(`p${i}`, { importance: i })), 'importance');
+    expect([1, 2, 5, 6, 7, 10].map((i) => t.get(`p${i}`))).toEqual([1, 1, 3, 3, 4, 5]);
   });
 
   it('last contact buckets by age, never-contacted last', () => {

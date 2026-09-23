@@ -4,12 +4,13 @@ import { bandLabelOf } from '../data/health';
 import { MAX_NAME_LENGTH, type PersonDraft } from '../data/people';
 import { usePrefs } from '../data/prefs';
 import { ChoiceChips, Label, MultiChoiceChips } from './components';
-import { CATEGORY_LABELS, IMPORTANCE_LABELS, QUALITY_LABELS, STATE_LABELS } from './labels';
+import { CATEGORY_LABELS, QUALITY_LABELS, STATE_LABELS, importanceLabel } from './labels';
 import { RhythmPicker, choiceText } from './RhythmPicker';
 import { useTheme } from './theme';
 
 const RATINGS: Rating[] = [1, 2, 3, 4, 5];
 const IDEALS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+const IMPORTANCE_SCALE = IDEALS;
 /** The "Don't mind" chip (no ideal). */
 const DONT_MIND = 0;
 /** No chip selected: the ideal has not been set yet. */
@@ -85,12 +86,18 @@ export function PersonFields({
       </View>
 
       <View>
-        <Label>How important is this relationship to you?</Label>
+        <Label>How important is this relationship to you? (optional)</Label>
         <ChoiceChips
-          options={RATINGS.map((r) => ({ value: r, label: IMPORTANCE_LABELS[r] }))}
+          options={IMPORTANCE_SCALE.map((v) => ({ value: v, label: String(v) }))}
           value={draft.importance}
           onChange={(v) => set('importance', v)}
         />
+        <Text style={[styles.hint, { color: t.muted }]}>
+          {importanceLabel(draft.importance)}. More important people count more in your score.
+        </Text>
+        <Text style={[styles.hint, { color: t.muted, marginTop: 2 }]}>
+          Rough guide: 1–2 peripheral, 3–4 casual, 5–6 moderate, 7–8 close, 9–10 very close.
+        </Text>
       </View>
 
       <View onLayout={(e) => onIdealLayout?.(e.nativeEvent.layout.y)}>

@@ -25,21 +25,21 @@ describe('statistics helpers', () => {
   });
 
   it('contributions renormalise over defined components and sum to the total', () => {
-    const comps = { rhythm: 0.5, coverage: 1, quality: null, diversity: 0.5, calls: null, frecency: 0.2 };
+    const comps = { rhythm: 0.5, quality: null, diversity: 0.5, calls: null, frecency: 0.2 };
     const c = contributions(comps, DEFAULT_CONFIG.componentWeights);
     expect(c.quality).toBe(0);
     expect(c.calls).toBe(0);
     const sum = COMPONENTS.reduce((a, k) => a + c[k], 0);
     const w = DEFAULT_CONFIG.componentWeights;
-    const expected = (100 * (w.rhythm * 0.5 + w.coverage * 1 + w.diversity * 0.5 + w.frecency * 0.2)) / (w.rhythm + w.coverage + w.diversity + w.frecency);
+    const expected = (100 * (w.rhythm * 0.5 + w.diversity * 0.5 + w.frecency * 0.2)) / (w.rhythm + w.diversity + w.frecency);
     expect(sum).toBeCloseTo(expected, 9);
   });
 
   it('variance shares sum to 1', () => {
     const samples = [
-      { rhythm: 10, coverage: 20, quality: 0, diversity: 5, calls: 3, frecency: 1 },
-      { rhythm: 30, coverage: 10, quality: 5, diversity: 5, calls: 0, frecency: 2 },
-      { rhythm: 5, coverage: 25, quality: 10, diversity: 2, calls: 8, frecency: 4 },
+      { rhythm: 10, quality: 0, diversity: 5, calls: 3, frecency: 1 },
+      { rhythm: 30, quality: 5, diversity: 5, calls: 0, frecency: 2 },
+      { rhythm: 5, quality: 10, diversity: 2, calls: 8, frecency: 4 },
     ];
     const shares = varianceShares(samples);
     expect(COMPONENTS.reduce((a, c) => a + shares[c], 0)).toBeCloseTo(1, 9);

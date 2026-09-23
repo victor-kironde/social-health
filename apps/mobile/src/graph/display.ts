@@ -18,7 +18,8 @@ export interface DisplayOptions {
   // Filter
   /** Shown if any of their relationship types is selected. */
   categories: Category[];
-  minImportance: Rating;
+  /** Only people of at least this importance (1–10). */
+  minImportance: number;
   /** Only people in any of these groups of yours; empty = no group filter. */
   groups: string[];
   behindOnly: boolean;

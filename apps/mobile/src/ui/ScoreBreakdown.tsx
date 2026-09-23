@@ -4,7 +4,6 @@ import { useTheme } from './theme';
 
 export const COMPONENT_LABELS: [ComponentName, string][] = [
   ['rhythm', 'Catch-up rhythm'],
-  ['coverage', 'Important relationships covered'],
   ['calls', 'Calls'],
   ['diversity', 'Balance across types'],
   ['quality', 'Quality and support'],

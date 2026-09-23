@@ -15,7 +15,8 @@ export interface NewPersonInput {
   category: Category;
   /** Other relationship types (e.g. also a colleague). */
   alsoCategories?: Category[];
-  importance: Rating;
+  /** 1–10; omit to leave it at the default of 1. */
+  importance?: number;
   /** Omit (or pass the category default) to follow the category default, so later default changes still apply. */
   rhythm?: Rhythm;
   quality: Rating | null;
@@ -40,8 +41,10 @@ export function newPersonEvents(input: NewPersonInput, now: Timestamp, newId: ()
   const personId = newId();
   const changes: RelationshipChange[] = [
     { field: 'category', value: input.category },
-    { field: 'importance', value: input.importance },
   ];
+  if (input.importance !== undefined && input.importance !== 1) {
+    changes.push({ field: 'importance', value: input.importance, scale: 10 });
+  }
   // A rhythm chosen here is kept even if it matches today's default; omit it to follow the default.
   if (input.rhythm && !input.frequency) changes.push({ field: 'rhythm', value: input.rhythm });
   if (input.quality !== null) changes.push({ field: 'quality', value: input.quality });
@@ -64,7 +67,8 @@ export interface PersonDraft {
   displayName: string;
   category: Category;
   alsoCategories: Category[];
-  importance: Rating;
+  /** 1–10 (default 1). */
+  importance: number;
   rhythm: Rhythm | null;
   quality: Rating | null;
   state: RelationshipState;
@@ -106,7 +110,7 @@ export function editPersonEvents(
   const { rel } = before;
   const changes: RelationshipChange[] = [];
   if (draft.category !== rel.category) changes.push({ field: 'category', value: draft.category });
-  if (draft.importance !== rel.importance) changes.push({ field: 'importance', value: draft.importance });
+  if (draft.importance !== rel.importance) changes.push({ field: 'importance', value: draft.importance, scale: 10 });
   // Rhythm: a custom frequency, a chosen preset, or "follow the default" (both null).
   const own = draftFromSnapshot('', rel);
   if (draft.frequency !== null) {

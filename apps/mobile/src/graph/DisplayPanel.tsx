@@ -7,12 +7,13 @@ import { useTheme } from '../ui/theme';
 import { ORDER_LABELS, type OrderBy } from './arrange';
 import { ALL_CATEGORIES, DEFAULT_DISPLAY, type DisplayOptions } from './display';
 
-const MIN_IMPORTANCE: { value: Rating; label: string }[] = [
+/** "At least" thresholds on the 1–10 importance scale, at the start of each guide range. */
+const MIN_IMPORTANCE: { value: number; label: string }[] = [
   { value: 1, label: 'Everyone' },
-  { value: 2, label: '2+' },
   { value: 3, label: '3+' },
-  { value: 4, label: '4+' },
-  { value: 5, label: 'Only 5' },
+  { value: 5, label: '5+' },
+  { value: 7, label: '7+' },
+  { value: 9, label: '9+' },
 ];
 
 /** Bottom sheet with every display toggle and filter for the network graph. */
@@ -144,6 +145,10 @@ export function DisplayPanel({
           <View>
             <Label>Importance</Label>
             <ChoiceChips options={MIN_IMPORTANCE} value={o.minImportance} onChange={(v) => set('minImportance', v)} />
+            <Text style={[styles.hint, { color: t.muted }]}>
+              Your Social Health score updates to the people shown, so "7+" shows how your most important relationships
+              are doing.
+            </Text>
           </View>
           <View>
             <Label>Catch-ups</Label>

@@ -13,7 +13,7 @@ import { NODE_SIZES, orderTiers } from '../graph/arrange';
 import { networkMetrics } from '../graph/metrics';
 import { deriveTies } from '../graph/ties';
 import { Button, Card, ChoiceChips, Label } from '../ui/components';
-import { CATEGORY_LABELS, IMPORTANCE_LABELS } from '../ui/labels';
+import { CATEGORY_LABELS, importanceLabel } from '../ui/labels';
 import { ScoreBreakdown } from '../ui/ScoreBreakdown';
 import { ScoreRing } from '../ui/ScoreRing';
 import { useTheme } from '../ui/theme';
@@ -160,7 +160,7 @@ export default function Preview() {
                 </Text>
                 <Text style={{ color: t.muted, fontSize: 11 }} numberOfLines={1}>
                   {[r.category, ...r.alsoCategories].map((c) => CATEGORY_LABELS[c]).join(' + ')} ·{' '}
-                  {IMPORTANCE_LABELS[r.importance]}
+                  {importanceLabel(r.importance)}
                   {r.quality !== null ? ` · rated ${r.quality}` : ''}
                 </Text>
               </View>

@@ -131,7 +131,8 @@ export default function GraphHelp() {
           </Art>
         }
       >
-        The closer someone is to you, the more important you said they are. In Display & filters you can order the
+        The closer someone is to you, the more important you said they are (importance 1–10, in five rings: 1–2
+        outermost, 9–10 innermost). In Display & filters you can order the
         rings by contact frequency or last contact instead. People of the same type gather on the same side, so each
         type has its own direction around you.
       </Item>
@@ -240,9 +241,10 @@ export default function GraphHelp() {
         }
       >
         Shown in the top-left corner as a number from 1 to 10. The ring fills up to the score and turns from red
-        (low) to green (high). It sums up keeping in touch: your rhythms, your most important people, variety across
-        types, calls, how relationships are going and recent catch-ups. With filters on (say, only family), it scores
-        just the people shown and says "filtered". Tap it for details. You can hide the score in Settings at any
+        (low) to green (high). It sums up keeping in touch: your rhythms, variety across types, calls, how
+        relationships are going and recent catch-ups, with more important people counting more. With filters on (say,
+        only family, or only importance 7+ to see how your closest relationships are doing), it scores just the people
+        shown and says "filtered". Tap it for details. You can hide the score in Settings at any
         time.
       </Item>
       <Item
