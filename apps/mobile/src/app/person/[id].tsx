@@ -1,4 +1,5 @@
 import { computeScore, type RelationshipContribution } from '@sg/score-engine';
+import { goBack } from '../../ui/nav';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -99,7 +100,7 @@ function PersonEditor({
     setSaving(true);
     try {
       await updatePerson(personId, before, draft);
-      router.back();
+      goBack();
     } catch (e) {
       setError(`Could not save: ${String(e)}`);
       setSaving(false);
@@ -135,7 +136,7 @@ function PersonEditor({
           setSaving(true);
           try {
             await deletePerson(personId);
-            router.back();
+            goBack();
           } catch (e) {
             setError(`Could not delete: ${String(e)}`);
             setSaving(false);

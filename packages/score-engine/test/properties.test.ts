@@ -503,3 +503,52 @@ describe('custom catch-up frequency: "at least N times a period" (model v0.3)', 
     expect(fiveAWeek.onRhythm).toBe(0);
   });
 });
+
+describe('living or working together (model v0.4)', () => {
+  const markTogether = (log: EventLog, id: string, value: boolean): EventLog => ({
+    ...log,
+    relationshipEvents: [...log.relationshipEvents, { id: `t-${id}`, personId: id, ts: ARB_AS_OF - 450 * DAY, field: 'together', value }],
+  });
+
+  it('P22 marking someone as living or working with you never lowers the score (default ideals)', () => {
+    fc.assert(
+      fc.property(arbEventLog(), fc.nat(), (log, pick) => {
+        if (log.people.length === 0) return;
+        const id = log.people[pick % log.people.length]!.id;
+        expect(score(markTogether(log, id, true)).total).toBeGreaterThanOrEqual(score(log).total - EPS);
+      }),
+      RUNS,
+    );
+  });
+
+  it('P23 "no" is the standard model: marking everyone as not together changes nothing', () => {
+    fc.assert(
+      fc.property(arbEventLog({ ideals: true }), (log) => {
+        let marked = log;
+        for (const p of log.people) marked = markTogether(marked, p.id, false);
+        expect(score(marked).total).toBeCloseTo(score(log).total, 9);
+      }),
+      RUNS,
+    );
+  });
+
+  it('time apart counts at a tenth: 100 days apart together = 10 days apart otherwise', () => {
+    const one = (together: boolean, daysAgo: number): EventLog => ({
+      people: [{ id: 'a', displayName: 'a' }],
+      relationshipEvents: [
+        { id: 'c', personId: 'a', ts: ARB_AS_OF - 400 * DAY, field: 'category', value: 'friend' },
+        { id: 't', personId: 'a', ts: ARB_AS_OF - 400 * DAY, field: 'together', value: together },
+      ],
+      interactions: [{ id: 'x', ts: ARB_AS_OF - daysAgo * DAY, loggedAt: ARB_AS_OF - daysAgo * DAY, type: 'in_person', participants: ['a'], source: 'manual' }],
+      supportReports: [],
+      loggingActivity: [],
+      pauses: [],
+    });
+    const together = score(one(true, 100)).relationships[0]!;
+    const apart = score(one(false, 10)).relationships[0]!;
+    expect(together.level).toBeCloseTo(apart.level, 12);
+    expect(together.onRhythm).toBeCloseTo(apart.onRhythm!, 12);
+    expect(together.lastContactAgeDays).toBeCloseTo(100, 9); // shown as the real time
+    expect(together.decayRate).toBe(0.1);
+  });
+});

@@ -20,7 +20,9 @@ export const LOST_MIN_DAYS = 30;
 export function relationshipHealth(r: RelationshipContribution): HealthBand {
   if (r.state === 'paused' || r.state === 'archived' || r.state === 'in_memoriam') return 'lost';
   if (r.lastContactAgeDays === null) return 'lost';
-  if (r.expectedIntervalDays !== null && r.lastContactAgeDays > Math.max(LOST_MIN_DAYS, LOST_FACTOR * r.expectedIntervalDays)) {
+  // Time apart counts more slowly for people you live or work with (decayRate < 1).
+  const apart = r.lastContactAgeDays * r.decayRate;
+  if (r.expectedIntervalDays !== null && apart > Math.max(LOST_MIN_DAYS, LOST_FACTOR * r.expectedIntervalDays)) {
     return 'lost';
   }
   const rhythm = r.onRhythm ?? 1;

@@ -43,7 +43,9 @@ export type RelationshipChange =
    */
   | { field: 'ideal'; value: number | null }
   /** A custom minimum catch-up frequency, or null to go back to the preset rhythm. */
-  | { field: 'frequency'; value: Frequency | null };
+  | { field: 'frequency'; value: Frequency | null }
+  /** Lives or works with the user: time apart counts much less (see togetherDecayRate). */
+  | { field: 'together'; value: boolean };
 
 /**
  * Append-only record of a change to the owner's private view of a relationship.
@@ -134,6 +136,12 @@ export interface ModelConfig {
   excludeQualityAtOrBelow: Rating | 0;
   /** On-rhythm falls linearly from 1 at the expected interval to 0 at (1 + grace) x interval. */
   rhythmGrace: number;
+  /**
+   * How fast time counts for people the user lives or works with, relative to everyone else
+   * (0.1 = a tenth: a catch-up keeps its value ten times longer, and they fall behind ten times
+   * more slowly), since they are seen anyway.
+   */
+  togetherDecayRate: number;
   /** Decay half-life for relationships with no expected rhythm. */
   occasionalHalfLifeDays: number;
   confidence: { windowDays: number; expectedActiveDays: number; lowBelow: number };
@@ -165,6 +173,8 @@ export interface RelationshipSnapshot {
   frequency: Frequency | null;
   /** Whether the user chose this relationship's rhythm; when not, it follows the default. */
   rhythmSet: boolean;
+  /** Lives or works with the user (default false). */
+  together: boolean;
 }
 
 export interface RelationshipContribution extends RelationshipSnapshot {
@@ -178,6 +188,8 @@ export interface RelationshipContribution extends RelationshipSnapshot {
   onRhythm: number | null;
   /** Effective (pause-adjusted) days since last contact, or null if never. */
   lastContactAgeDays: number | null;
+  /** How fast time counts for this relationship (1, or togetherDecayRate when living/working together). */
+  decayRate: number;
   /** Decayed, saturated call level in [0, 1]; null when call data is not connected. */
   callLevel: number | null;
   /**

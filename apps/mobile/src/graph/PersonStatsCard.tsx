@@ -54,6 +54,7 @@ export function PersonStatsCard({
   const rows: [string, string][] = [
     ...(rel.idealSet ? ([['Ideal', idealText]] as [string, string][]) : []),
     ['Importance', importanceLabel(rel.importance)],
+    ...(rel.together ? ([['Together', 'Lives or works with you']] as [string, string][]) : []),
     ['Last catch-up', lastContactText(rel.lastContactAgeDays).replace(/^Last catch-up /, '')],
     ...(rhythm ? ([['Rhythm', rhythm]] as [string, string][]) : []),
     [

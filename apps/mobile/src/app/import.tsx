@@ -1,4 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
+import { goBack } from '../ui/nav';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Linking, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { contactCandidates, filterCandidates, nameKey, type Candidate } from '../data/contactsImport';
@@ -65,7 +66,7 @@ export default function ImportContacts() {
     setSaving(true);
     try {
       await importPeople(names);
-      router.back();
+      goBack();
     } catch (e) {
       setError(`Could not import: ${String(e)}`);
       setSaving(false);

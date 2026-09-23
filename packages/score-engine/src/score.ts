@@ -101,22 +101,24 @@ export function computeScore(log: EventLog, config: ModelConfig, asOf: Timestamp
       const expected = expectedIntervalDays(rel, config);
       const halfLife = expected ?? config.occasionalHalfLifeDays;
       const qualityMult = rel.quality === null ? 1 : config.qualityMultiplier[rel.quality];
+      // Living or working together: time apart counts at a fraction of the usual rate.
+      const rate = rel.together ? config.togetherDecayRate : 1;
 
       let energy = 0;
       let frecency = 0;
       let lastAge: number | null = null;
       for (const x of byPerson.get(rel.personId) ?? []) {
         const age = ageDays(x.ts);
-        energy += config.interactionWeights[x.type] * qualityMult * 0.5 ** (age / halfLife);
-        frecency += config.interactionWeights[x.type] * frecencyDecay(age);
+        energy += config.interactionWeights[x.type] * qualityMult * 0.5 ** ((rate * age) / halfLife);
+        frecency += config.interactionWeights[x.type] * frecencyDecay(rate * age);
         if (lastAge === null || age < lastAge) lastAge = age;
       }
 
       let callEnergy = 0;
       for (const c of callsByPerson.get(rel.personId) ?? []) {
         const age = ageDays(c.ts);
-        callEnergy += callWeight(c) * qualityMult * 0.5 ** (age / halfLife);
-        frecency += callWeight(c) * frecencyDecay(age);
+        callEnergy += callWeight(c) * qualityMult * 0.5 ** ((rate * age) / halfLife);
+        frecency += callWeight(c) * frecencyDecay(rate * age);
       }
 
       const onRhythm =
@@ -124,7 +126,7 @@ export function computeScore(log: EventLog, config: ModelConfig, asOf: Timestamp
           ? null
           : lastAge === null
             ? 0
-            : clamp01(1 - (lastAge - expected) / (config.rhythmGrace * expected));
+            : clamp01(1 - (rate * lastAge - expected) / (config.rhythmGrace * expected));
 
       return {
         ...rel,
@@ -133,6 +135,7 @@ export function computeScore(log: EventLog, config: ModelConfig, asOf: Timestamp
         level: 1 - Math.exp(-energy / config.saturation),
         onRhythm,
         lastContactAgeDays: lastAge,
+        decayRate: rate,
         callLevel: callsConnected ? 1 - Math.exp(-callEnergy / config.saturation) : null,
         frecency,
       };

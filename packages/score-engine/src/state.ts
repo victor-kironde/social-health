@@ -29,6 +29,7 @@ export function resolveRelationships(
         ideal: 10,
         idealSet: false,
         frequency: null,
+        together: false,
       };
       drafts.set(e.personId, draft);
     }
@@ -53,6 +54,9 @@ export function resolveRelationships(
         break;
       case 'alsoCategories':
         draft.alsoCategories = [...new Set(e.value)].sort();
+        break;
+      case 'together':
+        draft.together = e.value;
         break;
       case 'frequency':
         draft.frequency =

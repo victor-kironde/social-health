@@ -1,5 +1,6 @@
 import { resolveRelationships, type InteractionType } from '@sg/score-engine';
-import { router, useLocalSearchParams } from 'expo-router';
+import { goBack } from '../ui/nav';
+import { useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { MAX_BACKDATE_DAYS, MAX_NOTE_LENGTH, validateInteraction } from '../data/interactions';
@@ -51,7 +52,7 @@ export default function LogContact() {
     setSaving(true);
     try {
       await logInteraction(input);
-      router.back();
+      goBack();
     } catch (e) {
       setError(`Could not save: ${String(e)}`);
       setSaving(false);

@@ -260,7 +260,9 @@ export default function GraphHelp() {
       >
         Everyone starts with your default rhythm, at least once a month unless you change it in Settings. On anyone's
         page you can choose their own: a preset like weekly, or Custom, such as "at least twice a month" or "at least 5
-        times a week". Catching up more often than that never counts against you.
+        times a week". Catching up more often than that never counts against you. For someone you live or work with,
+        switch on "Lives or works with you": you see each other anyway, so time between logged catch-ups counts only a
+        tenth as much.
       </Item>
       <Item
         title="Your ideal for each relationship"

@@ -1,5 +1,5 @@
 import type { Rating, RelationshipState } from '@sg/score-engine';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { bandLabelOf } from '../data/health';
 import { MAX_NAME_LENGTH, type PersonDraft } from '../data/people';
 import { usePrefs } from '../data/prefs';
@@ -126,6 +126,21 @@ export function PersonFields({
         </Text>
       </View>
 
+      <View style={styles.switchRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: t.text, fontSize: 15, fontWeight: '600' }}>Lives or works with you</Text>
+          <Text style={[styles.hint, { color: t.muted, marginTop: 2 }]}>
+            You see each other anyway, so time between logged catch-ups counts a tenth as much.
+          </Text>
+        </View>
+        <Switch
+          value={draft.together}
+          onValueChange={(v) => set('together', v)}
+          accessibilityLabel="Lives or works with you"
+          trackColor={{ true: t.accent, false: t.track }}
+        />
+      </View>
+
       <View>
         <Label>How often would you like to catch up?</Label>
         <RhythmPicker
@@ -166,4 +181,5 @@ export function PersonFields({
 const styles = StyleSheet.create({
   input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 16 },
   hint: { fontSize: 13, marginTop: 6 },
+  switchRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
 });

@@ -35,7 +35,7 @@ For relationship *i* at time *t*:
 | Symbol | Definition |
 |---|---|
 | `I_i` | Expected interval in days from its rhythm (default for everyone: at least once a month, i.e. monthly, changeable by the user to any preset or custom frequency; people who have not had a rhythm chosen follow it) (weekly 7 … yearly 365), or from a **custom minimum frequency** "at least N times a day/week/month/year" as period ÷ N (periods 1, 7, 30, 365 days, so "at least once a month" equals the monthly preset; P21). ×2 if `long_distance`. None for `occasional` or `paused`. The latest choice wins: picking a preset clears a custom frequency. Contact more often than the minimum is never penalised by rhythm terms (the ideal handles "closer than hoped"). |
-| `age(x)` | Days from event *x* to *t*, **excluding globally paused time**. |
+| `age(x)` | Days from event *x* to *t*, **excluding globally paused time**, multiplied by *r_i*: 0.1 for someone marked as living or working with the user (time apart counts a tenth as much: decay, on-rhythm and lost-touch all slow tenfold), otherwise 1. The displayed time since the last catch-up stays real. |
 | `m_i` | Quality multiplier: unrated 1; rated 1→0, 2→0.4, 3→0.75, 4→0.9, 5→1. |
 | `E_i` | Σ over logged interactions *x* with *i*: `w(type) · m_i · 0.5^(age(x)/H_i)`, `H_i = I_i` (or 365 days if no rhythm). Weights: in person 1, video 0.7, voice 0.5, message 0.2. |
 | `L_i` (level) | `1 − exp(−E_i / k)`, k = 1. Saturating, so repeated contact has diminishing returns. |
@@ -137,7 +137,9 @@ no calls · **P15** frecency cannot be inflated by contacting one person a lot �
 relationship never changes the score · **P19** fit is 1 at the ideal and never rises
 moving away from it, in either direction · **P20** for a relationship hoped to be
 distant, a lot of contact eventually lowers the score · **P21** a custom frequency equal
-to a preset ("at least once a week/month/year") scores exactly like it.
+to a preset ("at least once a week/month/year") scores exactly like it · **P22** marking someone
+as living or working together never lowers the score (default ideals) · **P23** marking everyone
+as not together changes nothing.
 
 P3, P4, P5, P9, P11, P13 and P14 describe the standard model and are tested on
 networks with default ideals: with a lower ideal, drifting towards it raises the score

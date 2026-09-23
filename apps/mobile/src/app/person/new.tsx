@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { goBack } from '../../ui/nav';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { validatePerson, type PersonDraft } from '../../data/people';
@@ -20,6 +21,7 @@ export default function NewPerson() {
     state: 'active',
     ideal: undefined,
     frequency: null,
+    together: false,
   });
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -34,6 +36,7 @@ export default function NewPerson() {
       quality: draft.quality,
       ...(draft.ideal !== undefined ? { ideal: draft.ideal } : {}),
       ...(draft.frequency ? { frequency: draft.frequency } : {}),
+      ...(draft.together ? { together: true } : {}),
     };
     const invalid = validatePerson(input);
     if (invalid) {
@@ -43,7 +46,7 @@ export default function NewPerson() {
     setSaving(true);
     try {
       await addPerson(input);
-      router.back();
+      goBack();
     } catch (e) {
       setError(`Could not save: ${String(e)}`);
       setSaving(false);

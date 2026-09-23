@@ -23,11 +23,13 @@ export function demoNetwork(n: number): { relationships: RelationshipContributio
       idealSet: false,
       frequency: null,
       rhythmSet: false,
+      together: false,
       included: true,
       expectedIntervalDays: 30,
       level: (i % 10) / 10,
       onRhythm: i % 3 === 0 ? 0 : 1,
       lastContactAgeDays: i % 3 === 0 ? 90 : i % 5 === 0 ? null : (i * 13) % 40,
+      decayRate: 1,
       callLevel: null,
       // Spread of contact frequency so node sizes vary.
       frecency: i % 3 === 0 ? 0.1 : i % 5 === 0 ? 0 : 0.5 + ((i * 37) % 11) / 2,

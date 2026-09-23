@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { goBack } from '../ui/nav';
 import { useRef, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -145,7 +146,7 @@ export default function Intro() {
       <CalmBackground animate={!reducedMotion} />
       <View style={[styles.top, { paddingTop: insets.top + 12 }]}>
         {!last && (
-          <Pressable onPress={() => finish(() => router.back())} hitSlop={12} accessibilityRole="button">
+          <Pressable onPress={() => finish(() => goBack())} hitSlop={12} accessibilityRole="button">
             <Text style={{ color: C.muted, fontSize: 15 }}>Skip</Text>
           </Pressable>
         )}
@@ -179,7 +180,7 @@ export default function Intro() {
         {!last ? (
           <IntroButton title="Next" primary onPress={() => goTo(page + 1)} />
         ) : hasPeople ? (
-          <IntroButton title="Start" primary onPress={() => finish(() => router.back())} />
+          <IntroButton title="Start" primary onPress={() => finish(() => goBack())} />
         ) : (
           <View style={{ gap: 10, alignSelf: 'stretch' }}>
             <IntroButton
@@ -188,7 +189,7 @@ export default function Intro() {
               onPress={() => finish(() => router.replace({ pathname: '/import', params: { from: 'welcome' } }))}
             />
             <IntroButton title="Add someone myself" onPress={() => finish(() => router.replace('/person/new'))} />
-            <IntroButton title="Explore first" onPress={() => finish(() => router.back())} />
+            <IntroButton title="Explore first" onPress={() => finish(() => goBack())} />
           </View>
         )}
       </View>

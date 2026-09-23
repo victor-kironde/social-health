@@ -92,6 +92,7 @@ describe('draftFromSnapshot', () => {
       idealSet: false,
       frequency: null,
       rhythmSet: false,
+      together: false,
     };
     expect(draftFromSnapshot('Ana', rel).rhythm).toBeNull();
     // Chosen, even though it equals the default.
@@ -224,5 +225,14 @@ describe('default rhythm', () => {
     expect(rel.rhythmSet).toBe(false);
     expect(rel.frequency).toBeNull();
     expect(rel.rhythm).toBe('monthly');
+  });
+});
+
+describe('lives or works with you', () => {
+  it('is off by default, and can be switched on and off', () => {
+    expect(roundTrip(ana, () => {}).rel.together).toBe(false);
+    expect(roundTrip(ana, (d) => (d.together = true)).rel.together).toBe(true);
+    expect(roundTrip({ ...ana, together: true }, (d) => (d.together = false)).rel.together).toBe(false);
+    expect(roundTrip({ ...ana, together: true }, () => {}).events).toEqual([]);
   });
 });

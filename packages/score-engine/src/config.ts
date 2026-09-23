@@ -28,6 +28,7 @@ export const DEFAULT_CONFIG: ModelConfig = {
   qualityMultiplier: { 1: 0, 2: 0.4, 3: 0.75, 4: 0.9, 5: 1 },
   excludeQualityAtOrBelow: 1,
   rhythmGrace: 1,
+  togetherDecayRate: 0.1,
   occasionalHalfLifeDays: 365,
   confidence: { windowDays: 28, expectedActiveDays: 4, lowBelow: 0.5 },
   smoothing: { samples: 3, spacingDays: 7 },
@@ -50,6 +51,7 @@ export function validateConfig(config: ModelConfig): string[] {
   if (Object.values(config.rhythmDays).some((d) => d <= 0)) errors.push('rhythm days must be positive');
   if (config.longDistanceFactor < 1) errors.push('longDistanceFactor must be >= 1');
   if (config.rhythmGrace <= 0) errors.push('rhythmGrace must be positive');
+  if (config.togetherDecayRate <= 0 || config.togetherDecayRate > 1) errors.push('togetherDecayRate must be in (0, 1]');
   if (config.occasionalHalfLifeDays <= 0) errors.push('occasionalHalfLifeDays must be positive');
   if (config.smoothing.samples < 1) errors.push('smoothing.samples must be >= 1');
   if (config.calls.shortCallWeight < 0 || config.calls.shortCallWeight > 1) errors.push('calls.shortCallWeight must be in [0, 1]');

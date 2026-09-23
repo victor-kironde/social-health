@@ -24,6 +24,8 @@ export interface NewPersonInput {
   ideal?: number | null;
   /** A custom "at least N times a period" catch-up frequency, instead of a preset rhythm. */
   frequency?: Frequency | null;
+  /** Lives or works with you. */
+  together?: boolean;
 }
 
 export const MAX_NAME_LENGTH = 60;
@@ -50,6 +52,7 @@ export function newPersonEvents(input: NewPersonInput, now: Timestamp, newId: ()
   if (input.quality !== null) changes.push({ field: 'quality', value: input.quality });
   if (input.ideal !== undefined) changes.push({ field: 'ideal', value: input.ideal });
   if (input.frequency) changes.push({ field: 'frequency', value: input.frequency });
+  if (input.together) changes.push({ field: 'together', value: true });
   const also = (input.alsoCategories ?? []).filter((c) => c !== input.category);
   if (also.length) changes.push({ field: 'alsoCategories', value: [...new Set(also)].sort() });
 
@@ -76,6 +79,8 @@ export interface PersonDraft {
   ideal: number | null | undefined;
   /** Custom minimum frequency; when set it replaces `rhythm`. */
   frequency: Frequency | null;
+  /** Lives or works with you. */
+  together: boolean;
 }
 
 export function draftFromSnapshot(displayName: string, rel: RelationshipSnapshot): PersonDraft {
@@ -90,6 +95,7 @@ export function draftFromSnapshot(displayName: string, rel: RelationshipSnapshot
     state: rel.state,
     ideal: rel.idealSet ? rel.ideal : undefined,
     frequency: rel.rhythmSet ? rel.frequency : null,
+    together: rel.together,
   };
 }
 
@@ -125,6 +131,7 @@ export function editPersonEvents(
   }
   if (draft.quality !== rel.quality) changes.push({ field: 'quality', value: draft.quality });
   if (draft.state !== rel.state) changes.push({ field: 'state', value: draft.state });
+  if (draft.together !== rel.together) changes.push({ field: 'together', value: draft.together });
   // Choosing any ideal (even 10) marks it as set; leaving it alone records nothing.
   if (draft.ideal !== undefined && (!rel.idealSet || draft.ideal !== rel.ideal)) {
     changes.push({ field: 'ideal', value: draft.ideal });

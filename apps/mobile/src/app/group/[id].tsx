@@ -1,5 +1,6 @@
 import { resolveRelationships } from '@sg/score-engine';
-import { Stack, router, useLocalSearchParams } from 'expo-router';
+import { goBack } from '../../ui/nav';
+import { Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { MAX_GROUP_NAME, validateGroup } from '../../data/groups';
@@ -60,7 +61,7 @@ export default function GroupEditor() {
     try {
       if (existing) await updateGroup({ ...existing, name: name.trim(), members });
       else await addGroup(name, members);
-      router.back();
+      goBack();
     } catch (e) {
       setError(`Could not save: ${String(e)}`);
       setSaving(false);
@@ -76,7 +77,7 @@ export default function GroupEditor() {
         style: 'destructive',
         onPress: async () => {
           await deleteGroup(existing.id);
-          router.back();
+          goBack();
         },
       },
     ]);

@@ -15,11 +15,13 @@ function rel(over: Partial<RelationshipContribution> = {}): RelationshipContribu
     idealSet: false,
     frequency: null,
     rhythmSet: false,
+    together: false,
     included: true,
     expectedIntervalDays: 30,
     level: 0.8,
     onRhythm: 1,
     lastContactAgeDays: 5,
+    decayRate: 1,
     callLevel: null,
     frecency: 1,
     ...over,
@@ -134,5 +136,13 @@ describe('ideals in the app', () => {
     expect(compareToIdeal(2, null)).toBe('none');
     expect(bandLabelOf(3)).toBe('Distant');
     expect(bandLabelOf(10)).toBe('Close');
+  });
+});
+
+describe('closeness for people you live or work with', () => {
+  it('loses touch ten times more slowly', () => {
+    // 200 days since the last logged catch-up on a monthly rhythm: lost touch, unless together.
+    expect(relationshipHealth(rel({ lastContactAgeDays: 200, onRhythm: 0 }))).toBe('lost');
+    expect(relationshipHealth(rel({ lastContactAgeDays: 200, onRhythm: 0, decayRate: 0.1 }))).not.toBe('lost');
   });
 });
