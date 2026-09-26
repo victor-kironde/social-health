@@ -8,7 +8,11 @@ export interface NewInteractionInput {
   daysAgo: number;
   /** Optional private note (journal) about how it went. */
   note?: string;
+  /** At a group catch-up: how many people were there who are not named (stored as a count only). */
+  newPeople?: number;
 }
+
+export const MAX_NEW_PEOPLE = 999;
 
 export const MAX_BACKDATE_DAYS = 365;
 export const MAX_NOTE_LENGTH = 2000;
@@ -19,6 +23,8 @@ export function validateInteraction(input: NewInteractionInput): string | null {
     return 'Choose when it happened.';
   }
   if ((input.note ?? '').length > MAX_NOTE_LENGTH) return `Keep the note under ${MAX_NOTE_LENGTH} characters.`;
+  const n = input.newPeople ?? 0;
+  if (!Number.isInteger(n) || n < 0 || n > MAX_NEW_PEOPLE) return 'Enter how many new people, as a whole number.';
   return null;
 }
 
@@ -46,6 +52,7 @@ export function newInteractionEvents(
         participants: [...new Set(input.participants)],
         source: 'manual',
         ...(note ? { note } : {}),
+        ...(input.newPeople ? { newPeople: input.newPeople } : {}),
       },
     },
   ];

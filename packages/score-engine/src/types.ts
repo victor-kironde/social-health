@@ -23,6 +23,11 @@ export interface Person {
   id: string;
   displayName: string;
   isAppUser?: boolean;
+  /**
+   * 'group' for a group you have a relationship with as a whole (a team, a book club, your patients).
+   * A group is scored like a person; catch-ups list it as a participant alongside anyone named.
+   */
+  kind?: 'person' | 'group';
 }
 
 export type RelationshipChange =
@@ -68,6 +73,8 @@ export interface Interaction {
   source: InteractionSource;
   /** A private note or journal entry about the catch-up. Never used in scoring. */
   note?: string;
+  /** People at a group catch-up who were not named (e.g. new patients): a count only, never names. */
+  newPeople?: number;
 }
 
 export interface SupportReport {

@@ -21,7 +21,7 @@ import {
   type SavedLayout,
 } from './db';
 import { newInteractionEvents, type NewInteractionInput } from './interactions';
-import type { PersonGroup } from './groups';
+import { groupEntityEvents, groupRenameEvent, joinFromCatchUp, type PersonGroup } from './groups';
 import { editPersonEvents, newPersonEvents, type NewPersonInput, type PersonDraft } from './people';
 
 interface Store {
@@ -70,18 +70,28 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [photos, setPhotos] = useState<Map<string, string>>(() => new Map());
   const [groups, setGroups] = useState<PersonGroup[]>([]);
+  const groupsRef = useRef(groups);
+  groupsRef.current = groups;
   const graphLayout = useRef<SavedLayout>({ positions: new Map(), tieSignature: '' }).current;
   const logRef = useRef(log);
   logRef.current = log;
 
   useEffect(() => {
     Promise.all([loadRows(), loadGraphLayout(), loadPhotos(), loadGroups()])
-      .then(([rows, layout, savedPhotos, savedGroups]) => {
+      .then(async ([rows, layout, savedPhotos, savedGroups]) => {
         setPhotos(savedPhotos);
         setGroups(savedGroups);
         layout.positions.forEach((p, id) => graphLayout.positions.set(id, p));
         graphLayout.tieSignature = layout.tieSignature;
-        setLog(logFromRows(rows));
+        let loaded = logFromRows(rows);
+        // Groups made before groups were relationships: give each its own entry once.
+        const missing = savedGroups.filter((g) => !loaded.people.some((p) => p.id === g.id));
+        if (missing.length) {
+          const events = missing.flatMap((g) => groupEntityEvents(g, Date.now(), randomUUID));
+          await appendEvents(events);
+          loaded = appendToLog(loaded, events);
+        }
+        setLog(loaded);
         setStatus('ready');
       })
       .catch((e: unknown) => {
@@ -102,15 +112,27 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   );
 
   const logInteraction = useCallback(
-    (input: NewInteractionInput) =>
+    async (input: NewInteractionInput) => {
       // getTimezoneOffset is minutes *behind* UTC, so negate it for the conventional offset.
-      commit(newInteractionEvents(input, Date.now(), -new Date().getTimezoneOffset(), randomUUID)),
+      await commit(newInteractionEvents(input, Date.now(), -new Date().getTimezoneOffset(), randomUUID));
+      // Anyone named at a group catch-up joins that group.
+      const joined = joinFromCatchUp(groupsRef.current, input.participants);
+      for (const g of joined) await dbSaveGroup(g);
+      if (joined.length) setGroups(await loadGroups());
+    },
     [commit],
   );
 
   const updatePerson = useCallback(
-    (personId: string, before: { displayName: string; rel: RelationshipSnapshot }, draft: PersonDraft) =>
-      commit(editPersonEvents(personId, before, draft, Date.now(), randomUUID)),
+    async (personId: string, before: { displayName: string; rel: RelationshipSnapshot }, draft: PersonDraft) => {
+      await commit(editPersonEvents(personId, before, draft, Date.now(), randomUUID));
+      // A group renamed on its page: keep its membership record's name in step.
+      const g = groupsRef.current.find((x) => x.id === personId);
+      if (g && g.name !== draft.displayName.trim()) {
+        await dbSaveGroup({ ...g, name: draft.displayName.trim() });
+        setGroups(await loadGroups());
+      }
+    },
     [commit],
   );
 
@@ -181,22 +203,39 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [commit],
   );
 
-  const addGroup = useCallback(async (name: string, members: string[]) => {
-    const group: PersonGroup = { id: randomUUID(), name: name.trim(), members, createdAt: Date.now() };
-    await dbSaveGroup(group);
-    setGroups(await loadGroups());
-    return group.id;
-  }, []);
+  const addGroup = useCallback(
+    async (name: string, members: string[]) => {
+      const group: PersonGroup = { id: randomUUID(), name: name.trim(), members, createdAt: Date.now() };
+      await dbSaveGroup(group);
+      // A group is also a relationship of its own.
+      await commit(groupEntityEvents(group, Date.now(), randomUUID));
+      setGroups(await loadGroups());
+      return group.id;
+    },
+    [commit],
+  );
 
-  const updateGroup = useCallback(async (group: PersonGroup) => {
-    await dbSaveGroup(group);
-    setGroups(await loadGroups());
-  }, []);
+  const updateGroup = useCallback(
+    async (group: PersonGroup) => {
+      const before = groupsRef.current.find((g) => g.id === group.id);
+      await dbSaveGroup(group);
+      if (before && before.name !== group.name.trim()) await commit([groupRenameEvent(group.id, group.name, Date.now(), randomUUID)]);
+      setGroups(await loadGroups());
+    },
+    [commit],
+  );
 
-  const deleteGroup = useCallback(async (groupId: string) => {
-    await dbDeleteGroup(groupId);
-    setGroups((prev) => prev.filter((g) => g.id !== groupId));
-  }, []);
+  const deleteGroup = useCallback(
+    async (groupId: string) => {
+      // Erase the group's relationship and catch-ups like a person's, then its membership record.
+      await erasePerson(groupId);
+      await dbDeleteGroup(groupId);
+      graphLayout.positions.delete(groupId);
+      setGroups((prev) => prev.filter((g) => g.id !== groupId));
+      setLog(logFromRows(await loadRows()));
+    },
+    [graphLayout],
+  );
 
   const deletePerson = useCallback(
     async (personId: string) => {

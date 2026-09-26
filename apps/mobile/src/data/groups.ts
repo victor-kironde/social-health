@@ -50,3 +50,31 @@ export function membership(groups: PersonGroup[]): Map<string, string[]> {
   for (const g of groups) for (const id of g.members) out.set(id, [...(out.get(id) ?? []), g.id]);
   return out;
 }
+
+/**
+ * The records that make a group a relationship of its own: a group entry in the log (kind
+ * 'group', same id as its membership record) and its type. Everything else (importance, rhythm,
+ * ideal, quality, status) starts at the defaults, as for a new person.
+ */
+export function groupEntityEvents(group: Pick<PersonGroup, 'id' | 'name'>, now: number, newId: () => string): StoredEvent[] {
+  const ev = newId();
+  return [
+    { id: newId(), ts: now, kind: 'person', body: { id: group.id, displayName: group.name.trim(), kind: 'group' } },
+    { id: ev, ts: now, kind: 'relationship', body: { id: ev, personId: group.id, ts: now, field: 'category', value: 'other' } },
+  ];
+}
+
+/** A rename of the group's entry (its membership record is saved separately). */
+export function groupRenameEvent(groupId: string, name: string, now: number, newId: () => string): StoredEvent {
+  return { id: newId(), ts: now, kind: 'person', body: { id: groupId, displayName: name.trim(), kind: 'group' } };
+}
+
+/** Groups whose members should now include people named at a catch-up with them. */
+export function joinFromCatchUp(groups: PersonGroup[], participants: string[]): PersonGroup[] {
+  const present = new Set(participants);
+  const groupIdsHere = groups.filter((g) => present.has(g.id));
+  return groupIdsHere.flatMap((g) => {
+    const newcomers = participants.filter((p) => p !== g.id && !groups.some((x) => x.id === p) && !g.members.includes(p));
+    return newcomers.length ? [{ ...g, members: [...g.members, ...newcomers] }] : [];
+  });
+}

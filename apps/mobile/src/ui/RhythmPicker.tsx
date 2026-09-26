@@ -90,7 +90,7 @@ export function RhythmPicker({
 }
 
 /** − n + control. */
-function Stepper({ value, min, max, onChange }: { value: number; min: number; max: number; onChange: (v: number) => void }) {
+export function Stepper({ value, min, max, onChange }: { value: number; min: number; max: number; onChange: (v: number) => void }) {
   const t = useTheme();
   const button = (label: string, next: number, disabled: boolean) => (
     <Pressable

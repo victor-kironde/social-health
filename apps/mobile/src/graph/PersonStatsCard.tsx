@@ -16,6 +16,7 @@ export function PersonStatsCard({
   onOpen,
   onSetIdeal,
   onClose,
+  group,
   translucent = false,
 }: {
   rel: RelationshipContribution;
@@ -27,6 +28,8 @@ export function PersonStatsCard({
   /** Opens the person's page at the ideal question (shown when no ideal is set). */
   onSetIdeal?: () => void;
   onClose: () => void;
+  /** When this is a group: its member count and whether its members are collapsed into it. */
+  group?: { members: number; collapsed: boolean; onToggle: () => void };
   /** See-through background, for floating over the graph. */
   translucent?: boolean;
 }) {
@@ -69,7 +72,7 @@ export function PersonStatsCard({
         ][])
       : []),
     ['Quality', rel.quality === null ? 'Not rated' : QUALITY_LABELS[rel.quality]],
-    ['Network', network],
+    ...(group ? [] : ([['Network', network]] as [string, string][])),
   ];
 
   const doubleTap = Gesture.Tap()
@@ -129,6 +132,24 @@ export function PersonStatsCard({
                 style={{ color: t.accent, fontWeight: '600', textDecorationLine: 'underline' }}
               >
                 Set ideal
+              </Text>
+            )}
+          </Text>
+        </View>
+      )}
+      {group && (
+        <View style={styles.row}>
+          <Text style={[styles.key, { color: t.muted }]}>Members</Text>
+          <Text style={[styles.value, { color: t.text }]}>
+            {group.members}
+            {group.members > 0 ? ' · ' : ''}
+            {group.members > 0 && (
+              <Text
+                onPress={group.onToggle}
+                accessibilityRole="button"
+                style={{ color: t.accent, fontWeight: '600', textDecorationLine: 'underline' }}
+              >
+                {group.collapsed ? 'Expand' : 'Collapse'}
               </Text>
             )}
           </Text>

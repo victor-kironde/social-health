@@ -1,4 +1,5 @@
 import { DAY, computeScore, explain, type RelationshipContribution } from '@sg/score-engine';
+import { groupIds } from '../data/kinds';
 import { Link, router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -37,7 +38,10 @@ export default function People() {
   const names = useMemo(() => new Map(log.people.map((p) => [p.id, p.displayName])), [log.people]);
   const byImportance = (a: RelationshipContribution, b: RelationshipContribution) =>
     b.importance - a.importance || (names.get(a.personId) ?? '').localeCompare(names.get(b.personId) ?? '');
-  const people = result.relationships.filter((r) => !RETIRED.has(r.state)).sort(byImportance);
+  const groupSet = groupIds(log.people);
+  const active = result.relationships.filter((r) => !RETIRED.has(r.state)).sort(byImportance);
+  const people = active.filter((r) => !groupSet.has(r.personId));
+  const groupRels = active.filter((r) => groupSet.has(r.personId));
   const retired = result.relationships.filter((r) => RETIRED.has(r.state)).sort(byImportance);
 
   // With the score hidden, keep explanations about people, not about points.
@@ -166,6 +170,15 @@ export default function People() {
             {people.length} {people.length === 1 ? 'person' : 'people'}
           </Label>
           {people.map(row)}
+        </Card>
+      )}
+
+      {groupRels.length > 0 && (
+        <Card style={{ gap: 0 }}>
+          <Label>
+            {groupRels.length} {groupRels.length === 1 ? 'group' : 'groups'}
+          </Label>
+          {groupRels.map(row)}
         </Card>
       )}
 

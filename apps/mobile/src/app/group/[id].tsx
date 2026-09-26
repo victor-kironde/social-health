@@ -4,6 +4,7 @@ import { Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { MAX_GROUP_NAME, validateGroup } from '../../data/groups';
+import { onlyPeople } from '../../data/kinds';
 import { useModelConfig } from '../../data/prefs';
 import { useStore } from '../../data/store';
 import { Button, Label, MultiChoiceChips } from '../../ui/components';
@@ -25,7 +26,7 @@ export default function GroupEditor() {
   const config = useModelConfig();
   const people = useMemo(() => {
     const rels = resolveRelationships(log.relationshipEvents, config, Date.now());
-    return log.people
+    return onlyPeople(log.people)
       .filter((p) => !['archived', 'in_memoriam'].includes(rels.get(p.id)?.state ?? 'active') || members.includes(p.id))
       .sort((a, b) => a.displayName.localeCompare(b.displayName));
   }, [log, members, config]);

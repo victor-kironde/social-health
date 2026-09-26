@@ -83,7 +83,8 @@ export function appendToLog(log: EventLog, events: StoredEvent[]): EventLog {
       case 'person': {
         // Re-recording a person replaces their profile (e.g. a rename).
         const i = next.people.findIndex((p) => p.id === e.body.id);
-        if (i >= 0) next.people[i] = e.body;
+        // Merge, so a rename never loses what the record is (e.g. a group).
+        if (i >= 0) next.people[i] = { ...next.people[i]!, ...e.body };
         else next.people.push(e.body);
         break;
       }

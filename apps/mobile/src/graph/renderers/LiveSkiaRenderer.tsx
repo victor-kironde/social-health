@@ -1,4 +1,4 @@
-import { Canvas, Group, Picture, PointMode, StrokeCap, type SkPaint } from '@shopify/react-native-skia';
+import { Canvas, Group, Picture, PointMode, Skia, StrokeCap, type SkPaint } from '@shopify/react-native-skia';
 import type { Category } from '@sg/score-engine';
 import { groupHealthColour, type HealthBand } from '../../data/health';
 import { spanningEdges } from '../arrange';
@@ -29,6 +29,11 @@ interface NodeSpec {
   bridgeRing: SkPaint | null;
   /** Per-node phase offset so pulses are not in lockstep. */
   phase: number;
+  /** Groups are drawn as rounded squares. */
+  square: boolean;
+  /** Under a collapsed group's name: "+12 hidden". */
+  badge: string;
+  badgeDx: number;
 }
 
 interface EdgeSpec {
@@ -122,10 +127,14 @@ function LiveSkia({
       const initial = encode.initial(n.label);
       const label = style.showLabels ? encode.shortLabel(n.label) : '';
       const image = n.photo ? photoImage(n.id, n.photo) : null;
+      const badge = n.isGroup && n.collapsed && n.memberCount ? `+${n.memberCount} inside` : '';
       nodes.push({
         i,
         r: n.radius,
-        photo: image ? photoSpec(image, alpha) : null,
+        square: !!n.isGroup,
+        badge,
+        badgeDx: badge ? centreOffset(badge, fonts.label) : 0,
+        photo: image && !n.isGroup ? photoSpec(image, alpha) : null,
         fill: paint(c.card, { alpha }),
         ring: paint(encode.ringColour(n, style), { stroke: 4, alpha }),
         bridgeRing: n.bridge ? paint(c.text, { stroke: 1.5, alpha: 0.7 * alpha }) : null,
@@ -307,12 +316,20 @@ function LiveSkia({
       for (const n of specs.nodes) {
         const x = xy[2 * n.i]!;
         const y = xy[2 * n.i + 1]!;
-        if (n.photo) drawPhoto(canvas, n.photo, x, y, n.r);
-        else canvas.drawCircle(x, y, n.r, n.fill);
-        canvas.drawCircle(x, y, n.r, n.ring);
+        if (n.square) {
+          // A group: a rounded square, so it never reads as one person.
+          const box = Skia.RRectXY(Skia.XYWHRect(x - n.r, y - n.r, 2 * n.r, 2 * n.r), n.r * 0.35, n.r * 0.35);
+          canvas.drawRRect(box, n.fill);
+          canvas.drawRRect(box, n.ring);
+        } else {
+          if (n.photo) drawPhoto(canvas, n.photo, x, y, n.r);
+          else canvas.drawCircle(x, y, n.r, n.fill);
+          canvas.drawCircle(x, y, n.r, n.ring);
+        }
         if (n.bridgeRing) canvas.drawCircle(x, y, n.r + BRIDGE_GAP, n.bridgeRing);
         if (!n.photo) canvas.drawText(n.initial, x + n.initialDx, y + 5, n.text, fonts.initial);
         if (n.label) canvas.drawText(n.label, x + n.labelDx, y + n.r + 13, n.labelPaint, fonts.label);
+        if (n.badge) canvas.drawText(n.badge, x + n.badgeDx, y + n.r + (n.label ? 26 : 13), n.labelPaint, fonts.label);
       }
       if (specs.selected) {
         const sel = specs.selected;

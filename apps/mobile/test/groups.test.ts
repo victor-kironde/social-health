@@ -38,3 +38,53 @@ describe('groups', () => {
     expect(replace.map((e) => (e.body as PersonGroup).members)).toEqual([['p2'], []]);
   });
 });
+
+describe('groups as relationships', () => {
+  const ids = () => {
+    let n = 0;
+    return () => `g${n++}`;
+  };
+
+  it('a group gets its own entry (kind group, type Other) and is scored like a person', async () => {
+    const { groupEntityEvents } = await import('../src/data/groups');
+    const { computeScore, DEFAULT_CONFIG } = await import('@sg/score-engine');
+    const { newInteractionEvents } = await import('../src/data/interactions');
+    const now = Date.UTC(2026, 9, 11);
+    const next = ids();
+    const events = [
+      ...groupEntityEvents({ id: 'patients', name: 'Patients' }, now - 100 * 86_400_000, next),
+      ...newInteractionEvents({ participants: ['patients'], type: 'in_person', daysAgo: 2, newPeople: 5 }, now, 0, next),
+    ];
+    const log = logFromRows(events.map(toRow));
+    expect(log.people[0]).toMatchObject({ id: 'patients', kind: 'group', displayName: 'Patients' });
+    expect(log.interactions[0]!.newPeople).toBe(5);
+    const r = computeScore(log, DEFAULT_CONFIG, now).relationships[0]!;
+    expect(r.personId).toBe('patients');
+    expect(r.category).toBe('other');
+    expect(r.lastContactAgeDays).toBeCloseTo(2, 6);
+  });
+
+  it('a rename keeps it a group', async () => {
+    const { groupEntityEvents, groupRenameEvent } = await import('../src/data/groups');
+    const next = ids();
+    const log = logFromRows([...groupEntityEvents({ id: 'g', name: 'Club' }, 1, next), groupRenameEvent('g', 'Book club', 2, next)].map(toRow));
+    expect(log.people[0]).toMatchObject({ kind: 'group', displayName: 'Book club' });
+  });
+
+  it('people named at a group catch-up join it; groups and existing members are not added', async () => {
+    const { joinFromCatchUp } = await import('../src/data/groups');
+    const groups = [g('patients', 'Patients', ['ana']), g('team', 'Team', [])];
+    const joined = joinFromCatchUp(groups, ['patients', 'ana', 'ben', 'team']);
+    expect(joined).toHaveLength(2);
+    expect(joined.find((x) => x.id === 'patients')!.members).toEqual(['ana', 'ben']);
+    expect(joined.find((x) => x.id === 'team')!.members).toEqual(['ana', 'ben']);
+    expect(joinFromCatchUp(groups, ['ana', 'ben'])).toEqual([]); // no group there
+  });
+
+  it('rejects a bad count of new people', async () => {
+    const { validateInteraction } = await import('../src/data/interactions');
+    expect(validateInteraction({ participants: ['g'], type: 'in_person', daysAgo: 0, newPeople: -1 })).toMatch(/new people/);
+    expect(validateInteraction({ participants: ['g'], type: 'in_person', daysAgo: 0, newPeople: 1.5 })).toMatch(/new people/);
+    expect(validateInteraction({ participants: ['g'], type: 'in_person', daysAgo: 0, newPeople: 12 })).toBeNull();
+  });
+});

@@ -1,4 +1,5 @@
 import { computeScore, type RelationshipContribution } from '@sg/score-engine';
+import { isGroup } from '../../data/kinds';
 import { goBack } from '../../ui/nav';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useRef, useState } from 'react';
@@ -41,20 +42,24 @@ export default function PersonDetail() {
       </View>
     );
   }
-  return <PersonEditor personId={id} name={person.displayName} rel={contribution} />;
+  return <PersonEditor personId={id} name={person.displayName} rel={contribution} asGroup={isGroup(person)} />;
 }
 
 function PersonEditor({
   personId,
   name,
   rel,
+  asGroup,
 }: {
   personId: string;
   name: string;
   rel: RelationshipContribution;
+  /** This is a group (a relationship with a group as a whole). */
+  asGroup: boolean;
 }) {
   const t = useTheme();
-  const { log, updatePerson, deletePerson, photos, setPhoto, groups, updateGroup } = useStore();
+  const { log, updatePerson, deletePerson, deleteGroup, photos, setPhoto, groups, updateGroup } = useStore();
+  const thisGroup = asGroup ? groups.find((g) => g.id === personId) : undefined;
   // Opened from "Set ideal": scroll straight to that question once it is laid out.
   const { focus } = useLocalSearchParams<{ focus?: string }>();
   const scroller = useRef<ScrollView>(null);
@@ -135,7 +140,8 @@ function PersonEditor({
         onPress: async () => {
           setSaving(true);
           try {
-            await deletePerson(personId);
+            if (asGroup) await deleteGroup(personId);
+            else await deletePerson(personId);
             goBack();
           } catch (e) {
             setError(`Could not delete: ${String(e)}`);
@@ -216,6 +222,7 @@ function PersonEditor({
                   <Text style={{ color: t.text, flexShrink: 1 }}>
                     {INTERACTION_LABELS[x.type]}
                     {others.length > 0 ? ` with ${others.join(', ')}` : ''}
+                    {x.newPeople ? ` · ${x.newPeople} new ${x.newPeople === 1 ? 'person' : 'people'}` : ''}
                   </Text>
                   <Text style={{ color: t.muted }}>{formatDate(x.ts)}</Text>
                 </View>
@@ -230,6 +237,23 @@ function PersonEditor({
         )}
       </Card>
 
+      {asGroup ? (
+        <Card>
+          <Label>Members ({thisGroup?.members.length ?? 0})</Label>
+          <Text style={{ color: t.text, lineHeight: 20 }}>
+            {thisGroup && thisGroup.members.length
+              ? thisGroup.members.map((m) => names.get(m) ?? '?').sort().join(', ')
+              : 'Nobody yet. Anyone you tick at a catch-up with this group joins it.'}
+          </Text>
+          <View style={{ marginTop: 10 }}>
+            <Button
+              title="Edit members"
+              variant="secondary"
+              onPress={() => router.push({ pathname: '/group/[id]', params: { id: personId } })}
+            />
+          </View>
+        </Card>
+      ) : (
       <Card>
         <Label>Groups</Label>
         {groups.length === 0 ? (
@@ -247,6 +271,7 @@ function PersonEditor({
           />
         </View>
       </Card>
+      )}
 
       <PersonFields
         onIdealLayout={onIdealLayout}

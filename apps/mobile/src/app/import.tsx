@@ -1,4 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
+import { onlyPeople } from '../data/kinds';
 import { goBack } from '../ui/nav';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Linking, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -34,7 +35,7 @@ export default function ImportContacts() {
     try {
       const access = await readContactNames();
       if (access.status === 'denied') setPhase({ kind: 'denied', canAskAgain: access.canAskAgain });
-      else setPhase({ kind: 'choose', candidates: contactCandidates(access.names, log.people.map((p) => p.displayName)) });
+      else setPhase({ kind: 'choose', candidates: contactCandidates(access.names, onlyPeople(log.people).map((p) => p.displayName)) });
     } catch (e) {
       setError(`Could not read contacts: ${String(e)}`);
       setPhase({ kind: 'intro' });

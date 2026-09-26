@@ -1,4 +1,5 @@
 import { DAY, type EventLog } from '@sg/score-engine';
+import { onlyPeople } from './kinds';
 import { PermissionsAndroid, Platform } from 'react-native';
 import CallLog from '../../modules/call-log/src/CallLogModule';
 import { matchCalls, type CallMatch } from './callImport';
@@ -28,7 +29,8 @@ export async function collectCalls(log: EventLog, existingIds: Set<string>, conn
   const newest = Math.max(0, ...(log.calls ?? []).map((c) => c.ts));
   const since = newest > 0 ? newest - 1 : Date.now() - CALL_HISTORY_DAYS * DAY;
   const calls = await CallLog.getCalls(since);
-  const match = matchCalls(calls, log.people, existingIds);
+  // Calls are only ever matched to people, never to a group's name.
+  const match = matchCalls(calls, onlyPeople(log.people), existingIds);
   if (connect) {
     const source: StoredEvent = { id: 'source:call_log', ts: Date.now(), kind: 'source', body: { source: 'call_log' } };
     match.events.unshift(source);

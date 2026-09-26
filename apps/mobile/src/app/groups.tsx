@@ -13,8 +13,9 @@ export default function Groups() {
   return (
     <ScrollView contentContainerStyle={styles.content}>
       <Text style={{ color: t.muted, lineHeight: 20 }}>
-        Groups are your own circles, like a book club or old university friends. Someone can be in several. On the
-        graph you can show groups as the shaded areas, and filter by them.
+        Groups are relationships with a group as a whole, like a team, a book club or your patients. You can log
+        catch-ups with a group, set how important it is and how often you hope to meet, and it appears on your graph
+        with lines to its members. Someone can be in several groups.
       </Text>
       <Button title="New group" onPress={() => router.push({ pathname: '/group/[id]', params: { id: 'new' } })} />
       {groups.length === 0 ? (
@@ -25,7 +26,7 @@ export default function Groups() {
             <Pressable
               key={g.id}
               accessibilityRole="button"
-              onPress={() => router.push({ pathname: '/group/[id]', params: { id: g.id } })}
+              onPress={() => router.push({ pathname: '/person/[id]', params: { id: g.id } })}
               style={({ pressed }) => [
                 styles.row,
                 i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.border },

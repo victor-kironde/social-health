@@ -174,7 +174,7 @@ export default function GraphHelp() {
         <Swatch colour={c.community}>community</Swatch> and <Swatch colour={c.other}>other</Swatch>.
       </Item>
       <Item
-        title="Your own groups"
+        title="Groups"
         art={
           <Art>
             <Circle cx={26} cy={30} r={16} fill={t.groups[0]} opacity={0.25} />
@@ -183,9 +183,11 @@ export default function GraphHelp() {
           </Art>
         }
       >
-        Make your own groups, like a book club or old university friends, from the People page or anyone's page.
-        In Display & filters you can show your groups as the shaded areas instead of relationship types, and show
-        only the people in chosen groups.
+        A group, like a team, a book club or your patients, is a relationship of its own. It appears as a rounded
+        square, with thin lines to its members, and has its own importance, rhythm and ideal. Log a catch-up "with a
+        group": tick anyone you know who was there (they join the group) and add how many new people there were (only
+        the number is kept). Tap a group to collapse its members into it, or expand them again. In Display & filters
+        you can also show groups as the shaded areas, or show only their people.
       </Item>
 
       <Heading>Lines</Heading>

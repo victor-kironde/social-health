@@ -41,6 +41,12 @@ export interface GraphNode {
   group: number | null;
   /** Ties reach into another group: drawn with an extra outer ring. */
   bridge: boolean;
+  /** A group (a relationship with a group as a whole), drawn as a rounded square. */
+  isGroup?: boolean;
+  /** For a group: how many members it has. */
+  memberCount?: number;
+  /** For a group: its members are hidden (collapsed into it). */
+  collapsed?: boolean;
 }
 
 export const RECENT_DAYS = 7;
@@ -62,6 +68,8 @@ export interface EgoEdge {
 export interface TieEdge {
   id: string;
   kind: 'tie';
+  /** A group-to-member link rather than an inferred tie between two people. */
+  member?: boolean;
   source: string;
   target: string;
   weight: number;
@@ -226,6 +234,10 @@ export function edgeStroke(e: GraphEdge, s: GraphStyle): EdgeStroke {
       width: encode.edgeWidth(e.importance) + (selected ? encode.selectedWidthBoost : 0),
       opacity: selected ? 1 : encode.edgeOpacity(e),
     };
+  }
+  if (e.member) {
+    // Group to member: a light line in the accent colour, distinct from inferred ties.
+    return { colour: selected ? s.colours.accent : s.colours.accent, width: 1.2, opacity: selected ? 1 : 0.35 };
   }
   // Weights are snapped to a few bands so renderers can batch ties into one path per band.
   const w = tieBand(e.weight);

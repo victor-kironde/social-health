@@ -8,6 +8,7 @@ import { relationshipHealth } from '../data/health';
 import { hasSeenIntro } from '../data/onboarding';
 import { usePrefs, useModelConfig } from '../data/prefs';
 import { membership } from '../data/groups';
+import { groupIds, isGroup } from '../data/kinds';
 import { mixHex } from '../data/health';
 import { restrictLog } from '../data/subset';
 import { SCENARIO_AS_OF, findScenario, scenarioNames } from '../data/scenarioCatalog';
@@ -21,7 +22,7 @@ import { personStats } from '../graph/personStats';
 import { GraphCanvas } from '../graph/GraphCanvas';
 import { demoNetwork } from '../graph/demo';
 import { layoutEgoGraph, type Point } from '../graph/layout';
-import { ME_ID, buildGraph, type GraphStyle, type LivePositions } from '../graph/model';
+import { ME_ID, buildGraph, type GraphEdge, type GraphStyle, type LivePositions } from '../graph/model';
 import { useLiveSimulation, type SettleStats } from '../graph/physics/useLiveSimulation';
 import { networkMetrics } from '../graph/metrics';
 import { deriveTies, tieSignature } from '../graph/ties';
@@ -99,7 +100,9 @@ export default function GraphScreen() {
     const cfg = scenario ? DEFAULT_CONFIG : config;
     const score = computeScore(source, cfg, now);
     const rels = score.relationships.filter((r) => !RETIRED.has(r.state));
-    const ties = deriveTies(source.interactions, now, new Set(rels.map((r) => r.personId)));
+    // Links between people come only from people, not groups.
+    const groupsHere = groupIds(source.people);
+    const ties = deriveTies(source.interactions, now, new Set(rels.map((r) => r.personId).filter((id) => !groupsHere.has(id))));
     return {
       relationships: rels,
       names: scenario ? scenarioNames(source) : new Map(log.people.map((p) => [p.id, p.displayName])),
@@ -110,11 +113,26 @@ export default function GraphScreen() {
     };
   }, [log, demoSize, demoLinks, scenario, config]);
   const byId = useMemo(() => new Map(relationships.map((r) => [r.personId, r])), [relationships]);
-  // Network structure over everyone shown on the graph (filters only hide; they do not change it).
+  /** Which relationships are groups (a relationship with a group as a whole). */
+  const groupIdSet = useMemo(() => groupIds(sourceLog?.people ?? []), [sourceLog]);
+  // Network structure over the people shown on the graph (filters only hide; they do not change it).
   const metrics = useMemo(
-    () => networkMetrics(relationships.map((r) => r.personId), ties.map((t) => ({ a: t.a, b: t.b, weight: t.weight }))),
-    [relationships, ties],
+    () =>
+      networkMetrics(
+        relationships.map((r) => r.personId).filter((id) => !groupIdSet.has(id)),
+        ties.map((t) => ({ a: t.a, b: t.b, weight: t.weight })),
+      ),
+    [relationships, ties, groupIdSet],
   );
+  // Groups whose members are hidden (collapsed into the group's node).
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
+  const toggleCollapsed = (id: string) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   const bridges = useMemo(() => [...metrics.nodes.values()].filter((m) => m.groupsTouched >= 2).length, [metrics]);
   // Your own groups (never in samples), and whether the shaded areas show them instead of types.
   const myGroups = useMemo(() => (sample ? [] : groups), [sample, groups]);
@@ -145,7 +163,14 @@ export default function GraphScreen() {
       })),
     [relationships, tiers, radii, areasOf],
   );
-  const links = useMemo(() => ties.map((t) => ({ source: t.a, target: t.b, weight: t.weight })), [ties]);
+  // Layout links: ties between people, and each group to its members (so groups sit near them).
+  const links = useMemo(
+    () => [
+      ...ties.map((t) => ({ source: t.a, target: t.b, weight: t.weight })),
+      ...myGroups.flatMap((g) => (byId.has(g.id) ? g.members.filter((m) => byId.has(m)).map((m) => ({ source: g.id, target: m, weight: 1 })) : [])),
+    ],
+    [ties, myGroups, byId],
+  );
   // A remembered layout built without the current ties, rings, sizes or types should relax into them.
   const signature = useMemo(
     () =>
@@ -202,7 +227,12 @@ export default function GraphScreen() {
     }, [isLive, reducedMotion, pulse]),
   );
 
-  const visible = useMemo(() => applyFilters(relationships, options, groupsOf), [relationships, options, groupsOf]);
+  const visible = useMemo(() => {
+    const shown = applyFilters(relationships, options, groupsOf);
+    // Members of a collapsed group are hidden inside its node.
+    const hidden = new Set(myGroups.filter((g) => collapsed.has(g.id)).flatMap((g) => g.members));
+    return shown.filter((r) => !hidden.has(r.personId) || groupIdSet.has(r.personId));
+  }, [relationships, options, groupsOf, myGroups, collapsed, groupIdSet]);
   // With filters on, the score describes only the people shown (e.g. just family).
   const filtered = activeFilterCount(options) > 0;
   const shownTotal = useMemo(() => {
@@ -273,9 +303,27 @@ export default function GraphScreen() {
   const [renderMs, setRenderMs] = useState<number | null>(null);
   const graph = useMemo(() => {
     renderStart.current = performance.now();
-    const g = buildGraph(visible, names, ties, metrics.nodes, radii, sample ? undefined : photos);
-    return groupAreas ? { ...g, nodes: g.nodes.map((n) => ({ ...n, areas: groupsOf.get(n.id) ?? [] })) } : g;
-  }, [visible, names, ties, metrics, radii, photos, sample, groupAreas, groupsOf]);
+    const built = buildGraph(visible, names, ties, metrics.nodes, radii, sample ? undefined : photos);
+    const shown = new Set(visible.map((r) => r.personId));
+    const memberOf = new Map(myGroups.map((g) => [g.id, g]));
+    const nodes = built.nodes.map((n) => {
+      const g = memberOf.get(n.id);
+      return {
+        ...n,
+        ...(groupAreas ? { areas: groupsOf.get(n.id) ?? [] } : {}),
+        ...(groupIdSet.has(n.id) ? { isGroup: true, memberCount: g?.members.length ?? 0, collapsed: collapsed.has(n.id) } : {}),
+      };
+    });
+    // Each shown group to its shown members.
+    const memberEdges: GraphEdge[] = myGroups.flatMap((g) =>
+      shown.has(g.id)
+        ? g.members
+            .filter((m) => shown.has(m))
+            .map((m) => ({ id: `member:${g.id}|${m}`, kind: 'tie' as const, member: true, source: g.id, target: m, weight: 1, count: 0, lastTs: 0 }))
+        : [],
+    );
+    return { nodes, edges: [...memberEdges, ...built.edges] };
+  }, [visible, names, ties, metrics, radii, photos, sample, groupAreas, groupsOf, myGroups, groupIdSet, collapsed]);
   // A selection that is filtered out of view simply disappears.
   const selectedPerson =
     selectedPersonId && graph.nodes.some((n) => n.id === selectedPersonId) ? byId.get(selectedPersonId) ?? null : null;
@@ -487,6 +535,15 @@ export default function GraphScreen() {
                         router.push({ pathname: '/person/[id]', params: { id: selectedPerson.personId, focus: 'ideal' } })
                 }
                 onClose={() => setSelectedPersonId(null)}
+                group={
+                  groupIdSet.has(selectedPerson.personId)
+                    ? {
+                        members: myGroups.find((g) => g.id === selectedPerson.personId)?.members.length ?? 0,
+                        collapsed: collapsed.has(selectedPerson.personId),
+                        onToggle: () => toggleCollapsed(selectedPerson.personId),
+                      }
+                    : undefined
+                }
                 translucent
               />
             </View>
