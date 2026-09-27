@@ -25,13 +25,21 @@ export default function LogContact() {
   const { log, logInteraction, groups, addGroup } = useStore();
   const config = useModelConfig();
   // `person` (one id) or `people` (comma-separated ids) preselect who was there.
-  const { person, people: preselected } = useLocalSearchParams<{ person?: string; people?: string }>();
+  // From a planned meetup: its plan and date, how it was planned, and how many days ago it was.
+  const {
+    person,
+    people: preselected,
+    type: typeParam,
+    daysAgo: daysAgoParam,
+    plan: planId,
+    planDate,
+  } = useLocalSearchParams<{ person?: string; people?: string; type?: InteractionType; daysAgo?: string; plan?: string; planDate?: string }>();
 
   const [participants, setParticipants] = useState<string[]>(
     preselected ? preselected.split(',').filter(Boolean) : person ? [person] : [],
   );
-  const [type, setType] = useState<InteractionType>('in_person');
-  const [daysAgo, setDaysAgo] = useState(0);
+  const [type, setType] = useState<InteractionType>(typeParam && typeParam in INTERACTION_LABELS ? typeParam : 'in_person');
+  const [daysAgo, setDaysAgo] = useState(daysAgoParam ? Math.max(0, Number(daysAgoParam) || 0) : 0);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [note, setNote] = useState('');
   const [newPeople, setNewPeople] = useState(0);
@@ -67,7 +75,14 @@ export default function LogContact() {
   }
 
   async function save() {
-    const input = { participants, type, daysAgo, note, ...(chosenGroups.length && newPeople ? { newPeople } : {}) };
+    const input = {
+      participants,
+      type,
+      daysAgo,
+      note,
+      ...(chosenGroups.length && newPeople ? { newPeople } : {}),
+      ...(planId && planDate ? { plan: { id: planId, date: planDate } } : {}),
+    };
     const invalid = validateInteraction(input);
     if (invalid) {
       setError(invalid);

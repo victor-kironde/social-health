@@ -1,24 +1,27 @@
 import { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { MONTH_NAMES, addMonths, daysBetween, localDate, monthGrid, type LocalDate } from './calendar';
+import { MONTH_NAMES, addMonths, dateDaysAgo, daysBetween, localDate, monthGrid, type LocalDate } from './calendar';
 import { useTheme } from './theme';
 
 const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
 /**
- * A month calendar for choosing a past day (today back to `maxDaysAgo`). Returns the choice as
- * calendar days ago, which is how catch-ups are recorded.
+ * A month calendar for choosing a day from `maxDaysAgo` back to `maxDaysAhead` ahead (by default
+ * only past days). Returns the choice as calendar days ago (negative = ahead), which is how
+ * catch-ups are recorded.
  */
 export function CalendarPicker({
   visible,
   daysAgo,
   maxDaysAgo,
+  maxDaysAhead = 0,
   onPick,
   onClose,
 }: {
   visible: boolean;
   daysAgo: number;
   maxDaysAgo: number;
+  maxDaysAhead?: number;
   onPick: (daysAgo: number) => void;
   onClose: () => void;
 }) {
@@ -27,12 +30,13 @@ export function CalendarPicker({
   const [shown, setShown] = useState(() => ({ year: today.year, month: today.month }));
   const weeks = monthGrid(shown.year, shown.month);
   const canBack = daysBetween({ ...shown, day: 1 }, today) <= maxDaysAgo;
-  const canForward = shown.year * 12 + shown.month < today.year * 12 + today.month;
+  const lastDay = dateDaysAgo(today, -maxDaysAhead);
+  const canForward = shown.year * 12 + shown.month < lastDay.year * 12 + lastDay.month;
 
   const dayState = (day: number) => {
     const d: LocalDate = { year: shown.year, month: shown.month, day };
     const ago = daysBetween(d, today);
-    return { ago, enabled: ago >= 0 && ago <= maxDaysAgo, selected: ago === daysAgo, isToday: ago === 0 };
+    return { ago, enabled: ago >= -maxDaysAhead && ago <= maxDaysAgo, selected: ago === daysAgo, isToday: ago === 0 };
   };
 
   return (
@@ -85,7 +89,7 @@ export function CalendarPicker({
             </View>
           ))}
           <Text style={{ color: t.muted, fontSize: 12, textAlign: 'center', marginTop: 8 }}>
-            Up to a year back. Future days can’t be chosen.
+            {maxDaysAhead > 0 ? 'Up to a year back or ahead.' : 'Up to a year back. Future days can’t be chosen.'}
           </Text>
         </Pressable>
       </Pressable>

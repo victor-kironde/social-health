@@ -10,6 +10,8 @@ export interface NewInteractionInput {
   note?: string;
   /** At a group catch-up: how many people were there who are not named (stored as a count only). */
   newPeople?: number;
+  /** When confirming a planned meetup: the plan and which of its dates. */
+  plan?: { id: string; date: string };
 }
 
 export const MAX_NEW_PEOPLE = 999;
@@ -53,6 +55,7 @@ export function newInteractionEvents(
         source: 'manual',
         ...(note ? { note } : {}),
         ...(input.newPeople ? { newPeople: input.newPeople } : {}),
+        ...(input.plan ? { planId: input.plan.id, planDate: input.plan.date } : {}),
       },
     },
   ];

@@ -35,6 +35,10 @@ export function eraseFromLog(events: StoredEvent[], personId: string): { remove:
           replace.push({ ...e, body: { ...e.body, members: e.body.members.filter((m) => m !== personId) } });
         }
         break;
+      case 'plan':
+        // A plan with them goes; past catch-ups were handled above.
+        if (e.body.withId === personId) remove.push(e.id);
+        break;
       default:
         break;
     }

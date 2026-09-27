@@ -63,3 +63,13 @@ export function AddPersonIcon({ colour }: { colour: string }) {
     </Svg>
   );
 }
+
+/** Regular meetups: a calendar with a tick. */
+export function MeetupsIcon({ colour }: { colour: string }) {
+  return (
+    <Svg width={22} height={22} viewBox="0 0 24 24">
+      <Path d="M4.5 5h15A1.5 1.5 0 0 1 21 6.5v13a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 19.5v-13A1.5 1.5 0 0 1 4.5 5z" stroke={colour} {...STROKE} />
+      <Path d="M3 10h18M8 3v4M16 3v4M9 15l2 2 4-4" stroke={colour} {...STROKE} />
+    </Svg>
+  );
+}

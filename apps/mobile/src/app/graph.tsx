@@ -16,7 +16,9 @@ import { useStore } from '../data/store';
 import { ORDER_MEANING, TIER_LABELS, TIER_SET_LINK, layoutSignature, nodeRadii, orderTiers, tierLayout } from '../graph/arrange';
 import { DEFAULT_DISPLAY, activeFilterCount, applyFilters, type DisplayOptions } from '../graph/display';
 import { DisplayPanel } from '../graph/DisplayPanel';
-import { AddPersonIcon, CatchUpIcon, PeopleIcon } from '../graph/icons';
+import { AddPersonIcon, CatchUpIcon, MeetupsIcon, PeopleIcon } from '../graph/icons';
+import { toConfirm } from '../data/plans';
+import { localDate } from '../ui/calendar';
 import { PersonStatsCard } from '../graph/PersonStatsCard';
 import { personStats } from '../graph/personStats';
 import { GraphCanvas } from '../graph/GraphCanvas';
@@ -54,7 +56,8 @@ const PULSE_MS = 2800;
 
 export default function GraphScreen() {
   const t = useTheme();
-  const { log, graphLayout, saveGraphLayout, photos, status, groups } = useStore();
+  const { log, graphLayout, saveGraphLayout, photos, status, groups, plans } = useStore();
+  const pendingMeetups = useMemo(() => toConfirm(plans, log.interactions, localDate(Date.now())).length, [plans, log.interactions]);
   const { prefs } = usePrefs();
   const config = useModelConfig();
   const insets = useSafeAreaInsets();
@@ -489,6 +492,7 @@ export default function GraphScreen() {
                   { key: 'catch-up', label: 'Log a catch-up', Icon: CatchUpIcon, onPress: () => router.push('/log') },
                   { key: 'add', label: 'Add person', Icon: AddPersonIcon, onPress: () => router.push('/person/new') },
                   { key: 'people', label: 'People and score', Icon: PeopleIcon, onPress: () => router.push('/people') },
+                  { key: 'meetups', label: 'Regular meetups', Icon: MeetupsIcon, onPress: () => router.push('/plans') },
                 ]
           }
           onFrameAll={() => setSelectedPersonId(null)}
@@ -516,6 +520,21 @@ export default function GraphScreen() {
               <ScoreRing total={shownTotal} size={46} />
               <Text style={[styles.scoreLabel, { color: t.muted }]}>
                 Social{'\n'}Health{filtered ? '\n(filtered)' : ''}
+              </Text>
+            </Pressable>
+          )}
+          {!sample && pendingMeetups > 0 && !selectedPerson && (
+            <Pressable
+              onPress={() => router.push('/plans')}
+              accessibilityRole="button"
+              accessibilityHint="Opens regular meetups"
+              style={({ pressed }) => [
+                styles.meetups,
+                { backgroundColor: translucent(t.card), borderColor: t.accent, opacity: pressed ? 0.75 : 1 },
+              ]}
+            >
+              <Text style={{ color: t.text, fontSize: 13 }}>
+                {pendingMeetups} meetup{pendingMeetups === 1 ? '' : 's'} to confirm
               </Text>
             </Pressable>
           )}
@@ -604,6 +623,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   scoreLabel: { fontSize: 11, lineHeight: 14 },
+  meetups: { borderRadius: 16, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 6 },
   stats: { alignSelf: 'stretch' },
   legend: { paddingHorizontal: 16, paddingVertical: 10, borderTopWidth: StyleSheet.hairlineWidth, gap: 2 },
   legendText: { fontSize: 12 },

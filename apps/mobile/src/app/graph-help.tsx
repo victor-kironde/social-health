@@ -187,7 +187,9 @@ export default function GraphHelp() {
         square, with thin lines to its members, and has its own importance, rhythm and ideal. Log a catch-up "with a
         group": tick anyone you know who was there (they join the group) and add how many others were there, such as new
         faces or relatives you haven't named (only the number is kept). Tap a group to collapse its members into it, or expand them again. In Display & filters
-        you can also show groups as the shaded areas, or show only their people.
+        you can also show groups as the shaded areas, or show only their people. The calendar button opens regular
+        meetups: plan one (a weekly book club, a monthly call) and after each date the app asks whether it happened.
+        Only the dates you confirm count as catch-ups.
       </Item>
 
       <Heading>Lines</Heading>

@@ -1,4 +1,4 @@
-import type { EventLog, RelationshipSnapshot } from '@sg/score-engine';
+import { resolveRelationships, type EventLog, type ModelConfig, type RelationshipSnapshot } from '@sg/score-engine';
 import { randomUUID } from 'expo-crypto';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { PlacedPoint } from '../graph/layout';
@@ -10,6 +10,9 @@ import {
   deleteCallData,
   deleteEverything,
   deleteGroup as dbDeleteGroup,
+  deletePlan as dbDeletePlan,
+  loadPlans,
+  savePlan as dbSavePlan,
   erasePerson,
   loadGraphLayout,
   loadGroups,
@@ -22,6 +25,7 @@ import {
 } from './db';
 import { newInteractionEvents, type NewInteractionInput } from './interactions';
 import { groupEntityEvents, groupRenameEvent, joinFromCatchUp, type PersonGroup } from './groups';
+import { planRhythmEvents, type Plan } from './plans';
 import { editPersonEvents, newPersonEvents, type NewPersonInput, type PersonDraft } from './people';
 
 interface Store {
@@ -56,6 +60,14 @@ interface Store {
   updateGroup(group: PersonGroup): Promise<void>;
   /** Deletes a group for good (its people are untouched). */
   deleteGroup(groupId: string): Promise<void>;
+  /** Planned regular meetups, oldest first. */
+  plans: Plan[];
+  /** Saves a new or edited plan, keeping the relationship's rhythm in step where the plan owns it. */
+  savePlan(plan: Plan, config: ModelConfig): Promise<void>;
+  /** Deletes a plan (catch-ups already confirmed from it stay). */
+  deletePlan(planId: string): Promise<void>;
+  /** Marks one planned date as not having happened. */
+  skipPlanDate(planId: string, date: string): Promise<void>;
   /** Erases a person and everything recorded about them (see erase.ts). */
   deletePerson(personId: string): Promise<void>;
   /** Deletes the whole database and its key; the app starts again empty. */
@@ -70,6 +82,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [photos, setPhotos] = useState<Map<string, string>>(() => new Map());
   const [groups, setGroups] = useState<PersonGroup[]>([]);
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const plansRef = useRef(plans);
+  plansRef.current = plans;
   const groupsRef = useRef(groups);
   groupsRef.current = groups;
   const graphLayout = useRef<SavedLayout>({ positions: new Map(), tieSignature: '' }).current;
@@ -77,8 +92,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   logRef.current = log;
 
   useEffect(() => {
-    Promise.all([loadRows(), loadGraphLayout(), loadPhotos(), loadGroups()])
-      .then(async ([rows, layout, savedPhotos, savedGroups]) => {
+    Promise.all([loadRows(), loadGraphLayout(), loadPhotos(), loadGroups(), loadPlans()])
+      .then(async ([rows, layout, savedPhotos, savedGroups, savedPlans]) => {
+        setPlans(savedPlans);
         setPhotos(savedPhotos);
         setGroups(savedGroups);
         layout.positions.forEach((p, id) => graphLayout.positions.set(id, p));
@@ -232,15 +248,44 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       await dbDeleteGroup(groupId);
       graphLayout.positions.delete(groupId);
       setGroups((prev) => prev.filter((g) => g.id !== groupId));
+      setPlans(await loadPlans());
       setLog(logFromRows(await loadRows()));
     },
     [graphLayout],
   );
 
+  const savePlan = useCallback(
+    async (plan: Plan, config: ModelConfig) => {
+      const before = plansRef.current.find((p) => p.id === plan.id);
+      const now = Date.now();
+      const rel = resolveRelationships(logRef.current.relationshipEvents, config, now).get(plan.withId);
+      const { events, setRhythm } = rel
+        ? planRhythmEvents(plan, before, rel, now, randomUUID)
+        : { events: [], setRhythm: false };
+      await dbSavePlan({ ...plan, setRhythm });
+      if (events.length) await commit(events);
+      setPlans(await loadPlans());
+    },
+    [commit],
+  );
+
+  const deletePlan = useCallback(async (planId: string) => {
+    await dbDeletePlan(planId);
+    setPlans((prev) => prev.filter((p) => p.id !== planId));
+  }, []);
+
+  const skipPlanDate = useCallback(async (planId: string, date: string) => {
+    const plan = plansRef.current.find((p) => p.id === planId);
+    if (!plan) return;
+    await dbSavePlan({ ...plan, skipped: [...plan.skipped, date] });
+    setPlans(await loadPlans());
+  }, []);
+
   const deletePerson = useCallback(
     async (personId: string) => {
       await erasePerson(personId);
       setGroups(await loadGroups());
+      setPlans(await loadPlans());
       graphLayout.positions.delete(personId);
       setPhotos((prev) => {
         const next = new Map(prev);
@@ -259,6 +304,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     graphLayout.tieSignature = '';
     setPhotos(new Map());
     setGroups([]);
+    setPlans([]);
     setLog(emptyLog());
   }, [graphLayout]);
 
@@ -282,6 +328,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       addGroup,
       updateGroup,
       deleteGroup,
+      plans,
+      savePlan,
+      deletePlan,
+      skipPlanDate,
       loadSample,
       deletePerson,
       deleteAllData,
@@ -305,6 +355,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       addGroup,
       updateGroup,
       deleteGroup,
+      plans,
+      savePlan,
+      deletePlan,
+      skipPlanDate,
       loadSample,
       deletePerson,
       deleteAllData,

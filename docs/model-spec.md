@@ -38,6 +38,13 @@ named at a group catch-up becomes a member automatically (app-side), and members
 can also be chosen by hand. Group membership affects the graph (member links,
 collapse/expand) but not the score.
 
+**Planned meetups.** A plan (every N days, weeks or months with a person or group)
+is app-side only. A planned date becomes an ordinary interaction only when the
+user confirms it happened (it then carries `planId`/`planDate`, which scoring
+ignores); skipped or unanswered dates add nothing. Saving a plan sets the
+relationship's rhythm to match it, rounded down so it never asks for more than
+the plan, unless the user has chosen a rhythm themselves.
+
 ## Per-relationship quantities
 
 For relationship *i* at time *t*:

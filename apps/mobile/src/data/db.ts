@@ -6,6 +6,7 @@ import type { PlacedPoint } from '../graph/layout';
 import { fromRow, toRow, type EventRow, type StoredEvent } from './codec';
 import { eraseFromLog } from './erase';
 import { groupEvent, groupsFromEvents, type PersonGroup } from './groups';
+import { planEvent, plansFromEvents, type Plan } from './plans';
 
 const KEY_NAME = 'db-key-v1';
 const DB_NAME = 'social-graph.db';
@@ -145,6 +146,27 @@ export async function saveGroup(group: PersonGroup): Promise<void> {
 export async function deleteGroup(groupId: string): Promise<void> {
   const db = await openDb();
   await db.runAsync('DELETE FROM event WHERE id = ?;', [`group:${groupId}`]);
+}
+
+/** Your planned regular meetups (see plans.ts). */
+export async function loadPlans(): Promise<Plan[]> {
+  return plansFromEvents(await loadEvents());
+}
+
+/** Saves a plan's current state, replacing any earlier record of it. */
+export async function savePlan(plan: Plan): Promise<void> {
+  const db = await openDb();
+  const row = toRow(planEvent(plan, Date.now()));
+  await db.withTransactionAsync(async () => {
+    await db.runAsync('DELETE FROM event WHERE id = ?;', [row.id]);
+    await db.runAsync('INSERT INTO event (id, kind, ts, body) VALUES (?, ?, ?, ?);', [row.id, row.kind, row.ts, row.body]);
+  });
+}
+
+/** Deletes a plan for good (catch-ups already confirmed from it stay). */
+export async function deletePlan(planId: string): Promise<void> {
+  const db = await openDb();
+  await db.runAsync('DELETE FROM event WHERE id = ?;', [`plan:${planId}`]);
 }
 
 /** Every person's photo (base64 JPEG), by person id. */

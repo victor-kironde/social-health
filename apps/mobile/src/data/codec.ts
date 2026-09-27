@@ -10,6 +10,7 @@ import type {
   Timestamp,
 } from '@sg/score-engine';
 import type { PersonGroup } from './groups';
+import type { Plan } from './plans';
 
 /**
  * Everything the app records is one row in the append-only `event` table.
@@ -26,7 +27,9 @@ export type StoredEvent =
   /** A passive data source being connected (e.g. the call log). Disconnecting deletes it. */
   | { id: string; ts: Timestamp; kind: 'source'; body: { source: 'call_log' } }
   /** One of your own groups (current state; see groups.ts). Not part of the scoring log. */
-  | { id: string; ts: Timestamp; kind: 'group'; body: PersonGroup };
+  | { id: string; ts: Timestamp; kind: 'group'; body: PersonGroup }
+  /** A planned regular meetup (current state; see plans.ts). Not part of the scoring log. */
+  | { id: string; ts: Timestamp; kind: 'plan'; body: Plan };
 
 export interface EventRow {
   id: string;
@@ -61,6 +64,7 @@ export function fromRow(row: EventRow): StoredEvent | null {
     case 'call':
     case 'source':
     case 'group':
+    case 'plan':
       return { id: row.id, ts: row.ts, kind: row.kind, body } as StoredEvent;
     default:
       return null;

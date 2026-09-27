@@ -75,6 +75,10 @@ export interface Interaction {
   note?: string;
   /** People at a group catch-up who were not named (e.g. new patients): a count only, never names. */
   newPeople?: number;
+  /** A planned regular meetup this confirms (app-side; never used in scoring). */
+  planId?: string;
+  /** Which planned date ("2026-10-23") it confirms. */
+  planDate?: string;
 }
 
 export interface SupportReport {
