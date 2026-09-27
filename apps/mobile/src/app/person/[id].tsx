@@ -222,7 +222,7 @@ function PersonEditor({
                   <Text style={{ color: t.text, flexShrink: 1 }}>
                     {INTERACTION_LABELS[x.type]}
                     {others.length > 0 ? ` with ${others.join(', ')}` : ''}
-                    {x.newPeople ? ` · ${x.newPeople} new ${x.newPeople === 1 ? 'person' : 'people'}` : ''}
+                    {x.newPeople ? ` · ${x.newPeople} ${x.newPeople === 1 ? 'other' : 'others'}` : ''}
                   </Text>
                   <Text style={{ color: t.muted }}>{formatDate(x.ts)}</Text>
                 </View>

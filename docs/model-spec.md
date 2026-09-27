@@ -32,7 +32,7 @@ Both feed frecency. Separating them limits how much the score depends on either
 `Person` with `kind: 'group'` and is scored like any other relationship, with its
 own importance, ideal, rhythm and quality. A group catch-up lists the group as a
 participant alongside any named people, so it counts once for the group and once
-for each named person. People who are not named are recorded only as a count
+for each named person. Others there who are not named (new faces, distant relatives) are recorded only as a count
 (`Interaction.newPeople`), which the engine stores but does not score. Anyone
 named at a group catch-up becomes a member automatically (app-side), and members
 can also be chosen by hand. Group membership affects the graph (member links,

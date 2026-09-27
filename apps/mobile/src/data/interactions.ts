@@ -24,7 +24,7 @@ export function validateInteraction(input: NewInteractionInput): string | null {
   }
   if ((input.note ?? '').length > MAX_NOTE_LENGTH) return `Keep the note under ${MAX_NOTE_LENGTH} characters.`;
   const n = input.newPeople ?? 0;
-  if (!Number.isInteger(n) || n < 0 || n > MAX_NEW_PEOPLE) return 'Enter how many new people, as a whole number.';
+  if (!Number.isInteger(n) || n < 0 || n > MAX_NEW_PEOPLE) return 'Enter how many others were there, as a whole number.';
   return null;
 }
 

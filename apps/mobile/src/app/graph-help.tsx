@@ -185,8 +185,8 @@ export default function GraphHelp() {
       >
         A group, like a team, a book club or your patients, is a relationship of its own. It appears as a rounded
         square, with thin lines to its members, and has its own importance, rhythm and ideal. Log a catch-up "with a
-        group": tick anyone you know who was there (they join the group) and add how many new people there were (only
-        the number is kept). Tap a group to collapse its members into it, or expand them again. In Display & filters
+        group": tick anyone you know who was there (they join the group) and add how many others were there, such as new
+        faces or relatives you haven't named (only the number is kept). Tap a group to collapse its members into it, or expand them again. In Display & filters
         you can also show groups as the shaded areas, or show only their people.
       </Item>
 

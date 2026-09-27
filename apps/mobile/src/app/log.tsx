@@ -116,7 +116,7 @@ export default function LogContact() {
         )}
         {chosenGroups.length > 0 && (
           <View style={styles.newPeople}>
-            <Text style={{ color: t.text, fontSize: 15, flex: 1 }}>New people there (not named)</Text>
+            <Text style={{ color: t.text, fontSize: 15, flex: 1 }}>Others there (not named)</Text>
             <Stepper value={newPeople} min={0} max={MAX_NEW_PEOPLE} onChange={setNewPeople} />
           </View>
         )}

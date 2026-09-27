@@ -81,10 +81,10 @@ describe('groups as relationships', () => {
     expect(joinFromCatchUp(groups, ['ana', 'ben'])).toEqual([]); // no group there
   });
 
-  it('rejects a bad count of new people', async () => {
+  it('rejects a bad count of others', async () => {
     const { validateInteraction } = await import('../src/data/interactions');
-    expect(validateInteraction({ participants: ['g'], type: 'in_person', daysAgo: 0, newPeople: -1 })).toMatch(/new people/);
-    expect(validateInteraction({ participants: ['g'], type: 'in_person', daysAgo: 0, newPeople: 1.5 })).toMatch(/new people/);
+    expect(validateInteraction({ participants: ['g'], type: 'in_person', daysAgo: 0, newPeople: -1 })).toMatch(/others were there/);
+    expect(validateInteraction({ participants: ['g'], type: 'in_person', daysAgo: 0, newPeople: 1.5 })).toMatch(/others were there/);
     expect(validateInteraction({ participants: ['g'], type: 'in_person', daysAgo: 0, newPeople: 12 })).toBeNull();
   });
 });
