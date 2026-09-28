@@ -11,7 +11,7 @@ import { membership } from '../data/groups';
 import { groupIds, isGroup } from '../data/kinds';
 import { mixHex } from '../data/health';
 import { restrictLog } from '../data/subset';
-import { SCENARIO_AS_OF, findScenario, scenarioNames } from '../data/scenarioCatalog';
+import { SCENARIO_AS_OF, findScenario, scenarioGroups, scenarioNames } from '../data/scenarioCatalog';
 import { useStore } from '../data/store';
 import { ORDER_MEANING, TIER_LABELS, TIER_SET_LINK, layoutSignature, nodeRadii, orderTiers, tierLayout } from '../graph/arrange';
 import { DEFAULT_DISPLAY, activeFilterCount, applyFilters, type DisplayOptions } from '../graph/display';
@@ -138,7 +138,10 @@ export default function GraphScreen() {
     });
   const bridges = useMemo(() => [...metrics.nodes.values()].filter((m) => m.groupsTouched >= 2).length, [metrics]);
   // Your own groups (never in samples), and whether the shaded areas show them instead of types.
-  const myGroups = useMemo(() => (sample ? [] : groups), [sample, groups]);
+  const myGroups = useMemo(
+    () => (scenario && sourceLog ? scenarioGroups(sourceLog) : sample ? [] : groups),
+    [scenario, sourceLog, sample, groups],
+  );
   const groupsOf = useMemo(() => membership(myGroups), [myGroups]);
   const groupAreas = display.areas === 'groups' && myGroups.length > 0;
   /** The areas someone sits in: their relationship types, or their groups. */
@@ -509,7 +512,13 @@ export default function GraphScreen() {
         >
           {shownTotal !== null && prefs.showScore && (
             <Pressable
-              onPress={sample ? undefined : () => router.push('/score')}
+              onPress={
+                scenario
+                  ? () => router.push({ pathname: '/score', params: { scenario: scenario.id } })
+                  : sample
+                    ? undefined
+                    : () => router.push('/score')
+              }
               accessibilityRole="button"
               accessibilityHint={filtered ? 'Score for the people shown. Opens score details' : 'Opens score details'}
               style={({ pressed }) => [

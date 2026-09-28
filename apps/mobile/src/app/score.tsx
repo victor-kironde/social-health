@@ -1,5 +1,7 @@
-import { computeScore } from '@sg/score-engine';
+import { DEFAULT_CONFIG, computeScore } from '@sg/score-engine';
+import { Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
+import { SCENARIO_AS_OF, findScenario } from '../data/scenarioCatalog';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import {
   HEALTH_LABELS,
@@ -27,12 +29,18 @@ const COMPARISONS: IdealComparison[] = ['at', 'below', 'beyond', 'none'];
 /** Details behind the Social Health score. Charts of how it changes over time come next. */
 export default function ScoreDetails() {
   const t = useTheme();
-  const { log } = useStore();
+  const { log: myLog } = useStore();
   const { prefs } = usePrefs();
-  const config = useModelConfig();
-  const result = useMemo(() => computeScore(log, config, Date.now()), [log, config]);
-  const [range, setRange] = useState<TrendRange>('3m');
-  const points = useMemo(() => trendPoints(log, Date.now(), range, config), [log, range, config]);
+  const myConfig = useModelConfig();
+  // A synthetic scenario (score?scenario=<id>), shown as of the scenarios' fixed date.
+  const { scenario: scenarioId } = useLocalSearchParams<{ scenario?: string }>();
+  const scenario = findScenario(scenarioId);
+  const log = useMemo(() => (scenario ? scenario.build() : myLog), [scenario, myLog]);
+  const config = scenario ? DEFAULT_CONFIG : myConfig;
+  const now = useMemo(() => (scenario ? SCENARIO_AS_OF : Date.now()), [scenario]);
+  const result = useMemo(() => computeScore(log, config, now), [log, config, now]);
+  const [range, setRange] = useState<TrendRange>('5m');
+  const points = useMemo(() => trendPoints(log, now, range, config), [log, now, range, config]);
   const change = trendChange(points, scoreOutOf10);
   // How each relationship stands against the ideal the user set for it.
   const vsIdeal = useMemo(() => {
@@ -52,6 +60,7 @@ export default function ScoreDetails() {
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
+      {scenario && <Stack.Screen options={{ title: `Scenario: ${scenario.label}` }} />}
       {prefs.showScore && log.interactions.length === 0 && (
         <Card>
           <Text style={{ color: t.text, lineHeight: 20 }}>Log your first catch-up to see your score.</Text>

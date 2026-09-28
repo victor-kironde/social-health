@@ -236,3 +236,5 @@ export function coParenting(ideal: number | null | undefined, contact: 'sparse' 
   else b.contactEvery('ex', 7, { toDaysAgo: 1 });
   return b.build();
 }
+
+export { careHome, doctor, lawyer, newInTown, parentOfThree, student, teacher, waitress } from './lives';

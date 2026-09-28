@@ -1,6 +1,7 @@
 import {
   DAY,
   type CallRecord,
+  type Frequency,
   type Category,
   type EventLog,
   type InteractionType,
@@ -19,12 +20,25 @@ export interface PersonAttrs {
   state?: RelationshipState;
   /** Hoped-for closeness 1–10, or null for "don't mind" (default 10). */
   ideal?: number | null;
+  /** Importance on the 1–10 scale (instead of the legacy 1–5 `importance`). */
+  importance10?: number;
+  /** "At least N times a period", instead of a preset rhythm. */
+  frequency?: Frequency;
+  /** Lives or works with the user. */
+  together?: boolean;
+  /** A group the user has a relationship with as a whole. */
+  group?: boolean;
+  /** Shown name (defaults to the id). */
+  name?: string;
 }
 
 export interface ContactOptions {
   type?: InteractionType;
   /** Defaults to the interaction time (logged straight away). */
   loggedAt?: Timestamp;
+  /** At a group catch-up: how many others were there, not named. */
+  newPeople?: number;
+  note?: string;
 }
 
 /**
@@ -54,7 +68,7 @@ export class ScenarioBuilder {
 
   /** Add a person and their relationship attributes, recorded `addedDaysAgo` days ago. */
   person(id: string, attrs: PersonAttrs, addedDaysAgo = 365): this {
-    this.log.people.push({ id, displayName: id });
+    this.log.people.push({ id, displayName: attrs.name ?? id, ...(attrs.group ? { kind: 'group' as const } : {}) });
     const ts = this.at(addedDaysAgo);
     this.change(id, { field: 'category', value: attrs.category }, ts);
     if (attrs.importance !== undefined) this.change(id, { field: 'importance', value: attrs.importance }, ts);
@@ -62,6 +76,9 @@ export class ScenarioBuilder {
     if (attrs.rhythm !== undefined) this.change(id, { field: 'rhythm', value: attrs.rhythm }, ts);
     if (attrs.state !== undefined) this.change(id, { field: 'state', value: attrs.state }, ts);
     if (attrs.ideal !== undefined) this.change(id, { field: 'ideal', value: attrs.ideal }, ts);
+    if (attrs.importance10 !== undefined) this.change(id, { field: 'importance', value: attrs.importance10, scale: 10 }, ts);
+    if (attrs.frequency !== undefined) this.change(id, { field: 'frequency', value: attrs.frequency }, ts);
+    if (attrs.together !== undefined) this.change(id, { field: 'together', value: attrs.together }, ts);
     return this;
   }
 
@@ -79,6 +96,8 @@ export class ScenarioBuilder {
       type: opts.type ?? 'in_person',
       participants: Array.isArray(ids) ? ids : [ids],
       source: 'manual',
+      ...(opts.newPeople ? { newPeople: opts.newPeople } : {}),
+      ...(opts.note ? { note: opts.note } : {}),
     });
     return this;
   }

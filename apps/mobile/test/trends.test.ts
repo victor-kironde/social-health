@@ -18,7 +18,7 @@ function driftingApart() {
 
 describe('trends', () => {
   it('has the right number of points, ending now', () => {
-    for (const range of ['1m', '3m', '1y'] as const) {
+    for (const range of ['1m', '3m', '5m', '1y'] as const) {
       const pts = trendPoints(driftingApart(), NOW, range);
       expect(pts).toHaveLength(TREND_RANGES[range].points);
       expect(pts[pts.length - 1]!.ts).toBe(NOW);

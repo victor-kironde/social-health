@@ -2,11 +2,12 @@ import { DAY, DEFAULT_CONFIG, computeScore, type EventLog, type ModelConfig, typ
 import { relationshipHealth, type HealthBand } from './health';
 
 /** How far back the trends look, and how finely. */
-export type TrendRange = '1m' | '3m' | '1y';
+export type TrendRange = '1m' | '3m' | '5m' | '1y';
 
 export const TREND_RANGES: Record<TrendRange, { label: string; points: number; stepDays: number }> = {
   '1m': { label: 'Month', points: 30, stepDays: 1 },
   '3m': { label: '3 months', points: 13, stepDays: 7 },
+  '5m': { label: '5 months', points: 22, stepDays: 7 },
   '1y': { label: 'Year', points: 12, stepDays: 30 },
 };
 
