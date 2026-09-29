@@ -1,11 +1,25 @@
-import type { RelationshipContribution } from '@sg/score-engine';
+import type { Rating, RelationshipContribution } from '@sg/score-engine';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { HEALTH_LABELS, IDEAL_COMPARISON_LABELS, bandLabelOf, compareToIdeal, personalHealth } from '../data/health';
+import { HEALTH_LABELS, personalHealth } from '../data/health';
 import { photoUri } from '../data/photos';
-import { importanceLabel, QUALITY_LABELS, frequencyText, lastContactText, typesLabel } from '../ui/labels';
+import { QUALITY_LABELS, frequencyText, lastContactText, typesLabel } from '../ui/labels';
 import { useTheme } from '../ui/theme';
 import { RECENT_WINDOW_DAYS, type PersonStats } from './personStats';
+
+/** A 0–1 "how well is this going" value as a band on the health scale (1 red … 5 green). */
+export function scaleBand(x: number): Rating {
+  return x >= 0.85 ? 5 : x >= 0.65 ? 4 : x >= 0.45 ? 3 : x >= 0.25 ? 2 : 1;
+}
+
+interface Row {
+  key: string;
+  value: string;
+  /** Colour of the value; muted when undefined. */
+  colour?: string;
+  /** Show the value as a small outlined badge (e.g. "6/10"). */
+  badge?: boolean;
+}
 
 /** Compact, person-specific figures shown on the graph when someone is tapped. */
 export function PersonStatsCard({
@@ -36,7 +50,8 @@ export function PersonStatsCard({
   const t = useTheme();
   const { score, band: health } = personalHealth(rel);
   const ring = t.health[health];
-  const rhythm =
+  const interval = rel.expectedIntervalDays ?? 30;
+  const rhythmText =
     rel.expectedIntervalDays === null
       ? null
       : `${rel.onRhythm !== null && rel.onRhythm >= 0.5 ? 'On rhythm' : 'Behind'} · ${
@@ -49,30 +64,61 @@ export function PersonStatsCard({
   ]
     .filter(Boolean)
     .join(' · ');
+  // How overdue the last catch-up is, against the rhythm: on time is green, three rhythms late is grey.
+  const age = rel.lastContactAgeDays;
+  const overdue = age === null ? Infinity : age / interval;
+  const lastColour = overdue <= 1 ? t.health[5] : overdue <= 1.5 ? t.health[4] : overdue <= 2 ? t.health[3] : overdue <= 3 ? t.health[2] : t.health.lost;
+  // Catch-ups in the recent window against how many the rhythm hopes for.
+  const hoped = Math.max(1, RECENT_WINDOW_DAYS / interval);
+  const countColour = (n: number) => t.health[scaleBand(Math.min(1, n / hoped))];
+  // Importance runs from faint to full accent; it is a choice, not a status.
+  const importanceColour = `${t.accent}${Math.round(110 + (145 * (rel.importance - 1)) / 9).toString(16).padStart(2, '0')}`;
 
-  const idealText =
-    rel.ideal === null
-      ? "Don't mind (not scored)"
-      : `${rel.ideal} · ${bandLabelOf(rel.ideal)} · ${IDEAL_COMPARISON_LABELS[compareToIdeal(score, rel.ideal)].toLowerCase()}`;
-  const rows: [string, string][] = [
-    ...(rel.idealSet ? ([['Ideal', idealText]] as [string, string][]) : []),
-    ['Importance', importanceLabel(rel.importance)],
-    ...(rel.together ? ([['Together', 'Lives or works with you']] as [string, string][]) : []),
-    ['Last catch-up', lastContactText(rel.lastContactAgeDays).replace(/^Last catch-up /, '')],
-    ...(rhythm ? ([['Rhythm', rhythm]] as [string, string][]) : []),
-    [
-      'Catch-up frequency',
-      stats.frequencyRank === null ? 'No catch-ups yet' : `#${stats.frequencyRank} of ${stats.contacted} most in touch`,
-    ],
-    [`Catch-ups (${RECENT_WINDOW_DAYS} days)`, String(stats.loggedRecent)],
-    ...(stats.callsRecent
-      ? ([[`Calls (${RECENT_WINDOW_DAYS} days)`, `${stats.callsRecent.count} · ${stats.callsRecent.minutes} min`]] as [
-          string,
-          string,
-        ][])
+  const rows: Row[] = [
+    ...(rel.idealSet
+      ? [
+          rel.ideal === null
+            ? { key: 'Ideal', value: "Don't mind" }
+            : {
+                key: 'Ideal',
+                value: `${rel.ideal}/10`,
+                colour: t.health[scaleBand(1 - Math.abs(score - rel.ideal) / 9)],
+                badge: true,
+              },
+        ]
       : []),
-    ['Quality', rel.quality === null ? 'Not rated' : QUALITY_LABELS[rel.quality]],
-    ...(group ? [] : ([['Network', network]] as [string, string][])),
+    { key: 'Importance', value: `${rel.importance}/10`, colour: importanceColour, badge: true },
+    ...(rel.together ? [{ key: 'Together', value: 'Lives or works with you', colour: t.accent }] : []),
+    {
+      key: 'Last catch-up',
+      value: lastContactText(rel.lastContactAgeDays).replace(/^Last catch-up /, ''),
+      colour: lastColour,
+    },
+    ...(rhythmText ? [{ key: 'Rhythm', value: rhythmText, colour: t.health[scaleBand(rel.onRhythm ?? 0)] }] : []),
+    {
+      key: 'Catch-up frequency',
+      value: stats.frequencyRank === null ? 'No catch-ups yet' : `#${stats.frequencyRank} of ${stats.contacted} most in touch`,
+      colour:
+        stats.frequencyRank === null
+          ? t.health.lost
+          : t.health[scaleBand(1 - (stats.frequencyRank - 1) / Math.max(1, stats.contacted - 1))],
+    },
+    { key: `Catch-ups (${RECENT_WINDOW_DAYS} days)`, value: String(stats.loggedRecent), colour: countColour(stats.loggedRecent) },
+    ...(stats.callsRecent
+      ? [
+          {
+            key: `Calls (${RECENT_WINDOW_DAYS} days)`,
+            value: `${stats.callsRecent.count} · ${stats.callsRecent.minutes} min`,
+            colour: countColour(stats.callsRecent.count),
+          },
+        ]
+      : []),
+    {
+      key: 'Quality',
+      value: rel.quality === null ? 'Not rated' : QUALITY_LABELS[rel.quality],
+      colour: rel.quality === null ? undefined : t.health[rel.quality],
+    },
+    ...(group ? [] : [{ key: 'Network', value: network, colour: t.text }]),
   ];
 
   const doubleTap = Gesture.Tap()
@@ -155,10 +201,16 @@ export function PersonStatsCard({
           </Text>
         </View>
       )}
-      {rows.map(([k, v]) => (
-          <View key={k} style={styles.row}>
-            <Text style={[styles.key, { color: t.muted }]}>{k}</Text>
-            <Text style={[styles.value, { color: t.text }]}>{v}</Text>
+      {rows.map((r) => (
+          <View key={r.key} style={styles.row}>
+            <Text style={[styles.key, { color: t.muted }]}>{r.key}</Text>
+            {r.badge ? (
+              <View style={[styles.badge, { borderColor: r.colour ?? t.muted }]}>
+                <Text style={{ color: r.colour ?? t.muted, fontSize: 12, fontWeight: '800' }}>{r.value}</Text>
+              </View>
+            ) : (
+              <Text style={[styles.value, { color: r.colour ?? t.muted, fontWeight: r.colour ? '600' : '400' }]}>{r.value}</Text>
+            )}
           </View>
         ))}
         {onOpen && (
@@ -200,8 +252,9 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 },
   avatar: { width: 40, height: 40, borderRadius: 20, borderWidth: 2.5, alignItems: 'center', justifyContent: 'center' },
   name: { fontSize: 15, fontWeight: '700' },
-  row: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
   key: { fontSize: 12, flexShrink: 0 },
   value: { fontSize: 12, flexShrink: 1, textAlign: 'right' },
   hint: { fontSize: 10, marginTop: 4, textAlign: 'center' },
+  badge: { borderWidth: 1.5, borderRadius: 8, paddingHorizontal: 6, paddingVertical: 0 },
 });

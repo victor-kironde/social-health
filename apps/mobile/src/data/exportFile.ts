@@ -16,7 +16,7 @@ const PREFIX = 'social-graph-export';
 export function cleanUpExports(): void {
   try {
     for (const item of new Directory(Paths.cache).list()) {
-      if (item instanceof File && item.name.startsWith(PREFIX)) item.delete();
+      if (item instanceof File && (item.name.startsWith(PREFIX) || item.name.startsWith('social-health-report') || item.name.endsWith('.pdf'))) item.delete();
     }
   } catch {
     // Nothing to clean, or the cache is unavailable: not worth surfacing.

@@ -13,12 +13,13 @@ import { mixHex } from '../data/health';
 import { restrictLog } from '../data/subset';
 import { SCENARIO_AS_OF, findScenario, scenarioGroups, scenarioNames } from '../data/scenarioCatalog';
 import { useStore } from '../data/store';
-import { ORDER_MEANING, TIER_LABELS, TIER_SET_LINK, layoutSignature, nodeRadii, orderTiers, tierLayout } from '../graph/arrange';
+import { TIER_LABELS, TIER_SET_LINK, layoutSignature, nodeRadii, orderTiers, tierLayout } from '../graph/arrange';
 import { DEFAULT_DISPLAY, activeFilterCount, applyFilters, type DisplayOptions } from '../graph/display';
 import { DisplayPanel } from '../graph/DisplayPanel';
 import { AddPersonIcon, CatchUpIcon, MeetupsIcon, PeopleIcon } from '../graph/icons';
 import { toConfirm } from '../data/plans';
 import { localDate } from '../ui/calendar';
+import { GraphHelpBody } from './graph-help';
 import { PersonStatsCard } from '../graph/PersonStatsCard';
 import { personStats } from '../graph/personStats';
 import { GraphCanvas } from '../graph/GraphCanvas';
@@ -57,6 +58,8 @@ const PULSE_MS = 2800;
 export default function GraphScreen() {
   const t = useTheme();
   const { log, graphLayout, saveGraphLayout, photos, status, groups, plans } = useStore();
+  // The graph's key, floating over the graph (the ? button).
+  const [helpOpen, setHelpOpen] = useState(false);
   const pendingMeetups = useMemo(() => toConfirm(plans, log.interactions, localDate(Date.now())).length, [plans, log.interactions]);
   const { prefs } = usePrefs();
   const config = useModelConfig();
@@ -398,7 +401,10 @@ export default function GraphScreen() {
     [t, display, showLabels, selectedPerson?.personId, ties.length, tierView, groupAreas, myGroups],
   );
   const openPerson = (id: string) => router.push({ pathname: '/person/[id]', params: { id } });
-  const selectPerson = (id: string) => setSelectedPersonId(id);
+  const selectPerson = (id: string) => {
+    setHelpOpen(false);
+    setSelectedPersonId(id);
+  };
 
   if (!sample && status === 'loading') {
     return (
@@ -487,7 +493,10 @@ export default function GraphScreen() {
           onRendered={onRendered}
           onZoomEnd={(s) => setZoomedIn(s >= LABEL_ZOOM)}
           // The whole graph is an overview: close any person or link details that would cover it.
-          onHelp={() => router.push('/graph-help')}
+          onHelp={() => {
+            setSelectedPersonId(null);
+            setHelpOpen((v) => !v);
+          }}
           leftActions={
             sample
               ? []
@@ -577,6 +586,19 @@ export default function GraphScreen() {
             </View>
           )}
         </View>
+        {helpOpen && (
+          <View style={[styles.help, { backgroundColor: `${t.card}D0`, borderColor: t.border }]}>
+            <View style={styles.helpHead}>
+              <Text style={{ color: t.text, fontSize: 16, fontWeight: '700', flex: 1 }}>Reading your graph</Text>
+              <Pressable onPress={() => setHelpOpen(false)} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close the key">
+                <Text style={{ color: t.muted, fontSize: 20 }}>×</Text>
+              </Pressable>
+            </View>
+            <ScrollView contentContainerStyle={{ paddingBottom: 16 }}>
+              <GraphHelpBody floating />
+            </ScrollView>
+          </View>
+        )}
       </View>
 
       <DisplayPanel
@@ -589,19 +611,13 @@ export default function GraphScreen() {
       />
 
       <View style={[styles.legend, { borderTopColor: t.border, paddingBottom: 10 + insets.bottom }]}>
-        <Text style={[styles.legendText, { color: t.muted }]}>
-          {display.colourBy === 'health' ? 'Green close · amber drifting · red strained · grey lost touch · ' : ''}
-          {tiersOn ? `higher` : 'closer'} = {ORDER_MEANING[display.orderBy]}
-          {display.sizeByFrequency ? ' · bigger = more in touch' : ''}
-        </Text>
-        <Text style={[styles.legendText, { color: t.muted }]}>
-          {demoSize
-            ? `Stress test (${GRAPH_RENDERERS[rendererId].label}): ${visible.length} people · ${timing}`
-            : scenario
-              ? `Synthetic scenario as of ${new Date(now).toISOString().slice(0, 10)} · ${visible.length} people · tap a person for details`
-              : `${visible.length} of ${relationships.length} shown · tap ? for the full key`}
-          {showLabels ? '' : ' · pinch to zoom in for names'}
-        </Text>
+        {sample && (
+          <Text style={[styles.legendText, { color: t.muted }]}>
+            {demoSize
+              ? `Stress test (${GRAPH_RENDERERS[rendererId].label}): ${visible.length} people · ${timing}`
+              : `Synthetic scenario as of ${new Date(now).toISOString().slice(0, 10)} · ${visible.length} people`}
+          </Text>
+        )}
         {sample && ties.length > 0 && (
           <Text style={[styles.legendText, { color: t.muted }]}>
             {`Structure: ${metrics.groups} ${metrics.groups === 1 ? 'group' : 'groups'} · ${bridges} ${bridges === 1 ? 'person connects' : 'people connect'} groups (outer ring) · density ${metrics.density.toFixed(2)} · effective size ${metrics.effectiveSize.toFixed(1)} of ${metrics.size}`}
@@ -632,6 +648,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   scoreLabel: { fontSize: 11, lineHeight: 14 },
+  help: { position: 'absolute', top: 8, left: 8, right: 8, bottom: 140, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, padding: 12 },
+  helpHead: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   meetups: { borderRadius: 16, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 6 },
   stats: { alignSelf: 'stretch' },
   legend: { paddingHorizontal: 16, paddingVertical: 10, borderTopWidth: StyleSheet.hairlineWidth, gap: 2 },

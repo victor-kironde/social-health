@@ -1,18 +1,31 @@
-import type { ReactNode } from 'react';
+import { createContext, useContext, type ReactNode } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, G, Line, Polyline, Rect, Text as SvgText } from 'react-native-svg';
 import { groupHealthColour } from '../data/health';
 import { AddPersonIcon, CatchUpIcon, FocusIcon, HelpIcon, PeopleIcon } from '../graph/icons';
 import { useTheme } from '../ui/theme';
 
-/** Plain-language key to everything the network graph draws, each with a small sample drawing. */
+/** Whether the key is floating over the graph (see-through item backgrounds). */
+const Floating = createContext(false);
+
+/** The key as its own page (e.g. from a link). On the graph it floats over the graph instead (GraphHelpBody). */
 export default function GraphHelp() {
+  return (
+    <ScrollView contentContainerStyle={styles.content}>
+      <GraphHelpBody />
+    </ScrollView>
+  );
+}
+
+/** Plain-language key to everything the network graph draws, each with a small sample drawing. */
+export function GraphHelpBody({ floating = false }: { floating?: boolean }) {
   const t = useTheme();
   const c = t.category;
   const h = t.health;
 
   return (
-    <ScrollView contentContainerStyle={styles.content}>
+    <Floating.Provider value={floating}>
+    <View style={{ gap: 12 }}>
       <Text style={[styles.intro, { color: t.muted }]}>
         Your graph is a map of the people you have added, drawn around you. Everything on it comes from what you
         record in the app, and it never leaves your phone.
@@ -309,7 +322,7 @@ export default function GraphHelp() {
       <Gesture icon="Drag" text="A person (in rings): move them; they settle back gently. Empty space: move around." />
       <Gesture icon="Pinch" text="Zoom in or out. Names appear when you zoom in on a busy graph." />
       <Gesture icon={<FocusIcon colour={t.text} />} text="Fit the whole graph back in view (bottom right)." />
-      <Gesture icon={<HelpIcon colour={t.text} />} text="This page." />
+      <Gesture icon={<HelpIcon colour={t.text} />} text="This key." />
       <Gesture icon={<CatchUpIcon colour={t.text} />} text="Log a catch-up (bottom left)." />
       <Gesture icon={<AddPersonIcon colour={t.text} />} text="Add someone, yourself or from your contacts." />
       <Gesture icon={<PeopleIcon colour={t.text} />} text="Everyone as a list, with your Social Health score and recent changes." />
@@ -322,7 +335,8 @@ export default function GraphHelp() {
         The graph is a tool for reflection, not a measure of your worth. Relationships change, and gaps between catch-ups
         are normal. You decide what matters.
       </Text>
-    </ScrollView>
+    </View>
+    </Floating.Provider>
   );
 }
 
@@ -341,8 +355,9 @@ function Art({ children }: { children: ReactNode }) {
 
 function Item({ title, art, children }: { title: string; art: ReactNode; children: ReactNode }) {
   const t = useTheme();
+  const floating = useContext(Floating);
   return (
-    <View style={[styles.item, { backgroundColor: t.card }]}>
+    <View style={[styles.item, { backgroundColor: floating ? `${t.bg}66` : t.card }]}>
       <View style={styles.art}>{art}</View>
       <View style={{ flex: 1 }}>
         <Text style={[styles.title, { color: t.text }]}>{title}</Text>

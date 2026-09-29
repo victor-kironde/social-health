@@ -27,7 +27,7 @@ export default function RootLayout() {
               <Stack.Screen
                 name="index"
                 options={{
-                  title: 'Your network',
+                  title: 'Social Health: Network',
                   headerRight: () => (
                     <Link href="/settings" accessibilityRole="button" accessibilityLabel="Settings" style={{ padding: 8 }}>
                       <Text style={{ color: t.accent, fontSize: 16 }}>Settings</Text>

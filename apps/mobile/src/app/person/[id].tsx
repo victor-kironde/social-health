@@ -12,7 +12,7 @@ import { pickPersonPhoto, photoUri } from '../../data/photos';
 import { draftFromSnapshot, editPersonEvents, validatePerson, type PersonDraft } from '../../data/people';
 import { useModelConfig } from '../../data/prefs';
 import { useStore } from '../../data/store';
-import { Button, Card, Label, MultiChoiceChips } from '../../ui/components';
+import { Button, Card, HelpTip, Label, MultiChoiceChips } from '../../ui/components';
 import { INTERACTION_LABELS, formatDate, frequencyText, lastContactText } from '../../ui/labels';
 import { PersonFields } from '../../ui/PersonFields';
 import { useTheme } from '../../ui/theme';
@@ -172,7 +172,10 @@ function PersonEditor({
         <View style={{ flex: 1, gap: 8 }}>
           <Button title={photoBusy ? 'Opening…' : photo ? 'Change photo' : 'Add photo'} variant="secondary" onPress={choosePhoto} disabled={photoBusy} />
           {photo && <Button title="Remove photo" variant="secondary" onPress={confirmRemovePhoto} disabled={photoBusy} />}
-          <Text style={{ color: t.muted, fontSize: 12 }}>Shown on your graph. Kept only in this app's encrypted storage.</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={{ color: t.muted, fontSize: 12 }}>Photo</Text>
+            <HelpTip title="Photo">Shown on your graph. Kept only in this app's encrypted storage.</HelpTip>
+          </View>
         </View>
       </View>
 
@@ -242,11 +245,11 @@ function PersonEditor({
       </Card>
 
       <Card>
-        <Label>Regular meetups</Label>
+        <Label help="Plan a regular meetup (a weekly call, a monthly dinner) and the app asks after each date whether it happened. Only confirmed dates count as catch-ups.">
+          Regular meetups
+        </Label>
         {myPlans.length === 0 ? (
-          <Text style={{ color: t.muted, marginBottom: 8 }}>
-            None planned. Plan one (a weekly call, a monthly dinner) and the app asks after each date whether it happened.
-          </Text>
+          <Text style={{ color: t.muted, marginBottom: 8 }}>None planned.</Text>
         ) : (
           myPlans.map((p) => (
             <Pressable

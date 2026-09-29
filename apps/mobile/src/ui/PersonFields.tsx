@@ -3,7 +3,7 @@ import { StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { bandLabelOf } from '../data/health';
 import { MAX_NAME_LENGTH, type PersonDraft } from '../data/people';
 import { usePrefs } from '../data/prefs';
-import { ChoiceChips, Label, MultiChoiceChips } from './components';
+import { ChoiceChips, HelpTip, Label, MultiChoiceChips, TipText } from './components';
 import { CATEGORY_LABELS, QUALITY_LABELS, STATE_LABELS, importanceLabel } from './labels';
 import { RhythmPicker, choiceText } from './RhythmPicker';
 import { useTheme } from './theme';
@@ -74,34 +74,51 @@ export function PersonFields({
       </View>
 
       <View>
-        <Label>Also part of (optional)</Label>
+        <Label help="For example, family who are also colleagues. Shown where the type areas overlap on the graph.">
+          Also part of
+        </Label>
         <MultiChoiceChips
           options={options(CATEGORY_LABELS).filter((o) => o.value !== draft.category)}
           values={draft.alsoCategories.filter((c) => c !== draft.category)}
           onChange={(v) => set('alsoCategories', v)}
         />
-        <Text style={[styles.hint, { color: t.muted }]}>
-          For example, family who are also colleagues. Shown where the groups overlap on the graph.
-        </Text>
       </View>
 
       <View>
-        <Label>How important is this relationship to you? (optional)</Label>
+        <Label
+          help={
+            <>
+              <TipText>More important people count more in your score, and sit closer to you on the graph.</TipText>
+              <TipText>Rough guide: 1–2 peripheral, 3–4 casual, 5–6 moderate, 7–8 close, 9–10 very close.</TipText>
+            </>
+          }
+        >
+          How important is this relationship to you?
+        </Label>
         <ChoiceChips
           options={IMPORTANCE_SCALE.map((v) => ({ value: v, label: String(v) }))}
           value={draft.importance}
           onChange={(v) => set('importance', v)}
         />
-        <Text style={[styles.hint, { color: t.muted }]}>
-          {importanceLabel(draft.importance)}. More important people count more in your score.
-        </Text>
-        <Text style={[styles.hint, { color: t.muted, marginTop: 2 }]}>
-          Rough guide: 1–2 peripheral, 3–4 casual, 5–6 moderate, 7–8 close, 9–10 very close.
-        </Text>
+        <Text style={[styles.hint, { color: t.muted }]}>{importanceLabel(draft.importance)}</Text>
       </View>
 
       <View onLayout={(e) => onIdealLayout?.(e.nativeEvent.layout.y)}>
-        <Label>How close would you like to be?</Label>
+        <Label
+          help={
+            <>
+              <TipText>
+                Your score counts a relationship as doing well when it is near the closeness you hope for, not when it
+                is as close as possible.
+              </TipText>
+              <TipText>Not set: counted as 10 (as close as possible) until you choose.</TipText>
+              <TipText>Lower it for relationships you would like to keep at a distance, such as co-parenting with an ex.</TipText>
+              <TipText>“Don't mind” leaves the relationship out of your score.</TipText>
+            </>
+          }
+        >
+          How close would you like to be?
+        </Label>
         <ChoiceChips
           options={[
             ...IDEALS.map((v) => ({ value: v, label: String(v) })),
@@ -112,26 +129,19 @@ export function PersonFields({
         />
         <Text style={[styles.hint, { color: t.muted }]}>
           {draft.ideal === undefined
-            ? 'Not set yet: counted as 10 (as close as possible) until you choose.'
+            ? 'Not set (counted as 10)'
             : draft.ideal === null
-            ? "Left out of your score: you don't mind where this relationship stands."
-            : `${draft.ideal} · ${bandLabelOf(draft.ideal)}. ${
-                draft.ideal === 10
-                  ? 'As close as possible (the usual hope).'
-                  : 'Your score counts this relationship as doing well when it is near this, not when it is as close as possible.'
-              }`}
-        </Text>
-        <Text style={[styles.hint, { color: t.muted, marginTop: 2 }]}>
-          Lower it for relationships you would like to keep at a distance, such as co-parenting with an ex.
+              ? 'Left out of your score'
+              : `${draft.ideal} · ${bandLabelOf(draft.ideal)}`}
         </Text>
       </View>
 
       <View style={styles.switchRow}>
-        <View style={{ flex: 1 }}>
+        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <Text style={{ color: t.text, fontSize: 15, fontWeight: '600' }}>Lives or works with you</Text>
-          <Text style={[styles.hint, { color: t.muted, marginTop: 2 }]}>
+          <HelpTip title="Lives or works with you">
             You see each other anyway, so time between logged catch-ups counts a tenth as much.
-          </Text>
+          </HelpTip>
         </View>
         <Switch
           value={draft.together}
@@ -142,7 +152,9 @@ export function PersonFields({
       </View>
 
       <View>
-        <Label>How often would you like to catch up?</Label>
+        <Label help="Your score checks whether you are keeping to this rhythm; catching up more often never counts against you. “Default” follows the rhythm set in Settings (at least once a month unless you change it).">
+          How often would you like to catch up?
+        </Label>
         <RhythmPicker
           value={{ rhythm: draft.rhythm, frequency: draft.frequency }}
           onChange={(c) => onChange({ ...draft, rhythm: c.rhythm, frequency: c.frequency })}
@@ -151,7 +163,9 @@ export function PersonFields({
       </View>
 
       <View>
-        <Label>How is this relationship right now? (optional)</Label>
+        <Label help="Only you can see this. Relationships rated harmful are left out of your score.">
+          How is this relationship right now?
+        </Label>
         <ChoiceChips
           options={[
             { value: NOT_RATED, label: 'Not rated' },
@@ -160,18 +174,30 @@ export function PersonFields({
           value={draft.quality ?? NOT_RATED}
           onChange={(v) => set('quality', v === NOT_RATED ? null : (v as Rating))}
         />
-        <Text style={[styles.hint, { color: t.muted }]}>
-          Only you can see this.{draft.quality === 1 ? ' Relationships rated harmful are left out of your score.' : ''}
-        </Text>
+        {draft.quality === 1 && (
+          <Text style={[styles.hint, { color: t.muted }]}>Left out of your score.</Text>
+        )}
       </View>
 
       {showState && (
         <View>
-          <Label>Status</Label>
+          <Label
+            help={
+              <>
+                {(Object.keys(STATE_HINTS) as RelationshipState[])
+                  .filter((s) => STATE_HINTS[s])
+                  .map((s) => (
+                    <TipText key={s}>
+                      <Text style={{ fontWeight: '700' }}>{STATE_LABELS[s]}: </Text>
+                      {STATE_HINTS[s]}
+                    </TipText>
+                  ))}
+              </>
+            }
+          >
+            Status
+          </Label>
           <ChoiceChips options={options(STATE_LABELS)} value={draft.state} onChange={(v) => set('state', v)} />
-          {STATE_HINTS[draft.state] !== '' && (
-            <Text style={[styles.hint, { color: t.muted }]}>{STATE_HINTS[draft.state]}</Text>
-          )}
         </View>
       )}
     </>

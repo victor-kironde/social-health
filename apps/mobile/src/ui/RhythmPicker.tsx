@@ -78,13 +78,13 @@ export function RhythmPicker({
           />
         </View>
       )}
-      <Text style={[styles.hint, { color: t.muted }]}>
-        {value.frequency
-          ? `${frequencyText(value.frequency)} (about every ${intervalText(value.frequency)}). Catching up more often than this never counts against you.`
-          : followsDefault && defaultText
-            ? `Following your default: ${defaultText.toLowerCase()}. You can change the default in Settings.`
-            : 'Catching up more often than this never counts against you.'}
-      </Text>
+      {(value.frequency || (followsDefault && defaultText)) && (
+        <Text style={[styles.hint, { color: t.muted }]}>
+          {value.frequency
+            ? `${frequencyText(value.frequency)} (about every ${intervalText(value.frequency)})`
+            : `Following your default: ${defaultText!.toLowerCase()}`}
+        </Text>
+      )}
     </View>
   );
 }

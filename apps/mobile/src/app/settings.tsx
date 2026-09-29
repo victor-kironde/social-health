@@ -5,9 +5,10 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { schemaVersion } from '../data/db';
 import { cleanUpExports, exportData } from '../data/exportFile';
+import { exportReportPdf } from '../data/exportReport';
 import { resetIntro } from '../data/onboarding';
 import { MIN_PASSWORD_LENGTH, passwordProblem } from '../data/exportCrypto';
-import { usePrefs } from '../data/prefs';
+import { useModelConfig, usePrefs } from '../data/prefs';
 import { useStore } from '../data/store';
 import { useSecurity } from '../security/AppLock';
 import { RELOCK_GRACE_MS } from '../security/policy';
@@ -19,7 +20,8 @@ const CONFIRM_WORD = 'DELETE';
 
 export default function Settings() {
   const t = useTheme();
-  const { log, deleteAllData, connectCallLog, syncCallLog, disconnectCallLog } = useStore();
+  const { log, deleteAllData, connectCallLog, syncCallLog, disconnectCallLog, graphLayout, groups } = useStore();
+  const config = useModelConfig();
   const { prefs, setPrefs } = usePrefs();
   const callsConnected = log.calls !== undefined;
   const { settings, deviceSecure, update } = useSecurity();
@@ -54,6 +56,19 @@ export default function Settings() {
       );
     } catch (e) {
       setMessage(`Export failed: ${String(e)}`);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function runReport() {
+    setBusy('Preparing your report…');
+    setMessage(null);
+    try {
+      await exportReportPdf({ log, config, positions: graphLayout.positions, groups });
+      setMessage('Report ready. It is marked Confidential: it names the people you know and how you see each relationship.');
+    } catch (e) {
+      setMessage(`Report failed: ${String(e)}`);
     } finally {
       setBusy(null);
     }
@@ -271,6 +286,12 @@ export default function Settings() {
         </View>
         <View style={styles.gap}>
           <Button title="Export without encryption…" variant="secondary" onPress={confirmPlainExport} disabled={!!busy} />
+        </View>
+        <View style={[styles.gap, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.border, paddingTop: 12 }]}>
+          <Label help="A PDF with your Social Health score, your network graph, the last 5 months of trends and a list of your relationships. Every page is marked Confidential. It is not encrypted, so keep it somewhere private.">
+            Report (PDF)
+          </Label>
+          <Button title="Export graph and trends as PDF" variant="secondary" onPress={runReport} disabled={!!busy || log.people.length === 0} />
         </View>
       </Card>
 

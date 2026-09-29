@@ -9,7 +9,7 @@ import { isGroup, onlyPeople } from '../data/kinds';
 import { Stepper } from '../ui/RhythmPicker';
 import { useModelConfig } from '../data/prefs';
 import { useStore } from '../data/store';
-import { Button, ChoiceChips, Label, MultiChoiceChips } from '../ui/components';
+import { Button, ChoiceChips, HelpTip, Label, MultiChoiceChips } from '../ui/components';
 import { INTERACTION_LABELS, WHEN_OPTIONS } from '../ui/labels';
 import { CalendarPicker } from '../ui/CalendarPicker';
 import { dateDaysAgo, localDate, shortDateLabel } from '../ui/calendar';
@@ -131,19 +131,29 @@ export default function LogContact() {
         )}
         {chosenGroups.length > 0 && (
           <View style={styles.newPeople}>
-            <Text style={{ color: t.text, fontSize: 15, flex: 1 }}>Others there (not named)</Text>
+            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={{ color: t.text, fontSize: 15, flexShrink: 1 }}>Others there (not named)</Text>
+              <HelpTip title="Others there">
+                People you did not name, such as new patients or relatives. Only the number is kept. Tick anyone below
+                who you know: they join the group.
+              </HelpTip>
+            </View>
             <Stepper value={newPeople} min={0} max={MAX_NEW_PEOPLE} onChange={setNewPeople} />
           </View>
         )}
-        {chosenGroups.length > 0 && (
-          <Text style={[styles.hint, { color: t.muted }]}>
-            Only the number is kept. Tick anyone below who you know: they join the group.
-          </Text>
-        )}
+
       </View>
 
       <View>
-        <Label>{chosenGroups.length ? 'Who was there?' : 'Who was it with?'}</Label>
+        <Label
+          help={
+            chosenGroups.length
+              ? 'Choose everyone who was there. It counts as one catch-up with each of them, and with the group. Anyone named joins the group.'
+              : 'Choose everyone who was there. It counts as one catch-up with each of them.'
+          }
+        >
+          {chosenGroups.length ? 'Who was there?' : 'Who was it with?'}
+        </Label>
         <MultiChoiceChips
           options={peopleOrdered}
           values={participants.filter((p) => people.some((x) => x.value === p))}
@@ -152,11 +162,6 @@ export default function LogContact() {
             setError(null);
           }}
         />
-        <Text style={[styles.hint, { color: t.muted }]}>
-          {chosenGroups.length
-            ? 'Choose everyone who was there. It counts as one catch-up with each of them, and with the group. Anyone named joins the group.'
-            : 'Choose everyone who was there. It counts as one catch-up with each of them.'}
-        </Text>
         {error && <Text style={{ color: t.danger, marginTop: 6 }}>{error}</Text>}
       </View>
 
@@ -189,7 +194,7 @@ export default function LogContact() {
       </View>
 
       <View>
-        <Label>Notes (optional)</Label>
+        <Label help="A private journal for you. It never affects any score.">Notes</Label>
         <TextInput
           value={note}
           onChangeText={setNote}
@@ -200,7 +205,6 @@ export default function LogContact() {
           accessibilityLabel="Notes"
           style={[styles.note, { color: t.text, borderColor: t.border, backgroundColor: t.card }]}
         />
-        <Text style={[styles.hint, { color: t.muted }]}>A private journal for you. It never affects any score.</Text>
       </View>
 
       <Button title={saving ? 'Saving…' : 'Save'} onPress={save} disabled={saving} />

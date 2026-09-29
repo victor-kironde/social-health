@@ -39,6 +39,9 @@ const light = {
 
 export type Theme = typeof light;
 
+/** The light palette, for things rendered outside the app (e.g. the PDF report). */
+export const LIGHT_THEME: Theme = light;
+
 const dark: Theme = {
   bg: '#101215',
   card: '#1b1e23',

@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
+import { useState, type ReactNode } from 'react';
+import { Modal, Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import { useTheme } from './theme';
 
 export function Card({ children, style }: { children: ReactNode; style?: ViewStyle }) {
@@ -7,9 +7,49 @@ export function Card({ children, style }: { children: ReactNode; style?: ViewSty
   return <View style={[styles.card, { backgroundColor: t.card }, style]}>{children}</View>;
 }
 
-export function Label({ children }: { children: ReactNode }) {
+/** A field label; with `help`, a tiny "?" beside it opens a short explanation. */
+export function Label({ children, help }: { children: ReactNode; help?: ReactNode }) {
   const t = useTheme();
-  return <Text style={[styles.label, { color: t.muted }]}>{children}</Text>;
+  if (!help) return <Text style={[styles.label, { color: t.muted }]}>{children}</Text>;
+  return (
+    <View style={styles.labelRow}>
+      <Text style={[styles.label, { color: t.muted, marginBottom: 0, flexShrink: 1 }]}>{children}</Text>
+      <HelpTip title={typeof children === 'string' ? children : undefined}>{help}</HelpTip>
+    </View>
+  );
+}
+
+/** A tiny "?" that shows a short explanation in a pop-up (tap anywhere to close). */
+export function HelpTip({ title, children }: { title?: string; children: ReactNode }) {
+  const t = useTheme();
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Pressable
+        onPress={() => setOpen(true)}
+        hitSlop={10}
+        accessibilityRole="button"
+        accessibilityLabel={title ? `About ${title}` : 'More information'}
+        style={[styles.tip, { borderColor: t.muted }]}
+      >
+        <Text style={{ color: t.muted, fontSize: 10, fontWeight: '700', lineHeight: 12 }}>?</Text>
+      </Pressable>
+      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+        <Pressable style={styles.scrim} onPress={() => setOpen(false)} accessibilityLabel="Close">
+          <View style={[styles.tipCard, { backgroundColor: t.card, borderColor: t.border }]}>
+            {title && <Text style={{ color: t.text, fontWeight: '700', fontSize: 15, marginBottom: 6 }}>{title}</Text>}
+            {typeof children === 'string' ? <Text style={{ color: t.text, lineHeight: 20 }}>{children}</Text> : children}
+          </View>
+        </Pressable>
+      </Modal>
+    </>
+  );
+}
+
+/** A paragraph inside a HelpTip. */
+export function TipText({ children }: { children: ReactNode }) {
+  const t = useTheme();
+  return <Text style={{ color: t.text, lineHeight: 20, marginTop: 4 }}>{children}</Text>;
 }
 
 export function Button({
@@ -160,4 +200,8 @@ const styles = StyleSheet.create({
   chip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, minHeight: 36, justifyContent: 'center' },
   toggle: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dot: { width: 10, height: 10, borderRadius: 5 },
+  labelRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
+  tip: { width: 15, height: 15, borderRadius: 8, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  scrim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center', padding: 24 },
+  tipCard: { borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, padding: 16, maxWidth: 420, width: '100%' },
 });

@@ -151,7 +151,9 @@ export default function PlanEditor() {
       </View>
 
       <View>
-        <Label>{startAgo > 0 ? 'Started' : 'Starting'}</Label>
+        <Label help="After each planned date, the app asks whether it happened. Only the dates you confirm count as catch-ups.">
+          {startAgo > 0 ? 'Started' : 'Starting'}
+        </Label>
         <ChoiceChips
           options={[
             { value: '0', label: 'Today' },
@@ -170,8 +172,7 @@ export default function PlanEditor() {
           onClose={() => setCalendarOpen(false)}
         />
         <Text style={[styles.hint, { color: t.muted }]}>
-          {INTERACTION_LABELS[type]} {planEveryText({ every, unit })}, from {shortDateLabel(start, today)}. After each date, the app
-          asks whether it happened; only the ones you confirm count as catch-ups.
+          {INTERACTION_LABELS[type]} {planEveryText({ every, unit })}, from {shortDateLabel(start, today)}
         </Text>
       </View>
 
