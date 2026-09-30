@@ -11,6 +11,7 @@ import {
   type SkCanvas,
   type SkFont,
   type SkImage,
+  type SkPath,
   type SkPaint,
   type SkPicture,
 } from '@shopify/react-native-skia';
@@ -121,16 +122,60 @@ export function photoSpec(image: SkImage, alpha = 1): PhotoSpec {
   return { paint: p, width: image.width(), height: image.height() };
 }
 
-/** The user's diamond, half-diagonal `r`, centred on (x, y). */
+/** The user's diamond, half-diagonal `r`, centred on (x, y), with softly rounded corners. */
 export function diamondPath(x: number, y: number, r: number) {
   'worklet';
+  // How far along each side the rounding starts (0 = sharp, 0.5 = a circle).
+  const f = 0.24;
+  const vs = [
+    [x, y - r],
+    [x + r, y],
+    [x, y + r],
+    [x - r, y],
+  ];
   const p = Skia.Path.Make();
-  p.moveTo(x, y - r);
-  p.lineTo(x + r, y);
-  p.lineTo(x, y + r);
-  p.lineTo(x - r, y);
+  for (let i = 0; i < 4; i++) {
+    const [vx, vy] = vs[i]!;
+    const [ax, ay] = vs[(i + 3) % 4]!;
+    const [bx, by] = vs[(i + 1) % 4]!;
+    const inX = vx + (ax - vx) * f;
+    const inY = vy + (ay - vy) * f;
+    if (i === 0) p.moveTo(inX, inY);
+    else p.lineTo(inX, inY);
+    p.quadTo(vx, vy, vx + (bx - vx) * f, vy + (by - vy) * f);
+  }
   p.close();
   return p;
+}
+
+/**
+ * Appends a routed line ([x0, y0, x1, y1, …]) to `path`, rounding each turn with a small curve
+ * (radius 10 by default, never more than half of either neighbouring segment). A literal default:
+ * a worklet cannot read module constants.
+ */
+export function addRoundedRoute(path: SkPath, route: number[], radius = 10) {
+  'worklet';
+  const n = route.length / 2;
+  if (n < 2) return;
+  path.moveTo(route[0]!, route[1]!);
+  for (let i = 1; i < n - 1; i++) {
+    const px = route[2 * i - 2]!;
+    const py = route[2 * i - 1]!;
+    const x = route[2 * i]!;
+    const y = route[2 * i + 1]!;
+    const qx = route[2 * i + 2]!;
+    const qy = route[2 * i + 3]!;
+    const inLen = Math.hypot(x - px, y - py);
+    const outLen = Math.hypot(qx - x, qy - y);
+    const r = Math.min(radius, inLen / 2, outLen / 2);
+    if (r <= 0.5) {
+      path.lineTo(x, y);
+      continue;
+    }
+    path.lineTo(x - ((x - px) / inLen) * r, y - ((y - py) / inLen) * r);
+    path.quadTo(x, y, x + ((qx - x) / outLen) * r, y + ((qy - y) / outLen) * r);
+  }
+  path.lineTo(route[2 * n - 2]!, route[2 * n - 1]!);
 }
 
 /** Fills the diamond (x, y, r) with the photo. Safe to call from a worklet. */

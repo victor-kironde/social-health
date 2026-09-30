@@ -16,9 +16,11 @@ export interface DisplayPrefs {
    * "at least N times a period" (which wins when set). Default: at least once a month.
    */
   defaultRhythm: { rhythm: Rhythm; frequency: Frequency | null };
+  /** Ask before the graph's reset button puts moved people back ("Don't ask again" turns it off). */
+  confirmReset: boolean;
 }
 
-const DEFAULTS: DisplayPrefs = { showScore: true, defaultRhythm: { rhythm: 'monthly', frequency: null } };
+const DEFAULTS: DisplayPrefs = { showScore: true, defaultRhythm: { rhythm: 'monthly', frequency: null }, confirmReset: true };
 
 const RHYTHMS: Rhythm[] = ['weekly', 'fortnightly', 'monthly', 'quarterly', 'yearly', 'occasional'];
 const PERIODS: FrequencyPeriod[] = ['day', 'week', 'month', 'year'];
@@ -40,6 +42,7 @@ export function parsePrefs(raw: string | null): DisplayPrefs {
         rhythm: d && RHYTHMS.includes(d.rhythm) ? d.rhythm : DEFAULTS.defaultRhythm.rhythm,
         frequency: parseFrequency(d?.frequency),
       },
+      confirmReset: typeof v.confirmReset === 'boolean' ? v.confirmReset : DEFAULTS.confirmReset,
     };
   } catch {
     return DEFAULTS;

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from 'react';
-import { Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
+import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Easing, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
@@ -48,6 +48,7 @@ export function GraphCanvas({
   onHelp,
   onReset,
   onMePress,
+  showActionLabels = false,
   leftActions = [],
   onRendered,
   focus,
@@ -78,6 +79,8 @@ export function GraphCanvas({
   onReset?: () => void;
   /** A tap on you, at the centre. */
   onMePress?: () => void;
+  /** Name each corner button beside it (while the graph's key is open). */
+  showActionLabels?: boolean;
   /** Round icon buttons stacked in the bottom-left corner, first at the bottom. */
   leftActions?: { key: string; label: string; Icon: ComponentType<{ colour: string }>; onPress: () => void }[];
   onRendered?: () => void;
@@ -348,6 +351,25 @@ export function GraphCanvas({
           )}
         </View>
       </GestureDetector>
+      {showActionLabels &&
+        [
+          ...leftActions.map((a, i) => ({ key: a.key, label: a.label, side: 'left' as const, i })),
+          { key: 'fit', label: 'Fit everyone in view', side: 'right' as const, i: 0 },
+          ...(onHelp ? [{ key: 'help', label: 'This key', side: 'right' as const, i: 1 }] : []),
+          ...(onReset ? [{ key: 'reset', label: 'Put moved people back', side: 'right' as const, i: 2 }] : []),
+        ].map((l) => (
+          <View
+            key={`label-${l.key}`}
+            pointerEvents="none"
+            style={[
+              styles.fabLabel,
+              { backgroundColor: `${c.card}E6`, borderColor: c.edge, bottom: bottomInset + 16 + l.i * (FAB_SIZE + FAB_GAP) + 10 },
+              l.side === 'left' ? { left: 16 + FAB_SIZE + 8 } : { right: 16 + FAB_SIZE + 8 },
+            ]}
+          >
+            <Text style={{ color: c.text, fontSize: 13 }}>{l.label}</Text>
+          </View>
+        ))}
       {onHelp && (
         <Fab bottom={bottomInset + 16 + FAB_SIZE + FAB_GAP} side="right" label="What the graph shows" onPress={onHelp} colours={c}>
           <HelpIcon colour={c.text} />
@@ -404,6 +426,7 @@ function Fab({
 
 const styles = StyleSheet.create({
   canvas: { flex: 1, overflow: 'hidden' },
+  fabLabel: { position: 'absolute', borderRadius: 8, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 8, paddingVertical: 3, elevation: 4 },
   fab: {
     position: 'absolute',
     width: FAB_SIZE,

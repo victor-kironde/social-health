@@ -1,4 +1,4 @@
-import { Canvas, Group, Picture, PointMode, Skia, type SkPaint } from '@shopify/react-native-skia';
+import { Canvas, Group, Picture, Skia, type SkPaint } from '@shopify/react-native-skia';
 import type { Category } from '@sg/score-engine';
 import type { HealthBand } from '../../data/health';
 import { routeEdge } from '../geometry';
@@ -9,6 +9,7 @@ import { ME_ID, edgeStroke, encode, type GraphRendererProps } from '../model';
 import { SkiaRenderer } from './SkiaRenderer';
 import {
   GRAPH_UNSHIFT,
+  addRoundedRoute,
   PICTURE_OFFSET,
   centreOffset,
   diamondPath,
@@ -278,27 +279,22 @@ function LiveSkia({
     // Positions arrive just after the first render; until then there is nothing to place.
     if (xy.length < 2 * live.ids.length) return graphPicture(() => {});
     return graphPicture((canvas) => {
-      // Ties underneath: every segment of every tie in a band, in one drawPoints call.
-      // Independent line segments take Skia's fast path; one big stroked path does not.
+      // Ties underneath: every tie in a band as one path (one draw call), with rounded turns.
       for (const g of specs.ties) {
-        const pts: { x: number; y: number }[] = [];
+        const path = Skia.Path.Make();
         for (let k = 0; k < g.ends.length; k += 2) {
           const a = g.ends[k]!;
           const b = g.ends[k + 1]!;
-          const route = routeEdge('tie', xy[2 * a]!, xy[2 * a + 1]!, xy[2 * b]!, xy[2 * b + 1]!, routing);
-          for (let i = 2; i + 1 < route.length; i += 2) {
-            pts.push({ x: route[i - 2]!, y: route[i - 1]! }, { x: route[i]!, y: route[i + 1]! });
-          }
+          addRoundedRoute(path, routeEdge('tie', xy[2 * a]!, xy[2 * a + 1]!, xy[2 * b]!, xy[2 * b + 1]!, routing));
         }
-        canvas.drawPoints(PointMode.Lines, pts, g.paint);
+        canvas.drawPath(path, g.paint);
       }
       for (const e of specs.edges) {
         const sx = e.s < 0 ? 0 : xy[2 * e.s]!;
         const sy = e.s < 0 ? 0 : xy[2 * e.s + 1]!;
-        const route = routeEdge('ego', sx, sy, xy[2 * e.t]!, xy[2 * e.t + 1]!, routing);
-        for (let i = 2; i + 1 < route.length; i += 2) {
-          canvas.drawLine(route[i - 2]!, route[i - 1]!, route[i]!, route[i + 1]!, e.paint);
-        }
+        const path = Skia.Path.Make();
+        addRoundedRoute(path, routeEdge('ego', sx, sy, xy[2 * e.t]!, xy[2 * e.t + 1]!, routing));
+        canvas.drawPath(path, e.paint);
       }
     });
   });

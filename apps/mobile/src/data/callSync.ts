@@ -13,7 +13,7 @@ export async function requestCallLogPermission(): Promise<boolean> {
   const result = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.READ_CALL_LOG, {
     title: 'Use your call history?',
     message:
-      'Social Graph reads when calls happened, how long they lasted and the contact name, to match calls to people you have added. Phone numbers are never read.',
+      'Social Health reads when calls happened, how long they lasted and the contact name, to match calls to people you have added. Phone numbers are never read.',
     buttonPositive: 'Allow',
     buttonNegative: 'Not now',
   });

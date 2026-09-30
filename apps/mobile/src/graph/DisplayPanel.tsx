@@ -1,6 +1,6 @@
 import type { Rating } from '@sg/score-engine';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StyleSheet, Text, View } from 'react-native';
+import { FloatingPane } from './FloatingPane';
 import { Button, ChoiceChips, Label, ToggleChip } from '../ui/components';
 import { CATEGORY_LABELS } from '../ui/labels';
 import { useTheme } from '../ui/theme';
@@ -16,7 +16,7 @@ const MIN_IMPORTANCE: { value: number; label: string }[] = [
   { value: 9, label: '9+' },
 ];
 
-/** Bottom sheet with every display toggle and filter for the network graph. */
+/** Every display toggle and filter for the network graph, in a see-through pane over it. */
 export function DisplayPanel({
   visible,
   options: o,
@@ -35,22 +35,15 @@ export function DisplayPanel({
   groups?: { id: string; name: string }[];
 }) {
   const t = useTheme();
-  const insets = useSafeAreaInsets();
   const set = <K extends keyof DisplayOptions>(key: K, value: DisplayOptions[K]) => onChange({ ...o, [key]: value });
   const flip = (key: 'sets' | 'egoEdges' | 'ties' | 'names' | 'sizeByFrequency' | 'behindOnly' | 'hideNeverContacted') =>
     set(key, !o[key]);
 
+  if (!visible) return null;
+  // A see-through pane over the graph, so each change can be seen as it is made.
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.scrim} onPress={onClose} accessibilityLabel="Close display options" />
-      <View style={[styles.sheet, { backgroundColor: t.bg, paddingBottom: insets.bottom + 12, borderColor: t.border }]}>
-        <View style={styles.header}>
-          <Text style={[styles.title, { color: t.text }]}>Display & filters</Text>
-          <Pressable onPress={onClose} accessibilityRole="button" hitSlop={12}>
-            <Text style={{ color: t.accent, fontWeight: '600' }}>Done</Text>
-          </Pressable>
-        </View>
-        <ScrollView contentContainerStyle={styles.content}>
+    <FloatingPane title="Display & filters" onClose={onClose} alpha="B8" style={{ bottom: 8, maxWidth: 440 }}>
+        <View style={styles.content}>
           <View>
             <Label>Arrange</Label>
             <ChoiceChips
@@ -158,18 +151,13 @@ export function DisplayPanel({
             </View>
           </View>
           <Button title="Reset to defaults" variant="secondary" onPress={() => onChange(DEFAULT_DISPLAY)} />
-        </ScrollView>
-      </View>
-    </Modal>
+        </View>
+    </FloatingPane>
   );
 }
 
 const styles = StyleSheet.create({
-  scrim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)' },
-  sheet: { maxHeight: '80%', borderTopLeftRadius: 16, borderTopRightRadius: 16, borderTopWidth: StyleSheet.hairlineWidth },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 6 },
-  title: { fontSize: 17, fontWeight: '700' },
-  content: { paddingHorizontal: 16, paddingBottom: 8, gap: 16 },
+  content: { paddingBottom: 8, gap: 16 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   hint: { fontSize: 12, marginTop: 6 },
 });

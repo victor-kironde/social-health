@@ -39,7 +39,7 @@ interface Slide {
 const SLIDES: Slide[] = [
   {
     title: 'Your people, around you',
-    body: 'Social Graph draws a calm, living map of the people who matter to you, with you at the centre. The closer someone is, the more important they are to you.',
+    body: 'Social Health draws a calm, living map of the people who matter to you, with you at the centre. The closer someone is, the more important they are to you.',
     art: (
       <Art>
         {NETWORK.map(([x, y], i) => (

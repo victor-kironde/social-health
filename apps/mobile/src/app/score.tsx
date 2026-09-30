@@ -1,4 +1,4 @@
-import { DEFAULT_CONFIG, computeScore } from '@sg/score-engine';
+import { DEFAULT_CONFIG, computeScore, type EventLog, type ModelConfig } from '@sg/score-engine';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { SCENARIO_AS_OF, findScenario } from '../data/scenarioCatalog';
@@ -28,9 +28,7 @@ const COMPARISONS: IdealComparison[] = ['at', 'below', 'beyond', 'none'];
 
 /** Details behind the Social Health score. Charts of how it changes over time come next. */
 export default function ScoreDetails() {
-  const t = useTheme();
   const { log: myLog } = useStore();
-  const { prefs } = usePrefs();
   const myConfig = useModelConfig();
   // A synthetic scenario (score?scenario=<id>), shown as of the scenarios' fixed date.
   const { scenario: scenarioId } = useLocalSearchParams<{ scenario?: string }>();
@@ -38,6 +36,22 @@ export default function ScoreDetails() {
   const log = useMemo(() => (scenario ? scenario.build() : myLog), [scenario, myLog]);
   const config = scenario ? DEFAULT_CONFIG : myConfig;
   const now = useMemo(() => (scenario ? SCENARIO_AS_OF : Date.now()), [scenario]);
+  return (
+    <ScrollView contentContainerStyle={styles.content}>
+      {scenario && <Stack.Screen options={{ title: `Scenario: ${scenario.label}` }} />}
+      <ScoreDetailsBody log={log} config={config} now={now} />
+    </ScrollView>
+  );
+}
+
+/**
+ * The score, how relationships stand, what makes up the score, and trends. Used by the page and
+ * by the pane that floats over the graph (`floating`: see-through cards).
+ */
+export function ScoreDetailsBody({ log, config, now, floating = false }: { log: EventLog; config: ModelConfig; now: number; floating?: boolean }) {
+  const t = useTheme();
+  const { prefs } = usePrefs();
+  const cardStyle = floating ? { backgroundColor: `${t.bg}66` } : undefined;
   const result = useMemo(() => computeScore(log, config, now), [log, config, now]);
   const [range, setRange] = useState<TrendRange>('5m');
   const points = useMemo(() => trendPoints(log, now, range, config), [log, now, range, config]);
@@ -59,15 +73,14 @@ export default function ScoreDetails() {
   }, [result]);
 
   return (
-    <ScrollView contentContainerStyle={styles.content}>
-      {scenario && <Stack.Screen options={{ title: `Scenario: ${scenario.label}` }} />}
+    <View style={{ gap: 12 }}>
       {prefs.showScore && log.interactions.length === 0 && (
-        <Card>
+        <Card style={cardStyle}>
           <Text style={{ color: t.text, lineHeight: 20 }}>Log your first catch-up to see your score.</Text>
         </Card>
       )}
       {prefs.showScore && log.interactions.length > 0 && (
-        <Card>
+        <Card style={cardStyle}>
           <View style={styles.head}>
             <ScoreRing total={result.total} size={120} />
             <View style={{ flex: 1, gap: 4 }}>
@@ -83,7 +96,7 @@ export default function ScoreDetails() {
         </Card>
       )}
 
-      <Card>
+      <Card style={cardStyle}>
         <Label>Your relationships</Label>
         {BANDS.map((b) => (
           <View key={String(b)} style={styles.bandRow}>
@@ -94,7 +107,7 @@ export default function ScoreDetails() {
         ))}
       </Card>
 
-      <Card>
+      <Card style={cardStyle}>
         <Label>Compared with how close you hope to be</Label>
         {COMPARISONS.map((k) => (
           <View key={k} style={styles.bandRow}>
@@ -109,7 +122,7 @@ export default function ScoreDetails() {
       </Card>
 
       {prefs.showScore && log.interactions.length > 0 && (
-        <Card>
+        <Card style={cardStyle}>
           <Label>What makes up the score</Label>
           <ScoreBreakdown result={result} />
         </Card>
@@ -122,7 +135,7 @@ export default function ScoreDetails() {
         onChange={setRange}
       />
       {prefs.showScore && log.interactions.length > 0 && (
-        <Card>
+        <Card style={cardStyle}>
           <Label>Social Health over time</Label>
           <Text style={{ color: t.muted, marginBottom: 6 }}>
             {change === null
@@ -134,18 +147,18 @@ export default function ScoreDetails() {
           <ScoreTrend points={points} range={range} />
         </Card>
       )}
-      <Card>
+      <Card style={cardStyle}>
         <Label>How close your relationships have been</Label>
         <ClosenessTrend points={points} range={range} />
       </Card>
-      <Card>
+      <Card style={cardStyle}>
         <Label>Catch-ups {TREND_RANGES[range].stepDays === 1 ? 'per day' : TREND_RANGES[range].stepDays === 7 ? 'per week' : 'per month'}</Label>
         <CatchUpTrend points={points} range={range} showCalls={log.calls !== undefined} />
       </Card>
       <Text style={{ color: t.muted, fontSize: 12, lineHeight: 17 }}>
         Each point shows things as they were then. Social Health is for information and reflection only.
       </Text>
-    </ScrollView>
+    </View>
   );
 }
 

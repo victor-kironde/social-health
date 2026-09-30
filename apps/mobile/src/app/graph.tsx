@@ -1,7 +1,7 @@
 import { DEFAULT_CONFIG, computeScore } from '@sg/score-engine';
 import { Stack, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { anonymousNames } from '../data/report';
 import { graphSnapshot, reportGraph } from '../graph/renderers/skiaKit';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -22,6 +22,8 @@ import { AddPersonIcon, CatchUpIcon, MeetupsIcon, PeopleIcon } from '../graph/ic
 import { toConfirm } from '../data/plans';
 import { localDate } from '../ui/calendar';
 import { GraphHelpBody } from './graph-help';
+import { ScoreDetailsBody } from './score';
+import { FloatingPane } from '../graph/FloatingPane';
 import { PersonStatsCard } from '../graph/PersonStatsCard';
 import { personStats } from '../graph/personStats';
 import { GraphCanvas } from '../graph/GraphCanvas';
@@ -65,8 +67,11 @@ export default function GraphScreen() {
   const [anonymous, setAnonymous] = useState(false);
   // The graph's key, floating over the graph (the ? button).
   const [helpOpen, setHelpOpen] = useState(false);
+  // Score details floating over the graph (tap the score).
+  const [scoreOpen, setScoreOpen] = useState(false);
+  const [confirmingReset, setConfirmingReset] = useState(false);
   const pendingMeetups = useMemo(() => toConfirm(plans, log.interactions, localDate(Date.now())).length, [plans, log.interactions]);
-  const { prefs } = usePrefs();
+  const { prefs, setPrefs } = usePrefs();
   const config = useModelConfig();
   const insets = useSafeAreaInsets();
   const { demo, scenario: scenarioId } = useLocalSearchParams<{ demo?: string; scenario?: string }>();
@@ -437,6 +442,7 @@ export default function GraphScreen() {
   const openPerson = (id: string) => router.push({ pathname: '/person/[id]', params: { id } });
   const selectPerson = (id: string) => {
     setHelpOpen(false);
+    setScoreOpen(false);
     setSelectedPersonId(id);
   };
 
@@ -493,7 +499,11 @@ export default function GraphScreen() {
         <ToggleChip
           label={`Display & filters${filters ? ` (${filters})` : ''}`}
           on={filters > 0}
-          onPress={() => setPanelOpen(true)}
+          onPress={() => {
+            setHelpOpen(false);
+            setScoreOpen(false);
+            setPanelOpen((v) => !v);
+          }}
         />
         <ToggleChip label="Rings" on={!tiersOn} onPress={() => setDisplay((d) => ({ ...d, arrange: 'rings' }))} />
         <ToggleChip label="Tiers" on={tiersOn} onPress={() => setDisplay((d) => ({ ...d, arrange: 'tiers' }))} />
@@ -530,17 +540,16 @@ export default function GraphScreen() {
           onReset={
             sample
               ? undefined
-              : () =>
-                  Alert.alert('Put everyone back?', 'People you moved go back to where the app places them.', [
-                    { text: 'Cancel', style: 'cancel' },
-                    { text: 'Put back', onPress: () => resetLayout().catch(() => undefined) },
-                  ])
+              : () => (prefs.confirmReset ? setConfirmingReset(true) : resetLayout().catch(() => undefined))
           }
           onMePress={sample ? undefined : () => router.push('/me')}
           onHelp={() => {
             setSelectedPersonId(null);
+            setScoreOpen(false);
+            setPanelOpen(false);
             setHelpOpen((v) => !v);
           }}
+          showActionLabels={helpOpen}
           leftActions={
             sample
               ? []
@@ -566,20 +575,23 @@ export default function GraphScreen() {
           {shownTotal !== null && prefs.showScore && (
             <Pressable
               onPress={
-                scenario
-                  ? () => router.push({ pathname: '/score', params: { scenario: scenario.id } })
-                  : sample
-                    ? undefined
-                    : () => router.push('/score')
+                demoSize
+                  ? undefined
+                  : () => {
+                      setHelpOpen(false);
+                      setPanelOpen(false);
+                      setSelectedPersonId(null);
+                      setScoreOpen((v) => !v);
+                    }
               }
               accessibilityRole="button"
-              accessibilityHint={filtered ? 'Score for the people shown. Opens score details' : 'Opens score details'}
+              accessibilityHint={filtered ? 'Score for the people shown. Shows score details' : 'Shows score details'}
               style={({ pressed }) => [
                 styles.score,
                 { backgroundColor: translucent(t.card), borderColor: t.border, opacity: pressed ? 0.75 : 1 },
               ]}
             >
-              <ScoreRing total={shownTotal} size={46} />
+              <ScoreRing total={shownTotal} size={92} />
               <Text style={[styles.scoreLabel, { color: t.muted }]}>
                 Social{'\n'}Health{filtered ? '\n(filtered)' : ''}
               </Text>
@@ -630,32 +642,54 @@ export default function GraphScreen() {
             </View>
           )}
         </View>
-        {helpOpen && (
-          // Touching anywhere outside the key closes it.
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setHelpOpen(false)} accessibilityLabel="Close the key" />
+        {(helpOpen || scoreOpen) && (
+          // Touching anywhere outside the pane closes it.
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => {
+              setHelpOpen(false);
+              setScoreOpen(false);
+            }}
+            accessibilityLabel="Close"
+          />
         )}
         {helpOpen && (
-          <View style={[styles.help, { backgroundColor: `${t.card}D0`, borderColor: t.border }]}>
-            <View style={styles.helpHead}>
-              <Text style={{ color: t.text, fontSize: 16, fontWeight: '700', flex: 1 }}>Reading your graph</Text>
-              <Pressable onPress={() => setHelpOpen(false)} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close the key">
-                <Text style={{ color: t.muted, fontSize: 20 }}>×</Text>
-              </Pressable>
-            </View>
-            <ScrollView contentContainerStyle={{ paddingBottom: 16 }}>
-              <GraphHelpBody floating />
-            </ScrollView>
-          </View>
+          // Ends above the corner buttons, whose names show while the key is open.
+          <FloatingPane title="Reading your graph" onClose={() => setHelpOpen(false)} style={{ bottom: 16 + 4 * 56 + 8 }}>
+            <GraphHelpBody floating />
+          </FloatingPane>
         )}
+        {scoreOpen && sourceLog && (
+          <FloatingPane
+            title={filtered ? 'Social Health (everyone)' : 'Social Health'}
+            onClose={() => setScoreOpen(false)}
+            onExpand={() => {
+              setScoreOpen(false);
+              router.push(scenario ? { pathname: '/score', params: { scenario: scenario.id } } : '/score');
+            }}
+            style={{ bottom: 8 }}
+          >
+            <ScoreDetailsBody log={sourceLog} config={scenario ? DEFAULT_CONFIG : config} now={now} floating />
+          </FloatingPane>
+        )}
+        <DisplayPanel
+          visible={panelOpen}
+          options={display}
+          onChange={setDisplay}
+          onClose={() => setPanelOpen(false)}
+          hasTies={ties.length > 0}
+          groups={myGroups}
+        />
       </View>
 
-      <DisplayPanel
-        visible={panelOpen}
-        options={display}
-        onChange={setDisplay}
-        onClose={() => setPanelOpen(false)}
-        hasTies={ties.length > 0}
-        groups={myGroups}
+      <ConfirmReset
+        visible={confirmingReset}
+        onCancel={() => setConfirmingReset(false)}
+        onConfirm={(dontAskAgain) => {
+          setConfirmingReset(false);
+          if (dontAskAgain) setPrefs({ ...prefs, confirmReset: false });
+          resetLayout().catch(() => undefined);
+        }}
       />
 
       <View style={[styles.legend, { borderTopColor: t.border, paddingBottom: 10 + insets.bottom }]}>
@@ -695,9 +729,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  scoreLabel: { fontSize: 11, lineHeight: 14 },
-  help: { position: 'absolute', top: 8, left: 8, right: 8, bottom: 140, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, padding: 12 },
-  helpHead: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  scoreLabel: { fontSize: 17, lineHeight: 21, fontWeight: '600' },
   meetups: { borderRadius: 16, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 6 },
   stats: { alignSelf: 'stretch' },
   legend: { paddingHorizontal: 16, paddingVertical: 10, borderTopWidth: StyleSheet.hairlineWidth, gap: 2 },
@@ -705,4 +737,39 @@ const styles = StyleSheet.create({
   disclaimer: { fontStyle: 'italic', marginTop: 2, opacity: 0.85 },
   emptyTitle: { fontSize: 20, fontWeight: '700' },
 
+});
+
+/** Asks before putting moved people back, with a way to stop asking. */
+function ConfirmReset({ visible, onCancel, onConfirm }: { visible: boolean; onCancel: () => void; onConfirm: (dontAskAgain: boolean) => void }) {
+  const t = useTheme();
+  const [dontAsk, setDontAsk] = useState(false);
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
+      <Pressable style={confirmStyles.scrim} onPress={onCancel} accessibilityLabel="Cancel">
+        <Pressable style={[confirmStyles.card, { backgroundColor: t.card, borderColor: t.border }]} onPress={() => undefined}>
+          <Text style={{ color: t.text, fontSize: 18, fontWeight: '700' }}>Put everyone back?</Text>
+          <Text style={{ color: t.muted, lineHeight: 20 }}>People you moved go back to where the app places them.</Text>
+          <View style={confirmStyles.row}>
+            <Text style={{ color: t.text, flex: 1 }}>Don't ask again</Text>
+            <Switch value={dontAsk} onValueChange={setDontAsk} accessibilityLabel="Don't ask again" trackColor={{ true: t.accent, false: t.track }} />
+          </View>
+          <View style={confirmStyles.buttons}>
+            <Pressable onPress={onCancel} hitSlop={8} accessibilityRole="button">
+              <Text style={{ color: t.accent, fontWeight: '600', fontSize: 15 }}>Cancel</Text>
+            </Pressable>
+            <Pressable onPress={() => onConfirm(dontAsk)} hitSlop={8} accessibilityRole="button">
+              <Text style={{ color: t.accent, fontWeight: '700', fontSize: 15 }}>Put back</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+const confirmStyles = StyleSheet.create({
+  scrim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center', padding: 24 },
+  card: { borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, padding: 20, gap: 12, width: '100%', maxWidth: 400 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  buttons: { flexDirection: 'row', justifyContent: 'flex-end', gap: 28, marginTop: 4 },
 });

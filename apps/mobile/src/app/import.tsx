@@ -80,7 +80,7 @@ export default function ImportContacts() {
         <Card>
           <Text style={[styles.title, { color: t.text }]}>Choose people from your contacts</Text>
           <Text style={{ color: t.muted, lineHeight: 20 }}>
-            Social Graph will ask to read your contacts. You then pick who to add; nobody is selected for you.
+            Social Health will ask to read your contacts. You then pick who to add; nobody is selected for you.
             {'\n\n'}Only names are copied, into this phone’s encrypted storage. Phone numbers, emails and photos are never
             read or saved. You can turn contacts access off again in your phone’s settings at any time.
           </Text>
@@ -109,7 +109,7 @@ export default function ImportContacts() {
           <Text style={{ color: t.muted, lineHeight: 20 }}>
             {phase.canAskAgain
               ? 'Without permission, people can still be added one by one.'
-              : 'Contacts access is turned off for Social Graph. You can allow it in your phone’s settings, or add people one by one.'}
+              : 'Contacts access is turned off for Social Health. You can allow it in your phone’s settings, or add people one by one.'}
           </Text>
           <View style={styles.gap}>
             {phase.canAskAgain ? (

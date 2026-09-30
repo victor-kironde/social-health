@@ -118,7 +118,7 @@ export default function Settings() {
   }
 
   function confirmDisconnectCalls() {
-    Alert.alert('Stop using call history?', 'Every imported call will be deleted from Social Graph. Your phone’s own call log is not affected.', [
+    Alert.alert('Stop using call history?', 'Every imported call will be deleted from Social Health. Your phone’s own call log is not affected.', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete imported calls',
@@ -164,7 +164,7 @@ export default function Settings() {
         <Label>Security</Label>
         <Row
           title="App lock"
-          detail="Ask for your fingerprint, face or phone PIN when opening Social Graph."
+          detail="Ask for your fingerprint, face or phone PIN when opening Social Health."
           value={settings.appLock && deviceSecure}
           onChange={(v) => toggle({ appLock: v })}
         />
@@ -345,7 +345,7 @@ export default function Settings() {
       <Card>
         <Label>About</Label>
         <Text style={{ color: t.muted, lineHeight: 20 }}>
-          Social Graph {Constants.expoConfig?.version ?? ''} · score model v{MODEL_VERSION} · database schema v{schema ?? '…'}
+          Social Health {Constants.expoConfig?.version ?? ''} · score model v{MODEL_VERSION} · database schema v{schema ?? '…'}
           {'\n'}Everything stays on this phone, in an encrypted database. Nothing is sent anywhere.
         </Text>
         <View style={{ marginTop: 10 }}>

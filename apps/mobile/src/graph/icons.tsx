@@ -83,3 +83,12 @@ export function ResetIcon({ colour }: { colour: string }) {
     </Svg>
   );
 }
+
+/** Open in full: two arrows pointing out to opposite corners. */
+export function ExpandIcon({ colour }: { colour: string }) {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 24 24">
+      <Path d="M14 4h6v6M20 4l-7 7M10 20H4v-6M4 20l7-7" stroke={colour} {...STROKE} />
+    </Svg>
+  );
+}

@@ -137,7 +137,7 @@ export async function decryptExport(
   password: string,
   derive: DeriveKey = jsDeriveKey,
 ): Promise<string> {
-  if (file.format !== EXPORT_FORMAT || file.version !== 1) throw new Error('This is not a Social Graph export file.');
+  if (file.format !== EXPORT_FORMAT || file.version !== 1) throw new Error('This is not a Social Health export file.');
   if (file.kdf.name !== 'PBKDF2-SHA256' || file.cipher.name !== 'AES-256-GCM') throw new Error('Unsupported export file.');
   const key = await derive(utf8.encode(password), fromBase64(file.kdf.salt), file.kdf.iterations);
   try {

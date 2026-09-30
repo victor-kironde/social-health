@@ -67,7 +67,7 @@ export function SecurityProvider({ children }: { children: ReactNode }) {
     if (authenticating.current) return;
     authenticating.current = true;
     try {
-      if (await authenticate('Unlock Social Graph')) setLocked(false);
+      if (await authenticate('Unlock Social Health')) setLocked(false);
     } finally {
       authenticating.current = false;
       leftAt.current = null;
@@ -139,7 +139,7 @@ function LockScreen({ ready, onUnlock }: { ready: boolean; onUnlock: () => void 
     <View style={[StyleSheet.absoluteFill, styles.lock, { backgroundColor: t.bg }]} accessibilityViewIsModal>
       {ready && (
         <>
-          <Text style={[styles.title, { color: t.text }]}>Social Graph is locked</Text>
+          <Text style={[styles.title, { color: t.text }]}>Social Health is locked</Text>
           <Text style={{ color: t.muted, textAlign: 'center', marginBottom: 24 }}>
             Use your fingerprint, face or phone PIN to continue.
           </Text>
