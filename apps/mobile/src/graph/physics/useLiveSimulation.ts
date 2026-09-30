@@ -35,20 +35,31 @@ export function useLiveSimulation(
     warm?: boolean;
     reducedMotion: boolean;
     onSettled?: (p: Map<string, PlacedPoint>, stats?: SettleStats) => void;
+    /** People the user moved, held where they were put. */
+    pinned?: Map<string, { x: number; y: number }>;
+    /** Called when the user lets go of someone they moved. */
+    onPin?: (id: string, x: number, y: number) => void;
+    /** Changing it lays everyone out afresh (after a reset). */
+    epoch?: number;
   },
 ): LiveControls | null {
   const { enabled, previous, links, warm, reducedMotion } = opts;
   const settledRef = useRef(opts.onSettled);
   settledRef.current = opts.onSettled;
+  const pinRef = useRef(opts.onPin);
+  pinRef.current = opts.onPin;
+  const pinnedRef = useRef(opts.pinned);
+  pinnedRef.current = opts.pinned;
 
   // A new simulation only when the people, their sizes, types or ties change, not on every render.
   const key =
     nodes.map((n) => `${n.id}:${n.importance}:${n.radius ?? ''}:${n.outward ?? 0}:${(n.categories ?? []).join('+')}`).join('|') +
     '#' +
-    (links ?? []).map((l) => `${l.source}-${l.target}`).join('|');
+    (links ?? []).map((l) => `${l.source}-${l.target}`).join('|') +
+    `#${opts.epoch ?? 0}`;
   const sim = useMemo(() => {
     if (!enabled) return null;
-    const s = new LiveSimulation(nodes, { previous, links, warm });
+    const s = new LiveSimulation(nodes, { previous, links, warm, pinned: pinnedRef.current });
     if (reducedMotion) s.settle();
     return s;
   }, [key, enabled, reducedMotion]);
@@ -100,7 +111,10 @@ export function useLiveSimulation(
         run();
       },
       dragMove: (id: string, x: number, y: number) => sim.dragMove(id, x, y),
-      dragEnd: (id: string) => sim.dragEnd(id),
+      dragEnd: (id: string) => {
+        const p = sim.dragEnd(id);
+        if (p) pinRef.current?.(id, p.x, p.y);
+      },
     };
   }, [sim, xy, run]);
 }

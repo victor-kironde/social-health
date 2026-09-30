@@ -39,6 +39,12 @@ const MIGRATIONS: string[] = [
      jpeg TEXT NOT NULL,
      updated_at INTEGER NOT NULL
    );`,
+  // People the user moved on the graph: they stay where they were put until the layout is reset.
+  `CREATE TABLE IF NOT EXISTS graph_pin (
+     person_id TEXT PRIMARY KEY NOT NULL,
+     x REAL NOT NULL,
+     y REAL NOT NULL
+   );`,
 ];
 
 export interface DbStatus {
@@ -124,7 +130,42 @@ export async function erasePerson(personId: string): Promise<void> {
     for (const e of replace) await db.runAsync('UPDATE event SET body = ? WHERE id = ?;', [toRow(e).body, e.id]);
     await db.runAsync('DELETE FROM graph_position WHERE person_id = ?;', [personId]);
     await db.runAsync('DELETE FROM person_photo WHERE person_id = ?;', [personId]);
+    await db.runAsync('DELETE FROM graph_pin WHERE person_id = ?;', [personId]);
   });
+}
+
+/** Where the user has put people on the graph, by person id. */
+export async function loadPins(): Promise<Map<string, { x: number; y: number }>> {
+  const db = await openDb();
+  const rows = await db.getAllAsync<{ person_id: string; x: number; y: number }>('SELECT person_id, x, y FROM graph_pin;');
+  return new Map(rows.map((r) => [r.person_id, { x: r.x, y: r.y }]));
+}
+
+export async function savePin(personId: string, x: number, y: number): Promise<void> {
+  const db = await openDb();
+  await db.runAsync('INSERT OR REPLACE INTO graph_pin (person_id, x, y) VALUES (?, ?, ?);', [personId, x, y]);
+}
+
+/** Forgets every moved position and the cached layout, so everyone is laid out afresh. */
+export async function resetLayout(): Promise<void> {
+  const db = await openDb();
+  await db.withTransactionAsync(async () => {
+    await db.runAsync('DELETE FROM graph_pin;');
+    await db.runAsync('DELETE FROM graph_position;');
+    await db.runAsync("DELETE FROM graph_meta WHERE key = 'tie_signature';");
+  });
+}
+
+/** The name the user goes by on their own node ("You" when unset). */
+export async function loadMyName(): Promise<string> {
+  const db = await openDb();
+  return (await db.getFirstAsync<{ value: string }>("SELECT value FROM graph_meta WHERE key = 'my_name';"))?.value ?? '';
+}
+
+export async function saveMyName(name: string): Promise<void> {
+  const db = await openDb();
+  if (name.trim()) await db.runAsync("INSERT OR REPLACE INTO graph_meta (key, value) VALUES ('my_name', ?);", [name.trim()]);
+  else await db.runAsync("DELETE FROM graph_meta WHERE key = 'my_name';");
 }
 
 /** Your groups (see groups.ts). */

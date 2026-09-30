@@ -40,6 +40,8 @@ export class LiveSimulation {
       links?: LayoutLink[];
       /** Relax even if every position is remembered (e.g. the ties changed since they were saved). */
       warm?: boolean;
+      /** People the user moved: held exactly where they were put. */
+      pinned?: Map<string, { x: number; y: number }>;
     } = {},
   ) {
     const { simulation, simNodes } = createEgoSimulation(inputs, opts);
@@ -47,6 +49,12 @@ export class LiveSimulation {
     this.nodes = simNodes.filter((n) => n.id !== ME);
     this.ids = this.nodes.map((n) => n.id);
     this.byId = new Map(this.nodes.map((n) => [n.id, n]));
+    for (const [id, p] of opts.pinned ?? []) {
+      const n = this.byId.get(id);
+      if (!n) continue;
+      n.x = n.fx = p.x;
+      n.y = n.fy = p.y;
+    }
 
     // Start hotter the less we already know, so a fresh graph unfolds and a
     // cached one barely moves.
@@ -101,14 +109,16 @@ export class LiveSimulation {
     n.fy = y;
   }
 
-  /** Release: the node springs back towards its importance ring and the graph settles. */
-  dragEnd(id: string): void {
+  /**
+   * Release: the node stays where it was put (returned, for saving) and the rest of the graph
+   * settles around it.
+   */
+  dragEnd(id: string): { x: number; y: number } | null {
     const n = this.byId.get(id);
-    if (!n || this.dragging !== id) return;
+    if (!n || this.dragging !== id) return null;
     this.dragging = null;
-    n.fx = null;
-    n.fy = null;
     this.simulation.alphaTarget(0).alphaDecay(RELEASE_DECAY);
+    return n.fx != null && n.fy != null ? { x: n.fx, y: n.fy } : null;
   }
 
   /**

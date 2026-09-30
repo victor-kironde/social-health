@@ -47,6 +47,8 @@ export interface GraphNode {
   memberCount?: number;
   /** For a group: its members are hidden (collapsed into it). */
   collapsed?: boolean;
+  /** Drawn inside instead of the label's first letter (e.g. a number when anonymised). */
+  initial?: string;
 }
 
 export const RECENT_DAYS = 7;
@@ -82,6 +84,8 @@ export type GraphEdge = EgoEdge | TieEdge;
 export interface GraphData {
   nodes: GraphNode[];
   edges: GraphEdge[];
+  /** The user, drawn as a diamond at the centre: their name (or "You") and photo. */
+  me?: { label: string; photo?: string };
 }
 
 export interface GraphColours {

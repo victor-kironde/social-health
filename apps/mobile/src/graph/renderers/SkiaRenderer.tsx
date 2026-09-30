@@ -4,7 +4,7 @@ import { useEffect, useMemo } from 'react';
 import { useDerivedValue } from 'react-native-reanimated';
 import { NODE_RADIUS, type Point } from '../layout';
 import { ME_ID, edgeStroke, encode, type GraphData, type GraphRendererProps, type GraphStyle } from '../model';
-import { GRAPH_UNSHIFT, centreOffset, drawPhoto, graphPicture, makeFonts, paint, photoImage, photoSpec, type GraphFonts } from './skiaKit';
+import { GRAPH_UNSHIFT, centreOffset, diamondPath, drawPhoto, graphPicture, makeFonts, paint, photoImage, photoSpec, type GraphFonts } from './skiaKit';
 
 /**
  * Skia renderer: the whole graph is recorded once into an SkPicture and
@@ -80,6 +80,6 @@ function drawGraph(
     }
   }
 
-  canvas.drawCircle(0, 0, NODE_RADIUS + 4, paint(c.accent));
+  canvas.drawPath(diamondPath(0, 0, NODE_RADIUS + 10), paint(c.accent));
   drawCentredText(canvas, 'You', 0, 5, fonts.me, c.onAccent);
 }

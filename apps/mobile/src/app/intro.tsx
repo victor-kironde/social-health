@@ -57,7 +57,7 @@ const SLIDES: Slide[] = [
   },
   {
     title: 'See how each relationship is doing',
-    body: 'Green means you are close, amber that you are drifting a little, red that a relationship is strained. People you have lost touch with turn grey and drift outward. Bigger circles are people you are in touch with more.',
+    body: 'Green means you are close, amber that you are drifting, red that a relationship is strained. People you have lost touch with turn grey and drift outward. Bigger circles are people you are in touch with more.',
     art: (
       <Art>
         {([5, 4, 3, 2, 1] as const).map((h, i) => (

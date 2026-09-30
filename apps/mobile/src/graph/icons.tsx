@@ -73,3 +73,13 @@ export function MeetupsIcon({ colour }: { colour: string }) {
     </Svg>
   );
 }
+
+/** Put moved people back: a circular arrow. */
+export function ResetIcon({ colour }: { colour: string }) {
+  return (
+    <Svg width={22} height={22} viewBox="0 0 24 24">
+      <Path d="M4 12a8 8 0 1 0 2.4-5.7" stroke={colour} {...STROKE} />
+      <Path d="M4 4v4.5h4.5" stroke={colour} {...STROKE} />
+    </Svg>
+  );
+}

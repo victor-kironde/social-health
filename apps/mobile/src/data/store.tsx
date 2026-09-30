@@ -13,6 +13,11 @@ import {
   deletePlan as dbDeletePlan,
   loadPlans,
   savePlan as dbSavePlan,
+  loadPins,
+  savePin,
+  resetLayout as dbResetLayout,
+  loadMyName,
+  saveMyName,
   erasePerson,
   loadGraphLayout,
   loadGroups,
@@ -60,6 +65,17 @@ interface Store {
   updateGroup(group: PersonGroup): Promise<void>;
   /** Deletes a group for good (its people are untouched). */
   deleteGroup(groupId: string): Promise<void>;
+  /** People the user moved on the graph, where they put them. */
+  pins: Map<string, { x: number; y: number }>;
+  /** Keeps a moved person where they were put. */
+  pinNode(personId: string, x: number, y: number): void;
+  /** Puts everyone back: forgets moved positions and the cached layout. */
+  resetLayout(): Promise<void>;
+  /** Bumped by resetLayout, so the graph lays everyone out again. */
+  layoutEpoch: number;
+  /** Your own name on the graph ('' = "You"). */
+  myName: string;
+  setMyName(name: string): Promise<void>;
   /** Planned regular meetups, oldest first. */
   plans: Plan[];
   /** Saves a new or edited plan, keeping the relationship's rhythm in step where the plan owns it. */
@@ -83,6 +99,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [photos, setPhotos] = useState<Map<string, string>>(() => new Map());
   const [groups, setGroups] = useState<PersonGroup[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
+  const [pins, setPins] = useState<Map<string, { x: number; y: number }>>(() => new Map());
+  const [layoutEpoch, setLayoutEpoch] = useState(0);
+  const [myName, setMyNameState] = useState('');
   const plansRef = useRef(plans);
   plansRef.current = plans;
   const groupsRef = useRef(groups);
@@ -92,9 +111,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   logRef.current = log;
 
   useEffect(() => {
-    Promise.all([loadRows(), loadGraphLayout(), loadPhotos(), loadGroups(), loadPlans()])
-      .then(async ([rows, layout, savedPhotos, savedGroups, savedPlans]) => {
+    Promise.all([loadRows(), loadGraphLayout(), loadPhotos(), loadGroups(), loadPlans(), loadPins(), loadMyName()])
+      .then(async ([rows, layout, savedPhotos, savedGroups, savedPlans, savedPins, savedName]) => {
         setPlans(savedPlans);
+        setPins(savedPins);
+        setMyNameState(savedName);
         setPhotos(savedPhotos);
         setGroups(savedGroups);
         layout.positions.forEach((p, id) => graphLayout.positions.set(id, p));
@@ -281,11 +302,35 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setPlans(await loadPlans());
   }, []);
 
+  const pinNode = useCallback((personId: string, x: number, y: number) => {
+    setPins((prev) => new Map(prev).set(personId, { x, y }));
+    // A display preference: if saving fails the worst case is the person drifting back.
+    savePin(personId, x, y).catch((e: unknown) => console.warn('Could not save position', e));
+  }, []);
+
+  const resetLayout = useCallback(async () => {
+    await dbResetLayout();
+    graphLayout.positions.clear();
+    graphLayout.tieSignature = '';
+    setPins(new Map());
+    setLayoutEpoch((n) => n + 1);
+  }, [graphLayout]);
+
+  const setMyName = useCallback(async (name: string) => {
+    await saveMyName(name);
+    setMyNameState(name.trim());
+  }, []);
+
   const deletePerson = useCallback(
     async (personId: string) => {
       await erasePerson(personId);
       setGroups(await loadGroups());
       setPlans(await loadPlans());
+      setPins((prev) => {
+        const next = new Map(prev);
+        next.delete(personId);
+        return next;
+      });
       graphLayout.positions.delete(personId);
       setPhotos((prev) => {
         const next = new Map(prev);
@@ -305,6 +350,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setPhotos(new Map());
     setGroups([]);
     setPlans([]);
+    setPins(new Map());
+    setMyNameState('');
     setLog(emptyLog());
   }, [graphLayout]);
 
@@ -328,6 +375,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       addGroup,
       updateGroup,
       deleteGroup,
+      pins,
+      pinNode,
+      resetLayout,
+      layoutEpoch,
+      myName,
+      setMyName,
       plans,
       savePlan,
       deletePlan,
@@ -355,6 +408,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       addGroup,
       updateGroup,
       deleteGroup,
+      pins,
+      pinNode,
+      resetLayout,
+      layoutEpoch,
+      myName,
+      setMyName,
       plans,
       savePlan,
       deletePlan,

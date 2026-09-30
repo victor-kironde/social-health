@@ -1,14 +1,28 @@
-import { Canvas, Group, Picture, PointMode, Skia, StrokeCap, type SkPaint } from '@shopify/react-native-skia';
+import { Canvas, Group, Picture, PointMode, Skia, type SkPaint } from '@shopify/react-native-skia';
 import type { Category } from '@sg/score-engine';
-import { groupHealthColour, type HealthBand } from '../../data/health';
-import { spanningEdges } from '../arrange';
+import type { HealthBand } from '../../data/health';
 import { routeEdge } from '../geometry';
 import { useEffect, useMemo } from 'react';
 import { useDerivedValue } from 'react-native-reanimated';
 import { NODE_RADIUS, SECTOR_ORDER } from '../layout';
 import { ME_ID, edgeStroke, encode, type GraphRendererProps } from '../model';
 import { SkiaRenderer } from './SkiaRenderer';
-import { GRAPH_UNSHIFT, centreOffset, drawPhoto, graphPicture, glowPaint, makeFonts, paint, photoImage, photoSpec, type PhotoSpec } from './skiaKit';
+import {
+  GRAPH_UNSHIFT,
+  PICTURE_OFFSET,
+  centreOffset,
+  diamondPath,
+  drawPhoto,
+  drawPhotoDiamond,
+  graphPicture,
+  graphSnapshot,
+  glowPaint,
+  makeFonts,
+  paint,
+  photoImage,
+  photoSpec,
+  type PhotoSpec,
+} from './skiaKit';
 
 /** Everything needed to draw one node, prepared on JS so the per-frame worklet only reads it. */
 interface NodeSpec {
@@ -54,8 +68,6 @@ interface SetSpec {
   /** Draws the whole set at once with this opacity, so the set's own overlaps do not darken. */
   layer: SkPaint;
   fill: SkPaint;
-  /** Joins neighbouring members; its width is set per link (see setsPicture). */
-  bar: SkPaint;
   label: SkPaint;
   /** Outline behind the name so it stays readable over people and lines. */
   halo: SkPaint;
@@ -65,8 +77,6 @@ interface SetSpec {
   members: number[];
   radii: number[];
   primary: boolean[];
-  /** Member radius by index into xy, for sizing the joins. */
-  radiusAt: Record<number, number>;
 }
 
 const TAU = Math.PI * 2;
@@ -74,16 +84,12 @@ const TAU = Math.PI * 2;
 const BRIDGE_GAP = 6;
 /** Halo radius relative to the node. */
 const GLOW_SCALE = 1.75;
+/** Corner radius of a type area. */
+const SET_CORNER = 22;
 /** How far a set reaches beyond its members' circles. */
 const SET_PAD = 14;
-/** Members further apart than this are drawn as separate islands (unless the style says otherwise). */
-const SET_MAX_LINK = 260;
 /** Opacity of each set: low, so two overlapping sets read as a third, darker shade. */
 const SET_ALPHA = 0.22;
-/** Gap between a set's outermost member and its name. */
-const SET_LABEL_GAP = 10;
-/** Line height when several set names stack on one person. */
-const SET_LABEL_LINE = 14;
 
 /**
  * Live Skia renderer: draws from per-frame positions published by the live
@@ -124,7 +130,7 @@ function LiveSkia({
       const i = index.get(n.id);
       if (i === undefined) return;
       const alpha = encode.nodeOpacity(n);
-      const initial = encode.initial(n.label);
+      const initial = n.initial ?? encode.initial(n.label);
       const label = style.showLabels ? encode.shortLabel(n.label) : '';
       const image = n.photo ? photoImage(n.id, n.photo) : null;
       const badge = n.isGroup && n.collapsed && n.memberCount ? `+${n.memberCount} inside` : '';
@@ -168,7 +174,19 @@ function LiveSkia({
       if (!g) tieGroups.set(key, (g = { paint: paint(st.colour, stroke), ends: [] }));
       g.ends.push(s, t);
     }
-    const me = { fill: paint(c.accent), text: paint(c.onAccent), dx: centreOffset('You', fonts.me) };
+    const meLabel = data.me?.label ?? 'You';
+    const meImage = data.me?.photo ? photoImage(ME_ID, data.me.photo) : null;
+    const me = {
+      fill: paint(c.accent),
+      ring: paint(c.accent, { stroke: 3 }),
+      text: paint(c.onAccent),
+      dx: centreOffset('You', fonts.me),
+      photo: meImage ? photoSpec(meImage) : null,
+      // Under the diamond: their name, when they have a photo or a name of their own.
+      label: meImage || meLabel !== 'You' ? encode.shortLabel(meLabel) : '',
+      labelPaint: paint(c.text),
+      labelDx: centreOffset(encode.shortLabel(meLabel), fonts.label),
+    };
 
     const sets: SetSpec[] = [];
     if (style.showSets) {
@@ -192,20 +210,17 @@ function LiveSkia({
         // Coloured by health: the area takes the overall health of the relationships in it.
         // Otherwise each type (or group) keeps its own muted colour.
         const own = custom ? (custom.colours[cat] ?? c.edge) : c.category[cat as Category];
-        const colour = (style.colourBy ?? 'health') === 'health' ? groupHealthColour(m.health, c.health) : own;
-        const bar = paint(colour, { stroke: 1 });
-        bar.setStrokeCap(StrokeCap.Round);
+        // Always the type's (or group's) own colour, never a health colour, so an area never reads as a rating.
+        const colour = own;
         const name = custom ? (custom.names[cat] ?? cat) : (style.categoryNames?.[cat as Category] ?? cat);
         sets.push({
           layer: paint('#000000', { alpha: SET_ALPHA }),
           fill: paint(colour),
-          bar,
           label: paint(colour),
           halo: paint(c.card, { stroke: 4, alpha: 0.9 }),
           name,
           nameDx: centreOffset(name, fonts.set),
           ...m,
-          radiusAt: Object.fromEntries(m.members.map((idx, k) => [idx, m.radii[k]!])),
         });
       }
     }
@@ -225,32 +240,32 @@ function LiveSkia({
       sets,
       rows,
       selected,
-      setMaxLink: style.setMaxLink ?? SET_MAX_LINK,
     };
   }, [data, live.ids, style, c, fonts, routing]);
 
-  // Relationship-type sets, underneath everything. Each set is drawn opaque into its own
-  // translucent layer, so a set is one even shade and where two sets overlap they combine.
+  // Relationship-type areas, underneath everything: one rounded rectangle around each type's
+  // members, drawn in a translucent layer so where two areas overlap they combine.
   const setsPicture = useDerivedValue(() => {
     const xy = live.xy.value;
     // Positions arrive just after the first render; until then there is nothing to place.
     if (xy.length < 2 * live.ids.length) return graphPicture(() => {});
     return graphPicture((canvas) => {
       for (const set of specs.sets) {
-        canvas.saveLayer(set.layer);
+        let minX = Infinity;
+        let minY = Infinity;
+        let maxX = -Infinity;
+        let maxY = -Infinity;
         for (let k = 0; k < set.members.length; k++) {
           const i = set.members[k]!;
-          canvas.drawCircle(xy[2 * i]!, xy[2 * i + 1]!, set.radii[k]! + SET_PAD, set.fill);
+          const r = set.radii[k]! + SET_PAD;
+          minX = Math.min(minX, xy[2 * i]! - r);
+          maxX = Math.max(maxX, xy[2 * i]! + r);
+          minY = Math.min(minY, xy[2 * i + 1]! - r);
+          maxY = Math.max(maxY, xy[2 * i + 1]! + r);
         }
-        // Each join is as wide as the smaller member's disc, so the area flows around whole people
-        // as one shape rather than reading as a thick line between them.
-        const links = spanningEdges(xy, set.members, specs.setMaxLink);
-        for (let k = 0; k < links.length; k += 2) {
-          const a = links[k]!;
-          const b = links[k + 1]!;
-          set.bar.setStrokeWidth(2 * (Math.min(set.radiusAt[a]!, set.radiusAt[b]!) + SET_PAD));
-          canvas.drawLine(xy[2 * a]!, xy[2 * a + 1]!, xy[2 * b]!, xy[2 * b + 1]!, set.bar);
-        }
+        if (minX === Infinity) continue;
+        canvas.saveLayer(set.layer);
+        canvas.drawRRect(Skia.RRectXY(Skia.XYWHRect(minX, minY, maxX - minX, maxY - minY), SET_CORNER, SET_CORNER), set.fill);
         canvas.restore();
       }
     });
@@ -336,42 +351,30 @@ function LiveSkia({
         canvas.drawCircle(xy[2 * sel.i]!, xy[2 * sel.i + 1]!, sel.r + BRIDGE_GAP + 4, sel.paint);
       }
       for (const r of specs.rows) canvas.drawText(r.label, r.x, r.y, r.paint, fonts.set);
-      // On top of everything: each set's name, just outside its member furthest from you, so names
-      // spread out in the direction each type sits rather than piling up at the top. Only people whose
-      // main type it is count (when there are any). Names that still land on the same person
-      // (e.g. one person who is the only member of two types) are stacked, not drawn over each other.
-      const anchors: number[] = [];
+      // On top of everything: each area's name, just above its rectangle's top-left corner.
       for (const set of specs.sets) {
-        let best = -1;
-        let far = -1;
-        const anyPrimary = set.primary.indexOf(true) >= 0;
+        let minX = Infinity;
+        let minY = Infinity;
         for (let k = 0; k < set.members.length; k++) {
-          if (anyPrimary && !set.primary[k]) continue;
           const i = set.members[k]!;
-          const d = Math.hypot(xy[2 * i]!, xy[2 * i + 1]!) + set.radii[k]!;
-          if (d > far) {
-            far = d;
-            best = k;
-          }
+          minX = Math.min(minX, xy[2 * i]! - set.radii[k]! - SET_PAD);
+          minY = Math.min(minY, xy[2 * i + 1]! - set.radii[k]! - SET_PAD);
         }
-        if (best < 0) continue;
-        const i = set.members[best]!;
-        const x = xy[2 * i]!;
-        const y = xy[2 * i + 1]!;
-        const len = Math.hypot(x, y) || 1;
-        const out = set.radii[best]! + SET_PAD + SET_LABEL_GAP;
-        let stacked = 0;
-        for (let a = 0; a < anchors.length; a++) if (anchors[a] === i) stacked++;
-        anchors.push(i);
-        // Text baseline: nudge down a little below the centre line, further when pointing down;
-        // each extra name on the same person goes one line further out.
-        const lx = x + (x / len) * out;
-        const ly = y + (y / len) * out + (y > 0 ? 12 : 0) + (y > 0 ? 1 : -1) * SET_LABEL_LINE * stacked;
-        canvas.drawText(set.name, lx + set.nameDx, ly, set.halo, fonts.set);
-        canvas.drawText(set.name, lx + set.nameDx, ly, set.label, fonts.set);
+        if (minX === Infinity) continue;
+        const lx = minX + SET_CORNER * 0.6;
+        const ly = minY - 6;
+        canvas.drawText(set.name, lx, ly, set.halo, fonts.set);
+        canvas.drawText(set.name, lx, ly, set.label, fonts.set);
       }
-      canvas.drawCircle(0, 0, NODE_RADIUS + 4, specs.me.fill);
-      canvas.drawText('You', specs.me.dx, 5, specs.me.text, fonts.me);
+      const meR = NODE_RADIUS + 10;
+      if (specs.me.photo) {
+        drawPhotoDiamond(canvas, specs.me.photo, 0, 0, meR);
+        canvas.drawPath(diamondPath(0, 0, meR), specs.me.ring);
+      } else {
+        canvas.drawPath(diamondPath(0, 0, meR), specs.me.fill);
+        canvas.drawText('You', specs.me.dx, 5, specs.me.text, fonts.me);
+      }
+      if (specs.me.label) canvas.drawText(specs.me.label, specs.me.labelDx, meR + 14, specs.me.labelPaint, fonts.label);
     });
   });
 
@@ -382,6 +385,45 @@ function LiveSkia({
     { scale: view.scale.value * view.fit.value },
     ...GRAPH_UNSHIFT,
   ]);
+
+  // Lets the PDF report take a picture of the graph: the same recorded drawings, replayed onto an
+  // offscreen surface framed around everyone (snapshotting the view itself crashes while it is
+  // hidden under another screen).
+  useEffect(() => {
+    const capture = async () => {
+      const xy = live.xy.value;
+      if (xy.length < 2 * live.ids.length) return null;
+      // Everyone drawn, you, and room for rings, labels and area names.
+      let minX = -60;
+      let minY = -60;
+      let maxX = 60;
+      let maxY = 60;
+      for (const n of specs.nodes) {
+        const x = xy[2 * n.i]!;
+        const y = xy[2 * n.i + 1]!;
+        const r = n.r + SET_PAD + 30;
+        minX = Math.min(minX, x - r - 40);
+        maxX = Math.max(maxX, x + r + 40);
+        minY = Math.min(minY, y - r - 20);
+        maxY = Math.max(maxY, y + r + 30);
+      }
+      const width = 1800;
+      const k = width / (maxX - minX);
+      const height = Math.max(400, Math.round((maxY - minY) * k));
+      const surface = Skia.Surface.MakeOffscreen(width, height) ?? Skia.Surface.Make(width, height);
+      if (!surface) return null;
+      const canvas = surface.getCanvas();
+      canvas.scale(k, k);
+      canvas.translate(-minX - PICTURE_OFFSET, -minY - PICTURE_OFFSET);
+      for (const picture of [setsPicture.value, edgesPicture.value, glowPicture.value, nodesPicture.value]) canvas.drawPicture(picture);
+      surface.flush();
+      return surface.makeImageSnapshot().encodeToBase64();
+    };
+    graphSnapshot.capture = capture;
+    return () => {
+      if (graphSnapshot.capture === capture) graphSnapshot.capture = null;
+    };
+  }, [live, specs, setsPicture, edgesPicture, glowPicture, nodesPicture]);
 
   return (
     <Canvas style={{ width: size.width, height: size.height }}>

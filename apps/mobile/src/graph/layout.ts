@@ -135,7 +135,7 @@ export function createEgoSimulation(
   const sorted = [...nodes].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   const angles = sectorAngles([...new Set(nodes.flatMap((n) => n.categories ?? []))]);
   const simNodes: SimNode[] = [
-    { id: ME, importance: null, radius: NODE_RADIUS + 4, outward: 0, x: 0, y: 0, fx: 0, fy: 0 },
+    { id: ME, importance: null, radius: NODE_RADIUS + 10, outward: 0, x: 0, y: 0, fx: 0, fy: 0 },
     ...sorted.map((n, i) => {
       const prev = previous?.get(n.id);
       const r = ringRadius(n.importance) + (n.outward ?? 0);

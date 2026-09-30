@@ -56,16 +56,24 @@ describe('LiveSimulation', () => {
     expect(at(sim, 'p004')).toEqual({ x: 520, y: 480 });
   });
 
-  it('a released node springs back towards its importance ring', () => {
+  it('a released node stays where it was put, and is reported for saving', () => {
     const sim = new LiveSimulation(network(20));
     sim.settle();
-    const id = 'p004'; // importance 5
+    const id = 'p004';
     sim.dragStart(id, 600, 0);
     sim.step(20);
-    sim.dragEnd(id);
+    expect(sim.dragEnd(id)).toEqual({ x: 600, y: 0 });
     sim.settle();
-    const r = Math.hypot(at(sim, id).x, at(sim, id).y);
-    expect(Math.abs(r - ringRadius(5))).toBeLessThan(Math.abs(600 - ringRadius(5)) / 3);
+    expect(at(sim, id)).toEqual({ x: 600, y: 0 });
+  });
+
+  it('starts people the user moved exactly where they put them, and keeps them there', () => {
+    const sim = new LiveSimulation(network(20), { pinned: new Map([['p004', { x: -350, y: 120 }]]) });
+    sim.settle();
+    expect(at(sim, 'p004')).toEqual({ x: -350, y: 120 });
+    // Everyone else still sits near their importance ring.
+    const r = Math.hypot(at(sim, 'p000').x, at(sim, 'p000').y);
+    expect(Math.abs(r - ringRadius(1))).toBeLessThan(60); // p000 has importance 1
   });
 
   it('ignores drags for unknown ids or ids not being dragged', () => {
@@ -151,7 +159,8 @@ describe('after a drag', () => {
     const pos = sim.flush();
     expect(sim.active).toBe(false);
     expect(pos.size).toBe(30);
-    expect(Math.hypot(pos.get('p003')!.x, pos.get('p003')!.y)).toBeLessThan(400);
+    // Leaving mid-drag keeps the person where they were being held.
+    expect(pos.get('p003')).toMatchObject({ x: 400, y: 0 });
   });
 });
 

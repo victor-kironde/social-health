@@ -1,8 +1,7 @@
 import { createContext, useContext, type ReactNode } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import Svg, { Circle, G, Line, Polyline, Rect, Text as SvgText } from 'react-native-svg';
-import { groupHealthColour } from '../data/health';
-import { AddPersonIcon, CatchUpIcon, FocusIcon, HelpIcon, PeopleIcon } from '../graph/icons';
+import Svg, { Circle, G, Line, Polygon, Polyline, Rect, Text as SvgText } from 'react-native-svg';
+import { AddPersonIcon, CatchUpIcon, FocusIcon, HelpIcon, PeopleIcon, ResetIcon } from '../graph/icons';
 import { useTheme } from '../ui/theme';
 
 /** Whether the key is floating over the graph (see-through item backgrounds). */
@@ -36,14 +35,15 @@ export function GraphHelpBody({ floating = false }: { floating?: boolean }) {
         title="You"
         art={
           <Art>
-            <Circle cx={36} cy={28} r={16} fill={t.accent} />
+            <Polygon points="36,8 56,28 36,48 16,28" fill={t.accent} />
             <SvgText x={36} y={32} fontSize={10} fontWeight="700" fill={t.onAccent} textAnchor="middle">
               You
             </SvgText>
           </Art>
         }
       >
-        You are always in the middle (or at the top, in tiers). Everyone else is placed relative to you.
+        You are the diamond, always in the middle (or at the top, in tiers). Everyone else is placed relative to you.
+        Tap it to add your own photo and name.
       </Item>
       <Item
         title="A person"
@@ -69,7 +69,7 @@ export function GraphHelpBody({ floating = false }: { floating?: boolean }) {
         }
       >
         The ring and the line to you run from <Swatch colour={h[5]}>green (close)</Swatch> and{' '}
-        <Swatch colour={h[4]}>connected</Swatch>, through <Swatch colour={h[3]}>amber (drifting a little)</Swatch>{' '}
+        <Swatch colour={h[4]}>connected</Swatch>, through <Swatch colour={h[3]}>amber (drifting)</Swatch>{' '}
         and <Swatch colour={h[2]}>distant</Swatch>, to <Swatch colour={h[1]}>red (strained)</Swatch>. A
         relationship is only as close as its weaker side: how you said it is going, and whether you are keeping to the
         rhythm you hoped for. A relationship you rated harmful is red however often you meet; a good one you have
@@ -169,30 +169,28 @@ export function GraphHelpBody({ floating = false }: { floating?: boolean }) {
         title="Relationship type areas"
         art={
           <Art>
-            <Circle cx={28} cy={28} r={18} fill={groupHealthColour([5, 5, 4], h)} opacity={0.3} />
-            <Circle cx={46} cy={28} r={18} fill={groupHealthColour([3, 'lost'], h)} opacity={0.3} />
-            <Circle cx={37} cy={28} r={5} fill={t.card} stroke={h[4]} strokeWidth={2} />
+            <Rect x={6} y={10} width={38} height={30} rx={8} fill={c.family} opacity={0.3} />
+            <Rect x={30} y={18} width={36} height={30} rx={8} fill={c.work} opacity={0.3} />
+            <Circle cx={37} cy={29} r={5} fill={t.card} stroke={h[4]} strokeWidth={2} />
           </Art>
         }
       >
-        Softly shaded areas group the people of each relationship type, named on the graph. An area always
-        wraps whole people, so it never looks like a line. Each area takes the
-        overall health of the relationships in it: a muted green for a group that is going well, warmer when some are
-        strained, and greyer the more of them you have lost touch with. So you can see at a glance, say, that family
-        is doing well while work contacts are drifting. Someone can belong to more than one type (set "Also part of"
-        on their page), and then they sit where the areas overlap, like a relative you also work with. When you
-        colour people by type, each area uses its type colour instead:{' '}
+        Softly shaded rounded rectangles group the people of each relationship type, named on the graph. Each type has
+        its own colour, kept apart from the green, amber and red used for how relationships are doing:{' '}
         <Swatch colour={c.family}>family</Swatch>, <Swatch colour={c.friend}>friends</Swatch>,{' '}
         <Swatch colour={c.work}>work</Swatch>, <Swatch colour={c.neighbour}>neighbours</Swatch>,{' '}
-        <Swatch colour={c.community}>community</Swatch> and <Swatch colour={c.other}>other</Swatch>.
+        <Swatch colour={c.community}>community</Swatch> and <Swatch colour={c.other}>other</Swatch>. Someone can belong
+        to more than one type (set "Also part of" on their page), and then they sit where the areas overlap.
       </Item>
       <Item
         title="Groups"
         art={
           <Art>
-            <Circle cx={26} cy={30} r={16} fill={t.groups[0]} opacity={0.25} />
-            <Circle cx={50} cy={26} r={16} fill={t.groups[2]} opacity={0.25} />
-            <Circle cx={38} cy={28} r={5} fill={t.card} stroke={h[5]} strokeWidth={2} />
+            <Line x1={36} y1={22} x2={14} y2={46} stroke={t.accent} strokeWidth={1.2} opacity={0.5} />
+            <Line x1={36} y1={22} x2={58} y2={46} stroke={t.accent} strokeWidth={1.2} opacity={0.5} />
+            <Rect x={24} y={10} width={24} height={24} rx={7} fill={t.card} stroke={h[5]} strokeWidth={3} />
+            <Circle cx={14} cy={46} r={6} fill={t.card} stroke={h[4]} strokeWidth={2} />
+            <Circle cx={58} cy={46} r={6} fill={t.card} stroke={h[5]} strokeWidth={2} />
           </Art>
         }
       >
@@ -292,8 +290,7 @@ export function GraphHelpBody({ floating = false }: { floating?: boolean }) {
         }
       >
         On each person's page you can say how close you would like the relationship to be, from 1 to 10. Until you set it,
-        it counts as 10 (as close as possible), and the details card shows it as not set with a link to set it. Lower it for a relationship you want to keep at a distance, such as co-parenting with
-        an ex: the score then counts it as doing well when it stays near that, and contact far beyond it counts against
+        it counts as 10 (as close as possible), and the details card shows it as not set with a link to set it. Lower it for a relationship you want to keep at a distance: the score then counts it as doing well when it stays near that, and contact far beyond it counts against
         it. Choose "Don't mind" to leave someone out of the score altogether. Their colour on the graph still shows how
         close you actually are; the details card says how that compares with your ideal.
       </Item>
@@ -309,8 +306,8 @@ export function GraphHelpBody({ floating = false }: { floating?: boolean }) {
         }
       >
         Tap a person to see their details over the graph, starting with the relationship's own score out of 10
-        and how close you are, such as "6 · Drifting a little". It comes from keeping to rhythm, calls, how you rated it and
-        recent catch-ups, and always sits in its colour's range: 9–10 close, 7–8 connected, 5–6 drifting a little,
+        and how close you are, such as "6 · Drifting". It comes from keeping to rhythm, calls, how you rated it and
+        recent catch-ups, and always sits in its colour's range: 9–10 close, 7–8 connected, 5–6 drifting,
         3–4 distant, 1–2 strained or lost touch. Below it: importance, last catch-up, rhythm, how often you are in
         touch compared with others, recent catch-ups and calls, and their place in your network. Double-tap the card
         or tap their photo to open their page.
@@ -319,7 +316,8 @@ export function GraphHelpBody({ floating = false }: { floating?: boolean }) {
       <Heading>Using the graph</Heading>
       <Gesture icon="Tap" text="A person: show their details. Their photo in the details: open their page. Anywhere else: close details." />
       <Gesture icon="Double-tap" text="A person or their details: open their page. Empty space: fit everyone in view." />
-      <Gesture icon="Drag" text="A person (in rings): move them; they settle back gently. Empty space: move around." />
+      <Gesture icon="Drag" text="A person (in rings): move them; they stay where you put them. Empty space: move around." />
+      <Gesture icon={<ResetIcon colour={t.text} />} text="Put everyone you moved back in their place (bottom right)." />
       <Gesture icon="Pinch" text="Zoom in or out. Names appear when you zoom in on a busy graph." />
       <Gesture icon={<FocusIcon colour={t.text} />} text="Fit the whole graph back in view (bottom right)." />
       <Gesture icon={<HelpIcon colour={t.text} />} text="This key." />

@@ -27,6 +27,12 @@ export interface ReportInput {
   groups?: { id: string; members: string[] }[];
   palette: ReportPalette;
   range?: TrendRange;
+  /** The diagonal "CONFIDENTIAL" watermark (default on). Every page keeps its Confidential header and footer. */
+  watermark?: boolean;
+  /** Numbers instead of names everywhere (photos are never included in the table). */
+  anonymous?: boolean;
+  /** A picture of the graph exactly as on screen (base64 PNG) and the background it was drawn on. */
+  graphImage?: { png: string; background: string };
 }
 
 const RETIRED = new Set(['archived', 'in_memoriam']);
@@ -35,6 +41,17 @@ const SIZES = [10, 14, 19, 25, 32];
 
 export function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+}
+
+/**
+ * Numbers instead of names, for an anonymised report: people numbered 1, 2, … by importance (then
+ * id), groups "Group 1", … The graph and the report table use the same numbering.
+ */
+export function anonymousNames(rels: { personId: string; importance: number }[], groupIds: Set<string>): Map<string, string> {
+  const order = [...rels].sort((a, b) => b.importance - a.importance || (a.personId < b.personId ? -1 : 1));
+  let people = 0;
+  let groups = 0;
+  return new Map(order.map((r) => [r.personId, groupIds.has(r.personId) ? `Group ${++groups}` : `Person ${++people}`]));
 }
 
 const fmtDate = (ts: number) => new Date(ts).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -156,9 +173,12 @@ export function buildReportHtml(input: ReportInput): string {
   const { log, config, now, palette: p } = input;
   const range = input.range ?? '5m';
   const result = computeScore(log, config, now);
-  const names = new Map(log.people.map((x) => [x.id, x.displayName]));
   const groupIds = new Set(log.people.filter((x) => x.kind === 'group').map((x) => x.id));
   const rels = result.relationships.filter((r) => !RETIRED.has(r.state));
+  const names = input.anonymous ? anonymousNames(rels, groupIds) : new Map(log.people.map((x) => [x.id, x.displayName]));
+  const graph = input.graphImage
+    ? `<div class="shot" style="background:${input.graphImage.background}"><img src="data:image/png;base64,${input.graphImage.png}" alt="Your network graph"/></div>`
+    : graphSvg(input, rels, names, groupIds);
   const points = trendPoints(log, now, range, config);
   const change = trendChange(points, scoreOutOf10);
   const score = result.total === null ? null : scoreOutOf10(result.total);
@@ -191,21 +211,22 @@ h1 { font-size: 20pt; margin: 0 0 2mm; } h2 { font-size: 13pt; margin: 8mm 0 2mm
 .key { display: inline-flex; align-items: center; margin-right: 4mm; font-size: 9pt; color: ${p.muted}; }
 .key i { display: inline-block; width: 3mm; height: 3mm; border-radius: 1mm; margin-right: 1.5mm; }
 .chart { page-break-inside: avoid; margin-bottom: 4mm; }
+.shot { border-radius: 3mm; padding: 2mm; text-align: center; } .shot img { max-width: 100%; max-height: 150mm; }
 table.rels { width: 100%; border-collapse: collapse; font-size: 9.5pt; } table.rels th, table.rels td { text-align: left; padding: 1.6mm 2mm; border-bottom: 0.3mm solid ${p.border}; }
 table.rels th { color: ${p.muted}; font-weight: 600; } table.rels tr { page-break-inside: avoid; }
 </style></head><body>
-<div class="watermark">CONFIDENTIAL</div>
+${input.watermark === false ? '' : '<div class="watermark">CONFIDENTIAL</div>'}
 <table class="page"><thead><tr><td><div class="mark top">CONFIDENTIAL</div></td></tr></thead>
 <tfoot><tr><td><div class="mark bottom">CONFIDENTIAL · PERSONAL INFORMATION</div></td></tr></tfoot><tbody><tr><td style="border:0;padding:0">
 <h1>Social Health report</h1>
-<div class="muted small">Generated ${fmtDate(now)} · Contains private information about you and the people you know. Keep it safe.</div>
+<div class="muted small">Generated ${fmtDate(now)} · ${input.anonymous ? 'Anonymised: people are numbered by importance, without names or photos.' : 'Contains private information about you and the people you know. Keep it safe.'}</div>
 <div class="score"><div class="ring">${score ?? '–'}</div><div>
 <div style="font-size:14pt;font-weight:700">${score === null ? 'No score yet' : `${score} out of 10`}</div>
 <div class="muted">${change === null ? 'Not enough history for a trend yet.' : change === 0 ? `About the same as ${TREND_RANGES[range].label.toLowerCase()} ago.` : `${change > 0 ? 'Up' : 'Down'} ${Math.abs(change)} over the last ${TREND_RANGES[range].label.toLowerCase()}.`}</div>
 <div class="small muted">${rels.length} relationships · ${counts.filter(([, n]) => n).map(([b, n]) => `${n} ${HEALTH_LABELS[b].toLowerCase()}`).join(' · ')}</div>
 </div></div>
 <h2>Your network</h2>
-<div class="chart">${graphSvg(input, rels, names, groupIds)}</div>
+<div class="chart">${graph}</div>
 <div>${legend}</div>
 <div class="small muted">You are in the middle. Closer = more important; bigger = more in touch; colour = how the relationship is doing. Rounded squares are groups.</div>
 <h2>Trends over ${TREND_RANGES[range].label.toLowerCase()}</h2>

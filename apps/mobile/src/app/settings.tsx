@@ -12,7 +12,7 @@ import { useModelConfig, usePrefs } from '../data/prefs';
 import { useStore } from '../data/store';
 import { useSecurity } from '../security/AppLock';
 import { RELOCK_GRACE_MS } from '../security/policy';
-import { Button, Card, Label } from '../ui/components';
+import { Button, Card, HelpTip, Label } from '../ui/components';
 import { RhythmPicker } from '../ui/RhythmPicker';
 import { useTheme } from '../ui/theme';
 
@@ -32,6 +32,8 @@ export default function Settings() {
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [deleteText, setDeleteText] = useState('');
+  const [reportWatermark, setReportWatermark] = useState(true);
+  const [reportAnonymous, setReportAnonymous] = useState(false);
 
   useEffect(() => {
     cleanUpExports();
@@ -65,7 +67,7 @@ export default function Settings() {
     setBusy('Preparing your report…');
     setMessage(null);
     try {
-      await exportReportPdf({ log, config, positions: graphLayout.positions, groups });
+      await exportReportPdf({ log, config, positions: graphLayout.positions, groups, watermark: reportWatermark, anonymous: reportAnonymous });
       setMessage('Report ready. It is marked Confidential: it names the people you know and how you see each relationship.');
     } catch (e) {
       setMessage(`Report failed: ${String(e)}`);
@@ -288,9 +290,22 @@ export default function Settings() {
           <Button title="Export without encryption…" variant="secondary" onPress={confirmPlainExport} disabled={!!busy} />
         </View>
         <View style={[styles.gap, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.border, paddingTop: 12 }]}>
-          <Label help="A PDF with your Social Health score, your network graph, the last 5 months of trends and a list of your relationships. Every page is marked Confidential. It is not encrypted, so keep it somewhere private.">
+          <Label help="A PDF with your Social Health score, your network graph as it looks on screen, the last 5 months of trends and a list of your relationships. Every page is marked Confidential. It is not encrypted, so keep it somewhere private.">
             Report (PDF)
           </Label>
+          <View style={styles.reportOption}>
+            <Text style={{ color: t.text, flex: 1 }}>Confidential watermark</Text>
+            <Switch value={reportWatermark} onValueChange={setReportWatermark} accessibilityLabel="Confidential watermark" trackColor={{ true: t.accent, false: t.track }} />
+          </View>
+          <View style={styles.reportOption}>
+            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={{ color: t.text }}>Anonymise people</Text>
+              <HelpTip title="Anonymise people">
+                People are numbered by importance (Person 1, Person 2, …) and groups as Group 1, Group 2, …, in the graph and the table, and no photos are shown.
+              </HelpTip>
+            </View>
+            <Switch value={reportAnonymous} onValueChange={setReportAnonymous} accessibilityLabel="Anonymise people" trackColor={{ true: t.accent, false: t.track }} />
+          </View>
           <Button title="Export graph and trends as PDF" variant="secondary" onPress={runReport} disabled={!!busy || log.people.length === 0} />
         </View>
       </Card>
@@ -369,6 +384,7 @@ function Row({
 const styles = StyleSheet.create({
   content: { padding: 16, gap: 12 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },
+  reportOption: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 4, marginBottom: 6 },
   input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 16, marginTop: 10 },
   gap: { marginTop: 10 },
   status: { flexDirection: 'row', alignItems: 'center', gap: 12 },

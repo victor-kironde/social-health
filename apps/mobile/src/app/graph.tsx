@@ -1,7 +1,9 @@
 import { DEFAULT_CONFIG, computeScore } from '@sg/score-engine';
 import { Stack, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { anonymousNames } from '../data/report';
+import { graphSnapshot, reportGraph } from '../graph/renderers/skiaKit';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Easing, cancelAnimation, useDerivedValue, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 import { relationshipHealth } from '../data/health';
@@ -57,7 +59,10 @@ const PULSE_MS = 2800;
 
 export default function GraphScreen() {
   const t = useTheme();
-  const { log, graphLayout, saveGraphLayout, photos, status, groups, plans } = useStore();
+  const { log, graphLayout, saveGraphLayout, photos, status, groups, plans, pins, pinNode, resetLayout, layoutEpoch, myName } =
+    useStore();
+  // Numbers instead of names and no photos: only while the PDF report takes an anonymised picture.
+  const [anonymous, setAnonymous] = useState(false);
   // The graph's key, floating over the graph (the ? button).
   const [helpOpen, setHelpOpen] = useState(false);
   const pendingMeetups = useMemo(() => toConfirm(plans, log.interactions, localDate(Date.now())).length, [plans, log.interactions]);
@@ -91,6 +96,27 @@ export default function GraphScreen() {
 
   // The person whose stats are shown (one tap); a double tap opens their page instead.
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
+  // The PDF report's picture of the graph, taken from this screen while it is open underneath.
+  useEffect(() => {
+    if (sample) return;
+    const capture = async ({ anonymous: anon }: { anonymous: boolean }) => {
+      setSelectedPersonId(null);
+      setHelpOpen(false);
+      if (anon) setAnonymous(true);
+      // Give the graph a moment to redraw without the selection (and with numbers).
+      await new Promise((r) => setTimeout(r, anon ? 800 : 300));
+      try {
+        const png = await graphSnapshot.capture?.();
+        return png ? { png, background: t.bg } : null;
+      } finally {
+        if (anon) setAnonymous(false);
+      }
+    };
+    reportGraph.capture = capture;
+    return () => {
+      if (reportGraph.capture === capture) reportGraph.capture = null;
+    };
+  }, [sample, t.bg]);
   // Stress test only: switch links off to compare, and report how long the layout took to settle.
   const [demoLinks, setDemoLinks] = useState(true);
   const [settleStats, setSettleStats] = useState<SettleStats | null>(null);
@@ -206,6 +232,9 @@ export default function GraphScreen() {
       setSettled(p);
       if (stats) setSettleStats(stats);
     },
+    pinned: sample ? undefined : pins,
+    onPin: sample ? undefined : pinNode,
+    epoch: layoutEpoch,
   });
 
   // Static renderers: a one-shot layout.
@@ -312,7 +341,10 @@ export default function GraphScreen() {
   const [renderMs, setRenderMs] = useState<number | null>(null);
   const graph = useMemo(() => {
     renderStart.current = performance.now();
-    const built = buildGraph(visible, names, ties, metrics.nodes, radii, sample ? undefined : photos);
+    // Anonymised: everyone numbered by importance, groups separately, and no photos (as in the report table).
+    const numbered = anonymous ? anonymousNames(visible, groupIdSet) : new Map<string, string>();
+    const shownNames = anonymous ? numbered : names;
+    const built = buildGraph(visible, shownNames, ties, metrics.nodes, radii, sample || anonymous ? undefined : photos);
     const shown = new Set(visible.map((r) => r.personId));
     const memberOf = new Map(myGroups.map((g) => [g.id, g]));
     const nodes = built.nodes.map((n) => {
@@ -321,6 +353,7 @@ export default function GraphScreen() {
         ...n,
         ...(groupAreas ? { areas: groupsOf.get(n.id) ?? [] } : {}),
         ...(groupIdSet.has(n.id) ? { isGroup: true, memberCount: g?.members.length ?? 0, collapsed: collapsed.has(n.id) } : {}),
+        ...(anonymous ? { initial: (numbered.get(n.id) ?? '').replace(/^Group /, 'G').replace(/^Person /, '') } : {}),
       };
     });
     // Each shown group to its shown members.
@@ -331,8 +364,9 @@ export default function GraphScreen() {
             .map((m) => ({ id: `member:${g.id}|${m}`, kind: 'tie' as const, member: true, source: g.id, target: m, weight: 1, count: 0, lastTs: 0 }))
         : [],
     );
-    return { nodes, edges: [...memberEdges, ...built.edges] };
-  }, [visible, names, ties, metrics, radii, photos, sample, groupAreas, groupsOf, myGroups, groupIdSet, collapsed]);
+    const me = sample || anonymous ? { label: 'You' } : { label: myName || 'You', photo: photos.get(ME_ID) };
+    return { nodes, edges: [...memberEdges, ...built.edges], me };
+  }, [visible, names, ties, metrics, radii, photos, sample, groupAreas, groupsOf, myGroups, groupIdSet, collapsed, anonymous, myName]);
   // A selection that is filtered out of view simply disappears.
   const selectedPerson =
     selectedPersonId && graph.nodes.some((n) => n.id === selectedPersonId) ? byId.get(selectedPersonId) ?? null : null;
@@ -493,6 +527,16 @@ export default function GraphScreen() {
           onRendered={onRendered}
           onZoomEnd={(s) => setZoomedIn(s >= LABEL_ZOOM)}
           // The whole graph is an overview: close any person or link details that would cover it.
+          onReset={
+            sample
+              ? undefined
+              : () =>
+                  Alert.alert('Put everyone back?', 'People you moved go back to where the app places them.', [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Put back', onPress: () => resetLayout().catch(() => undefined) },
+                  ])
+          }
+          onMePress={sample ? undefined : () => router.push('/me')}
           onHelp={() => {
             setSelectedPersonId(null);
             setHelpOpen((v) => !v);
@@ -586,6 +630,10 @@ export default function GraphScreen() {
             </View>
           )}
         </View>
+        {helpOpen && (
+          // Touching anywhere outside the key closes it.
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setHelpOpen(false)} accessibilityLabel="Close the key" />
+        )}
         {helpOpen && (
           <View style={[styles.help, { backgroundColor: `${t.card}D0`, borderColor: t.border }]}>
             <View style={styles.helpHead}>

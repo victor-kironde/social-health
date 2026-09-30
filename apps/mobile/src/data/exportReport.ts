@@ -2,6 +2,7 @@ import type { EventLog, ModelConfig } from '@sg/score-engine';
 import { File, Paths } from 'expo-file-system';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
+import { reportGraph } from '../graph/renderers/skiaKit';
 import { LIGHT_THEME } from '../ui/theme';
 import type { PersonGroup } from './groups';
 import { buildReportHtml } from './report';
@@ -18,8 +19,12 @@ export async function exportReportPdf(input: {
   config: ModelConfig;
   positions: Map<string, { x: number; y: number }>;
   groups: PersonGroup[];
+  watermark: boolean;
+  anonymous: boolean;
 }): Promise<void> {
-  const html = buildReportHtml({ ...input, now: Date.now(), palette: LIGHT_THEME, range: '5m' });
+  // The graph exactly as on screen (taken from the graph screen underneath); a drawn copy if unavailable.
+  const graphImage = (await reportGraph.capture?.({ anonymous: input.anonymous }).catch(() => null)) ?? undefined;
+  const html = buildReportHtml({ ...input, graphImage, now: Date.now(), palette: LIGHT_THEME, range: '5m' });
   const { uri } = await Print.printToFileAsync({ html, width: 595, height: 842 });
   let shareUri = uri;
   try {

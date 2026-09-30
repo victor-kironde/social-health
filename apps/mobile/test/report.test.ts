@@ -1,6 +1,6 @@
 import { DEFAULT_CONFIG } from '@sg/score-engine';
 import { describe, expect, it } from 'vitest';
-import { buildReportHtml, escapeHtml, type ReportPalette } from '../src/data/report';
+import { anonymousNames, buildReportHtml, escapeHtml, type ReportPalette } from '../src/data/report';
 import { SCENARIO_AS_OF, findScenario, scenarioGroups } from '../src/data/scenarioCatalog';
 
 const palette: ReportPalette = {
@@ -26,6 +26,30 @@ describe('PDF report', () => {
     expect((html.match(/<svg /g) ?? []).length).toBe(4);
     for (const name of ['Sam', 'Mum', 'Jo', 'Raj', 'Patients', 'Grace']) expect(html).toContain(`<td>${name}`);
     expect(html).toContain('Trends over 5 months');
+  });
+
+  it('can leave out the watermark, but keeps the Confidential header and footer', () => {
+    const plain = buildReportHtml({ log, config: DEFAULT_CONFIG, now: SCENARIO_AS_OF, palette, watermark: false });
+    expect(plain).not.toContain('class="watermark"');
+    expect(plain).toContain('<div class="mark top">CONFIDENTIAL</div>');
+    expect(html).toContain('class="watermark"');
+  });
+
+  it('anonymises: no names anywhere, people numbered by importance and groups separately', () => {
+    const anon = buildReportHtml({ log, config: DEFAULT_CONFIG, now: SCENARIO_AS_OF, palette, anonymous: true });
+    for (const name of ['Sam', 'Mum', 'Raj', 'Grace', 'Amara', 'Patients']) expect(anon).not.toContain(name);
+    expect(anon).toContain('<td>Person 1');
+    expect(anon).toContain('<td>Group 1');
+    // Sam (importance 10) comes first.
+    expect(anonymousNames([{ personId: 'a', importance: 3 }, { personId: 'b', importance: 9 }, { personId: 'g', importance: 5 }], new Set(['g']))).toEqual(
+      new Map([['b', 'Person 1'], ['g', 'Group 1'], ['a', 'Person 2']]),
+    );
+  });
+
+  it('uses the on-screen picture of the graph when there is one', () => {
+    const shot = buildReportHtml({ log, config: DEFAULT_CONFIG, now: SCENARIO_AS_OF, palette, graphImage: { png: 'AAAA', background: '#101215' } });
+    expect(shot).toContain('src="data:image/png;base64,AAAA"');
+    expect((shot.match(/<svg /g) ?? []).length).toBe(3);
   });
 
   it('escapes names', () => {

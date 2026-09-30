@@ -27,7 +27,12 @@ export default function RootLayout() {
               <Stack.Screen
                 name="index"
                 options={{
-                  title: 'Social Health: Network',
+                  title: 'Social Health Network',
+                  headerTitle: () => (
+                    <Text style={{ color: t.text, fontSize: 20, fontWeight: '600' }} accessibilityRole="header">
+                      Social Health <Text style={{ color: t.muted, fontWeight: '400' }}>Network</Text>
+                    </Text>
+                  ),
                   headerRight: () => (
                     <Link href="/settings" accessibilityRole="button" accessibilityLabel="Settings" style={{ padding: 8 }}>
                       <Text style={{ color: t.accent, fontSize: 16 }}>Settings</Text>
@@ -39,6 +44,7 @@ export default function RootLayout() {
               <Stack.Screen name="groups" options={{ title: 'Groups' }} />
               <Stack.Screen name="group/[id]" options={{ title: '' }} />
               <Stack.Screen name="plans" options={{ title: 'Regular meetups' }} />
+              <Stack.Screen name="me" options={{ title: 'You' }} />
               <Stack.Screen name="plan/[id]" options={{ title: '' }} />
               <Stack.Screen name="settings" options={{ title: 'Settings' }} />
               <Stack.Screen

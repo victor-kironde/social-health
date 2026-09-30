@@ -13,17 +13,17 @@ const light = {
   warn: '#a8570a',
   danger: '#b42318',
   /**
-   * Relationship types: deliberately muted, loosely following the kind of closeness (green
-   * family, blue friends, lavender work, sand neighbours, rose community), so they sit quietly
-   * behind the health colours.
+   * Relationship types: muted, and kept clear of the health colours (no green, amber or red) so
+   * an area is never read as a rating: periwinkle family, sky friends, violet work, taupe
+   * neighbours, pink community, slate other.
    */
   category: {
-    family: '#6f9e7c',
-    friend: '#6f8fb8',
-    work: '#8c84a8',
-    neighbour: '#b39a6b',
-    community: '#a97f92',
-    other: '#6fa3a0',
+    family: '#7d8fd4',
+    friend: '#4fa3c7',
+    work: '#9a7cc4',
+    neighbour: '#a88a74',
+    community: '#c47aa5',
+    other: '#7f8a9c',
   } as Record<Category, string>,
   /** Relationship health: 1 strained (red) to 5 close (green), and grey for lost touch. */
   health: { 1: '#d64545', 2: '#e8833a', 3: '#d9a72b', 4: '#7cb342', 5: '#2e9d57', lost: '#9aa0a8' } as Record<
@@ -54,12 +54,12 @@ const dark: Theme = {
   warn: '#f0a75a',
   danger: '#f97066',
   category: {
-    family: '#8fbf9b',
-    friend: '#8fadd4',
-    work: '#a99fc6',
-    neighbour: '#cbb487',
-    community: '#c79db0',
-    other: '#8fc2bf',
+    family: '#9aa9ea',
+    friend: '#6fbbdc',
+    work: '#b49ade',
+    neighbour: '#c2a690',
+    community: '#dc96bf',
+    other: '#9aa4b5',
   },
   health: { 1: '#f26d6d', 2: '#f5a05c', 3: '#f0c94f', 4: '#a3d65c', 5: '#4cc779', lost: '#7a808a' },
   quality: { 1: '#f97066', 2: '#fdb022', 3: '#8f8a80', 4: '#94d82d', 5: '#51cf66' },

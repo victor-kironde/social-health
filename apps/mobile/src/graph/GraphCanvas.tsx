@@ -5,7 +5,7 @@ import { Easing, useSharedValue, withTiming, type SharedValue } from 'react-nati
 import { scheduleOnRN } from 'react-native-worklets';
 import { fitScale, hitTest, hitTestXY, screenToGraph, zoomAbout } from './geometry';
 import { NODE_RADIUS, type Point } from './layout';
-import { FocusIcon, HelpIcon } from './icons';
+import { FocusIcon, HelpIcon, ResetIcon } from './icons';
 import { type GraphData, type GraphRenderer, type GraphStyle, type LivePositions } from './model';
 
 const MIN_SCALE = 0.4;
@@ -46,6 +46,8 @@ export function GraphCanvas({
   onZoomEnd,
   onFrameAll,
   onHelp,
+  onReset,
+  onMePress,
   leftActions = [],
   onRendered,
   focus,
@@ -72,6 +74,10 @@ export function GraphCanvas({
   onFrameAll?: () => void;
   /** Shows a "?" button above the focus button. */
   onHelp?: () => void;
+  /** Shows a reset button above the "?" (puts moved people back). */
+  onReset?: () => void;
+  /** A tap on you, at the centre. */
+  onMePress?: () => void;
   /** Round icon buttons stacked in the bottom-left corner, first at the bottom. */
   leftActions?: { key: string; label: string; Icon: ComponentType<{ colour: string }>; onPress: () => void }[];
   onRendered?: () => void;
@@ -280,8 +286,9 @@ export function GraphCanvas({
     .runOnJS(true)
     .onEnd((e, success) => {
       if (!success || !size) return;
-      const nodeId = nodeAt(e)?.id;
-      if (nodeId) onNodePress?.(nodeId);
+      const hit = nodeAt(e);
+      if (hit?.id) onNodePress?.(hit.id);
+      else if (hit && onMePress && Math.abs(hit.p.x) + Math.abs(hit.p.y) <= NODE_RADIUS + 14) onMePress();
       else onBackgroundPress?.();
     });
 
@@ -344,6 +351,11 @@ export function GraphCanvas({
       {onHelp && (
         <Fab bottom={bottomInset + 16 + FAB_SIZE + FAB_GAP} side="right" label="What the graph shows" onPress={onHelp} colours={c}>
           <HelpIcon colour={c.text} />
+        </Fab>
+      )}
+      {onReset && (
+        <Fab bottom={bottomInset + 16 + 2 * (FAB_SIZE + FAB_GAP)} side="right" label="Put moved people back" onPress={onReset} colours={c}>
+          <ResetIcon colour={c.text} />
         </Fab>
       )}
       <Fab bottom={bottomInset + 16} side="right" label="Fit the whole graph" onPress={frameAll} colours={c}>

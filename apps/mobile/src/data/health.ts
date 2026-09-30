@@ -34,7 +34,7 @@ export function relationshipHealth(r: RelationshipContribution): HealthBand {
 export const HEALTH_LABELS: Record<HealthBand, string> = {
   5: 'Close',
   4: 'Connected',
-  3: 'Drifting a little',
+  3: 'Drifting',
   2: 'Distant',
   1: 'Strained',
   lost: 'Lost touch',
@@ -122,7 +122,7 @@ export interface PersonalHealth {
  * person (weights as in the model): keeping to rhythm 0.25, calls 0.25 (when connected), your
  * quality rating 0.10 (when rated) and recent catch-ups 0.10. Coverage and variety across types
  * describe the whole network, so they are left out. The result is kept within its health band
- * (Close 9–10, Connected 7–8, Drifting a little 5–6, Distant 3–4, Strained or Lost touch 1–2),
+ * (Close 9–10, Connected 7–8, Drifting 5–6, Distant 3–4, Strained or Lost touch 1–2),
  * so the number, the label and the colour always agree.
  */
 export function personalHealth(r: RelationshipContribution): PersonalHealth {

@@ -121,6 +121,42 @@ export function photoSpec(image: SkImage, alpha = 1): PhotoSpec {
   return { paint: p, width: image.width(), height: image.height() };
 }
 
+/** The user's diamond, half-diagonal `r`, centred on (x, y). */
+export function diamondPath(x: number, y: number, r: number) {
+  'worklet';
+  const p = Skia.Path.Make();
+  p.moveTo(x, y - r);
+  p.lineTo(x + r, y);
+  p.lineTo(x, y + r);
+  p.lineTo(x - r, y);
+  p.close();
+  return p;
+}
+
+/** Fills the diamond (x, y, r) with the photo. Safe to call from a worklet. */
+export function drawPhotoDiamond(canvas: SkCanvas, photo: PhotoSpec, x: number, y: number, r: number) {
+  'worklet';
+  canvas.save();
+  canvas.translate(x - r, y - r);
+  canvas.scale((2 * r) / photo.width, (2 * r) / photo.height);
+  canvas.drawPath(diamondPath(photo.width / 2, photo.height / 2, photo.width / 2), photo.paint);
+  canvas.restore();
+}
+
+/**
+ * The on-screen graph as a PNG (base64), for the PDF report. The live renderer registers itself
+ * while it is mounted; null when no graph is showing.
+ */
+export const graphSnapshot: { capture: null | (() => Promise<string | null>) } = { capture: null };
+
+/**
+ * The graph screen's picture-taker for the report: clears any selection, optionally re-draws with
+ * numbers instead of names and photos, and returns the picture with the background it sits on.
+ */
+export const reportGraph: {
+  capture: null | ((opts: { anonymous: boolean }) => Promise<{ png: string; background: string } | null>);
+} = { capture: null };
+
 /** Fills the circle (x, y, r) with the photo, scaled to fit. Safe to call from a worklet. */
 export function drawPhoto(canvas: SkCanvas, photo: PhotoSpec, x: number, y: number, r: number) {
   'worklet';

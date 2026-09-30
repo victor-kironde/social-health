@@ -3,18 +3,13 @@ import { StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { bandLabelOf } from '../data/health';
 import { MAX_NAME_LENGTH, type PersonDraft } from '../data/people';
 import { usePrefs } from '../data/prefs';
-import { ChoiceChips, HelpTip, Label, MultiChoiceChips, TipText } from './components';
+import { ChoiceChips, HelpTip, Label, MultiChoiceChips, TipText, ToggleChip } from './components';
+import { ScalePicker } from './ScalePicker';
 import { CATEGORY_LABELS, QUALITY_LABELS, STATE_LABELS, importanceLabel } from './labels';
 import { RhythmPicker, choiceText } from './RhythmPicker';
 import { useTheme } from './theme';
 
 const RATINGS: Rating[] = [1, 2, 3, 4, 5];
-const IDEALS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-const IMPORTANCE_SCALE = IDEALS;
-/** The "Don't mind" chip (no ideal). */
-const DONT_MIND = 0;
-/** No chip selected: the ideal has not been set yet. */
-const NOT_SET = -1;
 const NOT_RATED = 0;
 
 const options = <K extends string>(labels: Record<K, string>) =>
@@ -95,11 +90,7 @@ export function PersonFields({
         >
           How important is this relationship to you?
         </Label>
-        <ChoiceChips
-          options={IMPORTANCE_SCALE.map((v) => ({ value: v, label: String(v) }))}
-          value={draft.importance}
-          onChange={(v) => set('importance', v)}
-        />
+        <ScalePicker value={draft.importance} onChange={(v) => set('importance', v)} low="Peripheral" high="Very close" label="Importance" />
         <Text style={[styles.hint, { color: t.muted }]}>{importanceLabel(draft.importance)}</Text>
       </View>
 
@@ -112,21 +103,17 @@ export function PersonFields({
                 is as close as possible.
               </TipText>
               <TipText>Not set: counted as 10 (as close as possible) until you choose.</TipText>
-              <TipText>Lower it for relationships you would like to keep at a distance, such as co-parenting with an ex.</TipText>
+              <TipText>Lower it for a relationship you would like to keep at a distance.</TipText>
               <TipText>“Don't mind” leaves the relationship out of your score.</TipText>
             </>
           }
         >
           How close would you like to be?
         </Label>
-        <ChoiceChips
-          options={[
-            ...IDEALS.map((v) => ({ value: v, label: String(v) })),
-            { value: DONT_MIND, label: "Don't mind" },
-          ]}
-          value={draft.ideal === undefined ? NOT_SET : (draft.ideal ?? DONT_MIND)}
-          onChange={(v) => set('ideal', v === DONT_MIND ? null : v)}
-        />
+        <ScalePicker value={draft.ideal} onChange={(v) => set('ideal', v)} low="Distant" high="As close as possible" label="Ideal closeness" />
+        <View style={{ flexDirection: 'row', marginTop: 8 }}>
+          <ToggleChip label="Don't mind" on={draft.ideal === null} onPress={() => set('ideal', draft.ideal === null ? 10 : null)} />
+        </View>
         <Text style={[styles.hint, { color: t.muted }]}>
           {draft.ideal === undefined
             ? 'Not set (counted as 10)'
