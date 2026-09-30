@@ -29,6 +29,8 @@ export class LiveSimulation {
   private readonly nodes: SimNode[];
   private readonly byId: Map<string, SimNode>;
   private dragging: string | null = null;
+  /** An area being moved as a whole: its members and their offsets from the finger. */
+  private group: { n: SimNode; dx: number; dy: number }[] | null = null;
   /** Ticks run so far (for instrumentation). */
   ticks = 0;
 
@@ -66,7 +68,7 @@ export class LiveSimulation {
 
   /** True while still settling or while a node is held. */
   get active(): boolean {
-    return this.dragging !== null || this.simulation.alpha() >= this.simulation.alphaMin();
+    return this.dragging !== null || this.group !== null || this.simulation.alpha() >= this.simulation.alphaMin();
   }
 
   step(ticks = 1): void {
@@ -121,12 +123,42 @@ export class LiveSimulation {
     return n.fx != null && n.fy != null ? { x: n.fx, y: n.fy } : null;
   }
 
+  /** Starts moving several people together (a whole area), keeping their arrangement. */
+  groupStart(ids: string[], x: number, y: number): void {
+    const nodes = ids.map((id) => this.byId.get(id)).filter((n): n is SimNode => n !== undefined);
+    if (!nodes.length) return;
+    this.group = nodes.map((n) => {
+      n.fx = n.x ?? 0;
+      n.fy = n.y ?? 0;
+      return { n, dx: (n.x ?? 0) - x, dy: (n.y ?? 0) - y };
+    });
+    this.simulation.alphaTarget(DRAG_ALPHA);
+    if (this.simulation.alpha() < DRAG_ALPHA) this.simulation.alpha(DRAG_ALPHA);
+  }
+
+  groupMove(x: number, y: number): void {
+    for (const g of this.group ?? []) {
+      g.n.fx = x + g.dx;
+      g.n.fy = y + g.dy;
+    }
+  }
+
+  /** Release: everyone moved stays where they were put (returned, for saving). */
+  groupEnd(): Map<string, { x: number; y: number }> {
+    const out = new Map<string, { x: number; y: number }>();
+    for (const g of this.group ?? []) if (g.n.fx != null && g.n.fy != null) out.set(g.n.id, { x: g.n.fx, y: g.n.fy });
+    this.group = null;
+    this.simulation.alphaTarget(0).alphaDecay(RELEASE_DECAY);
+    return out;
+  }
+
   /**
    * Ends any drag, settles whatever motion remains, and returns the final
    * positions: for saving when the view closes before the graph came to rest.
    */
   flush(): Map<string, PlacedPoint> {
     if (this.dragging) this.dragEnd(this.dragging);
+    if (this.group) this.groupEnd();
     if (this.active) this.settle();
     return this.positions();
   }

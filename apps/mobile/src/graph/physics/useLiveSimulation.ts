@@ -115,6 +115,14 @@ export function useLiveSimulation(
         const p = sim.dragEnd(id);
         if (p) pinRef.current?.(id, p.x, p.y);
       },
+      groupStart: (ids: string[], x: number, y: number) => {
+        sim.groupStart(ids, x, y);
+        run();
+      },
+      groupMove: (x: number, y: number) => sim.groupMove(x, y),
+      groupEnd: () => {
+        for (const [id, p] of sim.groupEnd()) pinRef.current?.(id, p.x, p.y);
+      },
     };
   }, [sim, xy, run]);
 }

@@ -18,10 +18,55 @@ const FAB_GAP = 12;
 /** Space kept around the outermost people (graph units): their size, type area and its name. */
 const FIT_MARGIN = NODE_RADIUS + 50;
 
+/** How far a type area reaches beyond its members' circles (as drawn by the live renderer). */
+const AREA_PAD = 14;
+
+/** A type area's rectangle [minX, minY, maxX, maxY] from its members' current positions, leaving out `skip`. */
+function areaRect(xy: number[], members: number[], radii: number[], skip: number): number[] | null {
+  'worklet';
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (let k = 0; k < members.length; k++) {
+    const i = members[k]!;
+    if (i === skip) continue;
+    const r = radii[k]! + AREA_PAD;
+    minX = Math.min(minX, xy[2 * i]! - r);
+    maxX = Math.max(maxX, xy[2 * i]! + r);
+    minY = Math.min(minY, xy[2 * i + 1]! - r);
+    maxY = Math.max(maxY, xy[2 * i + 1]! + r);
+  }
+  return minX === Infinity ? null : [minX, minY, maxX, maxY];
+}
+
+function overlaps(a: number[], b: number[]): boolean {
+  'worklet';
+  return a[0]! < b[2]! && b[0]! < a[2]! && a[1]! < b[3]! && b[1]! < a[3]!;
+}
+
+/**
+ * Whether moving a box from `now` to `next` would push it into an area it does not already
+ * overlap. Areas listed in `own` (the ones being moved, or the person's own) never block.
+ */
+function blocked(xy: number[], areas: { members: number[]; radii: number[] }[], own: boolean[], now: number[], next: number[]): boolean {
+  'worklet';
+  for (let k = 0; k < areas.length; k++) {
+    if (own[k]) continue;
+    const r = areaRect(xy, areas[k]!.members, areas[k]!.radii, -1);
+    if (r && overlaps(next, r) && !overlaps(now, r)) return true;
+  }
+  return false;
+}
+
 export interface DragHandlers {
   dragStart(id: string, x: number, y: number): void;
   dragMove(id: string, x: number, y: number): void;
   dragEnd(id: string): void;
+  /** Moving a whole area: its members keep their arrangement. */
+  groupStart(ids: string[], x: number, y: number): void;
+  groupMove(x: number, y: number): void;
+  groupEnd(): void;
 }
 
 /**
@@ -49,6 +94,7 @@ export function GraphCanvas({
   onReset,
   onMePress,
   showActionLabels = false,
+  areas = [],
   leftActions = [],
   onRendered,
   focus,
@@ -81,6 +127,11 @@ export function GraphCanvas({
   onMePress?: () => void;
   /** Name each corner button beside it (while the graph's key is open). */
   showActionLabels?: boolean;
+  /**
+   * The type areas on show (members as indices into live.ids, with their radii). A drag that
+   * starts inside one moves the whole area; no drag pushes into an unrelated area.
+   */
+  areas?: { members: number[]; radii: number[] }[];
   /** Round icon buttons stacked in the bottom-left corner, first at the bottom. */
   leftActions?: { key: string; label: string; Icon: ComponentType<{ colour: string }>; onPress: () => void }[];
   onRendered?: () => void;
@@ -150,16 +201,50 @@ export function GraphCanvas({
   // One finger: drag a person, or pan the view. Two fingers belong to the pinch, which zooms and
   // pans together. maxPointers only stops a pan from *starting* with two fingers: a pan that began
   // with one finger stays active when a second lands, so it must also stand aside mid-pinch.
+  // Each drawn person's radius by index into live.ids, for keeping drags out of other areas.
+  const nodeRadius = useMemo(() => {
+    if (!live) return [] as number[];
+    const r = new Map(data.nodes.map((n) => [n.id, n.radius]));
+    return live.ids.map((id) => r.get(id) ?? NODE_RADIUS);
+  }, [live, data]);
+  /** Index into `areas` of the area being moved as a whole, or -1. */
+  const draggingArea = useSharedValue(-1);
+  /** Where an area drag started (graph units) and how far it has moved so far. */
+  const areaStart = useSharedValue({ x: 0, y: 0, dx: 0, dy: 0 });
+
   const pan = Gesture.Pan()
     .minDistance(4)
     .maxPointers(1)
     .onBegin((e) => {
       dragging.value = -1;
+      draggingArea.value = -1;
       if (!canDrag || !xy) return;
       const g = screenToGraph({ x: e.x, y: e.y }, sz, { tx: tx.value, ty: ty.value, scale: scale.value }, fitValue.value);
       dragging.value = hitTestXY(g.x, g.y, xy.value, candidates, 0, radii);
+      if (dragging.value >= 0) return;
+      // Not on a person: inside an area? The smallest one containing the point wins.
+      let best = -1;
+      let bestArea = Infinity;
+      for (let k = 0; k < areas.length; k++) {
+        const r = areaRect(xy.value, areas[k]!.members, areas[k]!.radii, -1);
+        if (!r || g.x < r[0]! || g.x > r[2]! || g.y < r[1]! || g.y > r[3]!) continue;
+        const size = (r[2]! - r[0]!) * (r[3]! - r[1]!);
+        if (size < bestArea) {
+          bestArea = size;
+          best = k;
+        }
+      }
+      draggingArea.value = best;
     })
     .onStart((e) => {
+      if (draggingArea.value >= 0 && drag && xy) {
+        const g = screenToGraph({ x: e.x, y: e.y }, sz, { tx: tx.value, ty: ty.value, scale: scale.value }, fitValue.value);
+        areaStart.value = { x: g.x, y: g.y, dx: 0, dy: 0 };
+        dragStarted.value = true;
+        const memberIds = areas[draggingArea.value]!.members.map((i) => ids[i]!);
+        scheduleOnRN(drag.groupStart, memberIds, g.x, g.y);
+        return;
+      }
       if (dragging.value < 0 || !drag) {
         // Pan from wherever the view is now (a pinch or animation may have moved it).
         savedTx.value = tx.value;
@@ -171,9 +256,34 @@ export function GraphCanvas({
       scheduleOnRN(drag.dragStart, ids[dragging.value]!, g.x, g.y);
     })
     .onUpdate((e) => {
-      if (dragging.value >= 0 && drag) {
+      if (draggingArea.value >= 0 && drag && xy) {
         const g = screenToGraph({ x: e.x, y: e.y }, sz, { tx: tx.value, ty: ty.value, scale: scale.value }, fitValue.value);
-        scheduleOnRN(drag.dragMove, ids[dragging.value]!, g.x, g.y);
+        const k = draggingArea.value;
+        const moving = areas[k]!.members;
+        // The moved area's rectangle now, and where this step would put it.
+        const now = areaRect(xy.value, moving, areas[k]!.radii, -1);
+        const s = areaStart.value;
+        const ddx = g.x - s.x - s.dx;
+        const ddy = g.y - s.y - s.dy;
+        // Areas sharing anyone with the moved one move with it (or overlap it by design).
+        const own = areas.map((a, j) => j === k || a.members.some((m) => moving.indexOf(m) >= 0));
+        if (now && blocked(xy.value, areas, own, now, [now[0]! + ddx, now[1]! + ddy, now[2]! + ddx, now[3]! + ddy])) return;
+        areaStart.value = { x: s.x, y: s.y, dx: g.x - s.x, dy: g.y - s.y };
+        scheduleOnRN(drag.groupMove, g.x, g.y);
+        return;
+      }
+      if (dragging.value >= 0 && drag && xy) {
+        const g = screenToGraph({ x: e.x, y: e.y }, sz, { tx: tx.value, ty: ty.value, scale: scale.value }, fitValue.value);
+        const i = dragging.value;
+        if (areas.length) {
+          // A person stops at the edge of an area they are not part of.
+          const r = (nodeRadius[i] ?? NODE_RADIUS) + 2;
+          const px = xy.value[2 * i]!;
+          const py = xy.value[2 * i + 1]!;
+          const own = areas.map((a) => a.members.indexOf(i) >= 0);
+          if (blocked(xy.value, areas, own, [px - r, py - r, px + r, py + r], [g.x - r, g.y - r, g.x + r, g.y + r])) return;
+        }
+        scheduleOnRN(drag.dragMove, ids[i]!, g.x, g.y);
         return;
       }
       if (pinching.value) {
@@ -190,16 +300,20 @@ export function GraphCanvas({
       ty.value = savedTy.value + e.translationY;
     })
     .onEnd(() => {
-      if (dragging.value >= 0) return;
+      if (dragging.value >= 0 || draggingArea.value >= 0) return;
       savedTx.value = tx.value;
       savedTy.value = ty.value;
     })
     .onFinalize(() => {
       panRebase.value = false;
       // Runs after end, cancellation, or a touch that never became a pan.
-      if (dragStarted.value && drag) scheduleOnRN(drag.dragEnd, ids[dragging.value]!);
+      if (dragStarted.value && drag) {
+        if (draggingArea.value >= 0) scheduleOnRN(drag.groupEnd);
+        else scheduleOnRN(drag.dragEnd, ids[dragging.value]!);
+      }
       dragStarted.value = false;
       dragging.value = -1;
+      draggingArea.value = -1;
     });
 
   // Zoom about the point between the fingers (it stays under them), and follow it as they move.
@@ -355,7 +469,7 @@ export function GraphCanvas({
         [
           ...leftActions.map((a, i) => ({ key: a.key, label: a.label, side: 'left' as const, i })),
           { key: 'fit', label: 'Fit everyone in view', side: 'right' as const, i: 0 },
-          ...(onHelp ? [{ key: 'help', label: 'This key', side: 'right' as const, i: 1 }] : []),
+          ...(onHelp ? [{ key: 'help', label: 'Help', side: 'right' as const, i: 1 }] : []),
           ...(onReset ? [{ key: 'reset', label: 'Put moved people back', side: 'right' as const, i: 2 }] : []),
         ].map((l) => (
           <View
@@ -371,7 +485,7 @@ export function GraphCanvas({
           </View>
         ))}
       {onHelp && (
-        <Fab bottom={bottomInset + 16 + FAB_SIZE + FAB_GAP} side="right" label="What the graph shows" onPress={onHelp} colours={c}>
+        <Fab bottom={bottomInset + 16 + FAB_SIZE + FAB_GAP} side="right" label="Help" onPress={onHelp} colours={c}>
           <HelpIcon colour={c.text} />
         </Fab>
       )}

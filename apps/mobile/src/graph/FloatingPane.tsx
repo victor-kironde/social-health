@@ -12,6 +12,7 @@ export function FloatingPane({
   onClose,
   onExpand,
   alpha = 'D0',
+  side = 'left',
   style,
   children,
 }: {
@@ -20,12 +21,14 @@ export function FloatingPane({
   onExpand?: () => void;
   /** Background opacity as a hex byte: lower lets more of the graph show through. */
   alpha?: string;
+  /** Which edge of the graph the pane sits against. */
+  side?: 'left' | 'right';
   style?: ViewStyle;
   children: ReactNode;
 }) {
   const t = useTheme();
   return (
-    <View style={[styles.pane, { backgroundColor: `${t.card}${alpha}`, borderColor: t.border }, style]}>
+    <View style={[styles.pane, side === 'left' ? { left: 8 } : { right: 8 }, { backgroundColor: `${t.card}${alpha}`, borderColor: t.border }, style]}>
       <View style={styles.head}>
         <Text style={[styles.title, { color: t.text }]} numberOfLines={1}>
           {title}
@@ -48,7 +51,6 @@ const styles = StyleSheet.create({
   pane: {
     position: 'absolute',
     top: 8,
-    left: 8,
     width: '88%',
     maxWidth: 520,
     borderRadius: 14,

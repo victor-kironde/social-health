@@ -320,7 +320,7 @@ export function GraphHelpBody({ floating = false }: { floating?: boolean }) {
       <Gesture icon={<ResetIcon colour={t.text} />} text="Put everyone you moved back in their place (bottom right)." />
       <Gesture icon="Pinch" text="Zoom in or out. Names appear when you zoom in on a busy graph." />
       <Gesture icon={<FocusIcon colour={t.text} />} text="Fit the whole graph back in view (bottom right)." />
-      <Gesture icon={<HelpIcon colour={t.text} />} text="This key." />
+      <Gesture icon={<HelpIcon colour={t.text} />} text="Help: this guide to the graph." />
       <Gesture icon={<CatchUpIcon colour={t.text} />} text="Log a catch-up (bottom left)." />
       <Gesture icon={<AddPersonIcon colour={t.text} />} text="Add someone, yourself or from your contacts." />
       <Gesture icon={<PeopleIcon colour={t.text} />} text="Everyone as a list, with your Social Health score and recent changes." />

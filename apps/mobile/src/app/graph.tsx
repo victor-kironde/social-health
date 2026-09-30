@@ -372,6 +372,24 @@ export default function GraphScreen() {
     const me = sample || anonymous ? { label: 'You' } : { label: myName || 'You', photo: photos.get(ME_ID) };
     return { nodes, edges: [...memberEdges, ...built.edges], me };
   }, [visible, names, ties, metrics, radii, photos, sample, groupAreas, groupsOf, myGroups, groupIdSet, collapsed, anonymous, myName]);
+  // The type areas on show, for dragging a whole area and keeping drags out of other areas
+  // (members as indices into the live positions, as the renderer draws them).
+  const dragAreas = useMemo(() => {
+    if (!display.sets || tiersOn || !liveSim) return [];
+    const index = new Map(liveSim.live.ids.map((id, i) => [id, i]));
+    const by = new Map<string, { members: number[]; radii: number[] }>();
+    for (const n of graph.nodes) {
+      const i = index.get(n.id);
+      if (i === undefined) continue;
+      for (const a of groupAreas ? (n.areas ?? []) : n.categories) {
+        let m = by.get(a);
+        if (!m) by.set(a, (m = { members: [], radii: [] }));
+        m.members.push(i);
+        m.radii.push(n.radius);
+      }
+    }
+    return [...by.values()];
+  }, [display.sets, tiersOn, liveSim, graph, groupAreas]);
   // A selection that is filtered out of view simply disappears.
   const selectedPerson =
     selectedPersonId && graph.nodes.some((n) => n.id === selectedPersonId) ? byId.get(selectedPersonId) ?? null : null;
@@ -550,6 +568,7 @@ export default function GraphScreen() {
             setHelpOpen((v) => !v);
           }}
           showActionLabels={helpOpen}
+          areas={dragAreas}
           leftActions={
             sample
               ? []
@@ -655,7 +674,7 @@ export default function GraphScreen() {
         )}
         {helpOpen && (
           // Ends above the corner buttons, whose names show while the key is open.
-          <FloatingPane title="Reading your graph" onClose={() => setHelpOpen(false)} style={{ bottom: 16 + 4 * 56 + 8 }}>
+          <FloatingPane title="Help" side="right" onClose={() => setHelpOpen(false)} style={{ bottom: 16 + 4 * 56 + 8 }}>
             <GraphHelpBody floating />
           </FloatingPane>
         )}

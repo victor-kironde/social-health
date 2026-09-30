@@ -67,6 +67,24 @@ describe('LiveSimulation', () => {
     expect(at(sim, id)).toEqual({ x: 600, y: 0 });
   });
 
+  it('moves a whole area together, keeping its arrangement, and keeps everyone where they were put', () => {
+    const sim = new LiveSimulation(network(20));
+    sim.settle();
+    const ids = ['p001', 'p006', 'p011'];
+    const before = ids.map((id) => at(sim, id));
+    sim.groupStart(ids, 0, 0);
+    sim.groupMove(200, -100);
+    sim.step(5);
+    const moved = sim.groupEnd();
+    sim.settle();
+    ids.forEach((id, k) => {
+      expect(at(sim, id).x).toBeCloseTo(before[k]!.x + 200, 6);
+      expect(at(sim, id).y).toBeCloseTo(before[k]!.y - 100, 6);
+      expect(moved.get(id)).toEqual(at(sim, id));
+    });
+    expect(sim.active).toBe(false);
+  });
+
   it('starts people the user moved exactly where they put them, and keeps them there', () => {
     const sim = new LiveSimulation(network(20), { pinned: new Map([['p004', { x: -350, y: 120 }]]) });
     sim.settle();
