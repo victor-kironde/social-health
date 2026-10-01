@@ -20,6 +20,8 @@ const FIT_MARGIN = NODE_RADIUS + 50;
 
 /** How far a type area reaches beyond its members' circles (as drawn by the live renderer). */
 const AREA_PAD = 14;
+/** The band above an area where its name is drawn: grabbing the name moves the area too. */
+const AREA_LABEL_BAND = 26;
 
 /** A type area's rectangle [minX, minY, maxX, maxY] from its members' current positions, leaving out `skip`. */
 function areaRect(xy: number[], members: number[], radii: number[], skip: number): number[] | null {
@@ -227,7 +229,7 @@ export function GraphCanvas({
       let bestArea = Infinity;
       for (let k = 0; k < areas.length; k++) {
         const r = areaRect(xy.value, areas[k]!.members, areas[k]!.radii, -1);
-        if (!r || g.x < r[0]! || g.x > r[2]! || g.y < r[1]! || g.y > r[3]!) continue;
+        if (!r || g.x < r[0]! || g.x > r[2]! || g.y < r[1]! - AREA_LABEL_BAND || g.y > r[3]!) continue;
         const size = (r[2]! - r[0]!) * (r[3]! - r[1]!);
         if (size < bestArea) {
           bestArea = size;

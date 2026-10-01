@@ -86,7 +86,7 @@ const BRIDGE_GAP = 6;
 /** Halo radius relative to the node. */
 const GLOW_SCALE = 1.75;
 /** How far a type area's edge fades out (blur sigma, graph units). */
-const SET_FADE = 9;
+const SET_FADE = 6;
 
 /** A type area's fill: its edges fade softly, so it reads as shading, never as a solid group square. */
 function softFill(colour: string): SkPaint {
@@ -100,7 +100,7 @@ const SET_CORNER = 22;
 /** How far a set reaches beyond its members' circles. */
 const SET_PAD = 14;
 /** Opacity of each set: low, so two overlapping sets read as a third, darker shade. */
-const SET_ALPHA = 0.22;
+const SET_ALPHA = 0.17;
 
 /**
  * Live Skia renderer: draws from per-frame positions published by the live
