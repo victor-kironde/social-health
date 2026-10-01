@@ -5,16 +5,21 @@ import type { StoredEvent } from './codec';
 export type PlanUnit = 'day' | 'week' | 'month';
 
 /**
- * A regular meetup you have planned (book club every other Thursday, lunch with Mum on the first
- * of the month). Each date only counts as a catch-up once you confirm it happened. Like a group,
- * a plan is one current record: editing replaces it and deleting removes it.
+ * A planned meetup with one or more people and groups: once (lunch next Friday) or repeating
+ * (book club every other Thursday). Each date only counts as a catch-up once you confirm it
+ * happened. Like a group, a plan is one current record: editing replaces it and deleting removes it.
  */
 export interface Plan {
   id: string;
-  /** The person or group it is with. */
-  withId: string;
+  /** Who it is with: people and groups. */
+  withIds: string[];
+  /** Optional name, e.g. "Book club". */
+  title?: string;
+  /** Optional private note (where, what to bring…). */
+  note?: string;
   type: InteractionType;
-  /** Every `every` `unit`s, starting on `start`. */
+  /** On `start` only, or every `every` `unit`s from `start`. */
+  repeat: boolean;
   every: number;
   unit: PlanUnit;
   start: LocalDate;
@@ -31,9 +36,12 @@ export const CONFIRM_WINDOW_DAYS = 30;
 /** How far back or ahead a plan may start. */
 export const MAX_PLAN_START_DAYS = 365;
 
-export function validatePlan(p: Pick<Plan, 'withId' | 'every' | 'unit' | 'start'>, today: LocalDate): string | null {
-  if (!p.withId) return 'Choose who it is with.';
-  if (!Number.isInteger(p.every) || p.every < 1 || p.every > MAX_PLAN_EVERY) return `Choose how often, from 1 to ${MAX_PLAN_EVERY}.`;
+export const MAX_PLAN_TITLE = 60;
+
+export function validatePlan(p: Pick<Plan, 'withIds' | 'repeat' | 'every' | 'unit' | 'start' | 'title'>, today: LocalDate): string | null {
+  if (p.withIds.length === 0) return 'Choose who it is with.';
+  if ((p.title ?? '').length > MAX_PLAN_TITLE) return `Keep the name under ${MAX_PLAN_TITLE} characters.`;
+  if (p.repeat && (!Number.isInteger(p.every) || p.every < 1 || p.every > MAX_PLAN_EVERY)) return `Choose how often, from 1 to ${MAX_PLAN_EVERY}.`;
   if (Math.abs(daysBetween(p.start, today)) > MAX_PLAN_START_DAYS) return 'Choose a start date within a year of today.';
   return null;
 }
@@ -58,7 +66,8 @@ export function nthDate(plan: Pick<Plan, 'every' | 'unit' | 'start'>, k: number)
 }
 
 /** Planned dates from `from` to `to` (inclusive), oldest first. */
-export function datesBetween(plan: Pick<Plan, 'every' | 'unit' | 'start'>, from: LocalDate, to: LocalDate): LocalDate[] {
+export function datesBetween(plan: Pick<Plan, 'repeat' | 'every' | 'unit' | 'start'>, from: LocalDate, to: LocalDate): LocalDate[] {
+  if (!plan.repeat) return daysBetween(plan.start, from) <= 0 && daysBetween(plan.start, to) >= 0 ? [plan.start] : [];
   const out: LocalDate[] = [];
   // Jump close to `from` rather than walking from the start.
   const approx = plan.unit === 'month' ? 31 * plan.every : plan.every * (plan.unit === 'week' ? 7 : 1);
@@ -96,20 +105,33 @@ export function toConfirm(plans: Plan[], interactions: Interaction[], today: Loc
     .sort((a, b) => b.daysAgo - a.daysAgo);
 }
 
-/** Each plan's next date after today, soonest first. */
+/** Each plan's next date after today, soonest first (one-off plans already past drop out). */
 export function comingUp(plans: Plan[], today: LocalDate): PlannedDate[] {
+  const tomorrow = dateDaysAgo(today, -1);
   return plans
-    .map((plan) => {
-      const tomorrow = dateDaysAgo(today, -1);
-      const date = datesBetween(plan, tomorrow, dateDaysAgo(today, -400))[0]!;
-      return { plan, date, key: dateKey(date), daysAgo: daysBetween(date, today) };
+    .flatMap((plan) => {
+      const date = datesBetween(plan, tomorrow, dateDaysAgo(today, -400))[0];
+      return date ? [{ plan, date, key: dateKey(date), daysAgo: daysBetween(date, today) }] : [];
     })
     .sort((a, b) => b.daysAgo - a.daysAgo);
 }
 
-/** "every week", "every 2 weeks", "every month". */
-export function planEveryText(p: Pick<Plan, 'every' | 'unit'>): string {
+/** "every week", "every 2 weeks", "every month"; "once" when it does not repeat. */
+export function planEveryText(p: Pick<Plan, 'repeat' | 'every' | 'unit'>): string {
+  if (!p.repeat) return 'once';
   return p.every === 1 ? `every ${p.unit}` : `every ${p.every} ${p.unit}s`;
+}
+
+/** The plan's name, or who it is with ("Ana, Ben and Book club"). */
+export function planName(p: Pick<Plan, 'title' | 'withIds'>, names: Map<string, string>): string {
+  if (p.title?.trim()) return p.title.trim();
+  const who = p.withIds.map((id) => names.get(id) ?? '?');
+  return who.length <= 1 ? (who[0] ?? '?') : `${who.slice(0, -1).join(', ')} and ${who.at(-1)}`;
+}
+
+/** The one relationship whose rhythm a plan can set: a repeating plan with a single person or group. */
+export function rhythmTarget(p: Pick<Plan, 'repeat' | 'withIds'>): string | null {
+  return p.repeat && p.withIds.length === 1 ? p.withIds[0]! : null;
 }
 
 /**
@@ -147,14 +169,16 @@ export function planRhythmEvents(
   now: number,
   newId: () => string,
 ): { events: StoredEvent[]; setRhythm: boolean } {
-  const owns = !rel.rhythmSet || (before !== undefined && before.setRhythm && rhythmMatchesPlan(rel, before));
+  const target = rhythmTarget(plan);
+  if (!target) return { events: [], setRhythm: false };
+  const owns = !rel.rhythmSet || (before !== undefined && before.setRhythm && rhythmTarget(before) === target && rhythmMatchesPlan(rel, before));
   if (!owns) return { events: [], setRhythm: false };
   if (rhythmMatchesPlan(rel, plan)) return { events: [], setRhythm: true };
   const want = planRhythm(plan);
   const id = newId();
   const change = 'rhythm' in want ? ({ field: 'rhythm', value: want.rhythm } as const) : ({ field: 'frequency', value: want.frequency } as const);
   return {
-    events: [{ id, ts: now, kind: 'relationship', body: { id, personId: plan.withId, ts: now, ...change } }],
+    events: [{ id, ts: now, kind: 'relationship', body: { id, personId: target, ts: now, ...change } }],
     setRhythm: true,
   };
 }
@@ -172,5 +196,11 @@ export function plansFromEvents(events: StoredEvent[]): Plan[] {
     const prev = latest.get(e.body.id);
     if (!prev || e.ts >= prev.ts) latest.set(e.body.id, { ts: e.ts, plan: e.body });
   }
-  return [...latest.values()].map((x) => x.plan).sort((a, b) => a.createdAt - b.createdAt);
+  return [...latest.values()].map((x) => normalisePlan(x.plan)).sort((a, b) => a.createdAt - b.createdAt);
+}
+
+/** Plans saved before meetups could be one-off or with several people: one person, repeating. */
+export function normalisePlan(p: Plan & { withId?: string }): Plan {
+  const { withId, ...rest } = p;
+  return { ...rest, withIds: rest.withIds ?? (withId ? [withId] : []), repeat: rest.repeat ?? true };
 }

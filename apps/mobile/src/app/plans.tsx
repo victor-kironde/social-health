@@ -1,14 +1,14 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { CONFIRM_WINDOW_DAYS, comingUp, planEveryText, toConfirm, type PlannedDate } from '../data/plans';
+import { CONFIRM_WINDOW_DAYS, comingUp, planEveryText, planName, toConfirm, type PlannedDate } from '../data/plans';
 import { useStore } from '../data/store';
 import { localDate, shortDateLabel } from '../ui/calendar';
 import { Button, Card, Label } from '../ui/components';
 import { INTERACTION_LABELS } from '../ui/labels';
 import { useTheme } from '../ui/theme';
 
-/** Planned regular meetups: dates to confirm, what is coming up, and every plan. */
+/** Planned meetups: dates to confirm and what is coming up. */
 export default function Plans() {
   const t = useTheme();
   const { plans, log, logInteraction, skipPlanDate } = useStore();
@@ -32,17 +32,18 @@ export default function Plans() {
 
   const confirm = (d: PlannedDate) =>
     act(d, () =>
-      logInteraction({ participants: [d.plan.withId], type: d.plan.type, daysAgo: d.daysAgo, plan: { id: d.plan.id, date: d.key } }),
+      logInteraction({ participants: d.plan.withIds, type: d.plan.type, daysAgo: d.daysAgo, plan: { id: d.plan.id, date: d.key } }),
     );
 
   const edit = (d: PlannedDate) =>
     router.push({
       pathname: '/log',
-      params: { person: d.plan.withId, type: d.plan.type, daysAgo: String(d.daysAgo), plan: d.plan.id, planDate: d.key },
+      params: { people: d.plan.withIds.join(','), type: d.plan.type, daysAgo: String(d.daysAgo), plan: d.plan.id, planDate: d.key },
     });
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
+      <Button title="Plan a meetup" onPress={() => router.push({ pathname: '/plan/[id]', params: { id: 'new' } })} />
       <Card style={{ gap: 0 }}>
         <Label>To confirm</Label>
         {pending.length === 0 ? (
@@ -51,7 +52,7 @@ export default function Plans() {
           pending.map((d, i) => (
             <View key={`${d.plan.id}|${d.key}`} style={[styles.item, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.border }]}>
               <Text style={{ color: t.text, fontSize: 16 }}>
-                {names.get(d.plan.withId) ?? '?'} · {when(d)}
+                {planName(d.plan, names)} · {when(d)}
               </Text>
               <Text style={{ color: t.muted }}>Did it happen? {INTERACTION_LABELS[d.plan.type]}</Text>
               <View style={styles.actions}>
@@ -71,7 +72,7 @@ export default function Plans() {
       <Card style={{ gap: 0 }}>
         <Label>Coming up</Label>
         {next.length === 0 ? (
-          <Text style={{ color: t.muted }}>No regular meetups planned yet.</Text>
+          <Text style={{ color: t.muted }}>No meetups planned yet.</Text>
         ) : (
           next.map((d, i) => (
             <Pressable
@@ -82,18 +83,18 @@ export default function Plans() {
               style={[styles.item, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.border }]}
             >
               <View style={styles.row}>
-                <Text style={{ color: t.text, fontSize: 16, flexShrink: 1 }}>{names.get(d.plan.withId) ?? '?'}</Text>
+                <Text style={{ color: t.text, fontSize: 16, flexShrink: 1 }}>{planName(d.plan, names)}</Text>
                 <Text style={{ color: t.text }}>{when(d)}</Text>
               </View>
               <Text style={{ color: t.muted }}>
                 {INTERACTION_LABELS[d.plan.type]} {planEveryText(d.plan)}
+                {d.plan.title ? ` · with ${planName({ withIds: d.plan.withIds }, names)}` : ''}
               </Text>
             </Pressable>
           ))
         )}
       </Card>
 
-      <Button title="Plan a regular meetup" onPress={() => router.push({ pathname: '/plan/[id]', params: { id: 'new' } })} />
     </ScrollView>
   );
 }

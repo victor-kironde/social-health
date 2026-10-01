@@ -6,6 +6,8 @@ import { newInteractionEvents } from '../src/data/interactions';
 import { newPersonEvents } from '../src/data/people';
 import {
   comingUp,
+  normalisePlan,
+  planName,
   datesBetween,
   dateKey,
   nthDate,
@@ -22,7 +24,8 @@ import type { LocalDate } from '../src/ui/calendar';
 const d = (year: number, month: number, day: number): LocalDate => ({ year, month: month - 1, day });
 const plan = (over: Partial<Plan> = {}): Plan => ({
   id: 'pl',
-  withId: 'p1',
+  withIds: ['p1'],
+  repeat: true,
   type: 'in_person',
   every: 1,
   unit: 'week',
@@ -92,7 +95,7 @@ describe('planned dates', () => {
   it('validates who, how often and the start date', () => {
     const today = d(2026, 10, 8);
     expect(validatePlan(plan(), today)).toBeNull();
-    expect(validatePlan(plan({ withId: '' }), today)).toMatch(/who/);
+    expect(validatePlan(plan({ withIds: [] }), today)).toMatch(/who/);
     expect(validatePlan(plan({ every: 0 }), today)).toMatch(/how often/);
     expect(validatePlan(plan({ start: d(2028, 1, 1) }), today)).toMatch(/year/);
   });
@@ -147,7 +150,52 @@ describe('plan storage and privacy', () => {
   });
 
   it('erasing someone removes their plans', () => {
-    const events = [planEvent(plan(), 1), planEvent(plan({ id: 'b', withId: 'p2' }), 1)];
+    const events = [planEvent(plan(), 1), planEvent(plan({ id: 'b', withIds: ['p2'] }), 1)];
     expect(eraseFromLog(events, 'p1').remove).toEqual(['plan:pl']);
+  });
+});
+
+describe('one-off and shared meetups', () => {
+  it('a one-off meetup has a single date: coming up before it, to confirm after it', () => {
+    const p = plan({ repeat: false, start: d(2026, 10, 10) });
+    expect(comingUp([p], d(2026, 10, 8)).map((x) => x.key)).toEqual(['2026-10-10']);
+    expect(toConfirm([p], [], d(2026, 10, 8))).toEqual([]);
+    expect(toConfirm([p], [], d(2026, 10, 12)).map((x) => x.key)).toEqual(['2026-10-10']);
+    expect(comingUp([p], d(2026, 10, 12))).toEqual([]);
+  });
+
+  it('reads plans saved before meetups could be shared or one-off as repeating, with one person', () => {
+    const { withIds: _w, repeat: _r, ...old } = plan();
+    const legacy = { ...old, withId: 'p9' } as unknown as Plan;
+    expect(normalisePlan(legacy)).toMatchObject({ withIds: ['p9'], repeat: true });
+    expect(plansFromEvents([{ id: 'plan:pl', ts: 1, kind: 'plan', body: legacy }])[0]).toMatchObject({ withIds: ['p9'], repeat: true });
+  });
+
+  it('names a plan by its title, or by who it is with', () => {
+    const names = new Map([['a', 'Ana'], ['b', 'Ben'], ['g', 'Book club']]);
+    expect(planName({ withIds: ['a'] }, names)).toBe('Ana');
+    expect(planName({ withIds: ['a', 'b', 'g'] }, names)).toBe('Ana, Ben and Book club');
+    expect(planName({ withIds: ['a', 'b'], title: ' Lunch ' }, names)).toBe('Lunch');
+  });
+
+  it('only a repeating plan with one person or group sets a rhythm', () => {
+    const rel = { rhythm: 'monthly' as const, frequency: null, rhythmSet: false };
+    expect(planRhythmEvents(plan({ repeat: false }), undefined, rel, 5, () => 'x').setRhythm).toBe(false);
+    expect(planRhythmEvents(plan({ withIds: ['p1', 'p2'] }), undefined, rel, 5, () => 'x').setRhythm).toBe(false);
+    expect(planRhythmEvents(plan(), undefined, rel, 5, () => 'x').setRhythm).toBe(true);
+  });
+
+  it('erasing someone takes them out of a shared plan, and removes a plan left with nobody', () => {
+    const shared = planEvent(plan({ id: 's', withIds: ['p1', 'p2'] }), 1);
+    const solo = planEvent(plan({ id: 'o', withIds: ['p1'] }), 1);
+    const out = eraseFromLog([shared, solo], 'p1');
+    expect(out.remove).toEqual(['plan:o']);
+    expect(out.replace).toHaveLength(1);
+    expect((out.replace[0]!.body as Plan).withIds).toEqual(['p2']);
+  });
+
+  it('needs at least one person or group', () => {
+    expect(validatePlan(plan({ withIds: [] }), d(2026, 10, 8))).toMatch(/who/);
+    expect(validatePlan(plan({ repeat: false, every: 0 }), d(2026, 10, 8))).toBeNull();
   });
 });

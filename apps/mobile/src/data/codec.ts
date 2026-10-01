@@ -28,7 +28,7 @@ export type StoredEvent =
   | { id: string; ts: Timestamp; kind: 'source'; body: { source: 'call_log' } }
   /** One of your own groups (current state; see groups.ts). Not part of the scoring log. */
   | { id: string; ts: Timestamp; kind: 'group'; body: PersonGroup }
-  /** A planned regular meetup (current state; see plans.ts). Not part of the scoring log. */
+  /** A planned meetup (current state; see plans.ts). Not part of the scoring log. */
   | { id: string; ts: Timestamp; kind: 'plan'; body: Plan };
 
 export interface EventRow {

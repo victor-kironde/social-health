@@ -61,7 +61,7 @@ export default function RootLayout() {
               <Stack.Screen name="people" options={pane('People & score')} />
               <Stack.Screen name="groups" options={pane('Groups')} />
               <Stack.Screen name="group/[id]" options={pane('')} />
-              <Stack.Screen name="plans" options={pane('Regular meetups')} />
+              <Stack.Screen name="plans" options={pane('Meetups')} />
               <Stack.Screen name="me" options={pane('You')} />
               <Stack.Screen name="plan/[id]" options={pane('')} />
               <Stack.Screen name="settings" options={pane('Settings')} />

@@ -64,7 +64,7 @@ export function AddPersonIcon({ colour }: { colour: string }) {
   );
 }
 
-/** Regular meetups: a calendar with a tick. */
+/** Meetups: a calendar with a tick. */
 export function MeetupsIcon({ colour }: { colour: string }) {
   return (
     <Svg width={22} height={22} viewBox="0 0 24 24">

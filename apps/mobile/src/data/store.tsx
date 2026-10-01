@@ -30,7 +30,7 @@ import {
 } from './db';
 import { newInteractionEvents, type NewInteractionInput } from './interactions';
 import { groupEntityEvents, groupRenameEvent, joinFromCatchUp, type PersonGroup } from './groups';
-import { planRhythmEvents, type Plan } from './plans';
+import { planRhythmEvents, rhythmTarget, type Plan } from './plans';
 import { editPersonEvents, newPersonEvents, type NewPersonInput, type PersonDraft } from './people';
 
 interface Store {
@@ -76,7 +76,7 @@ interface Store {
   /** Your own name on the graph ('' = "You"). */
   myName: string;
   setMyName(name: string): Promise<void>;
-  /** Planned regular meetups, oldest first. */
+  /** Planned meetups, oldest first. */
   plans: Plan[];
   /** Saves a new or edited plan, keeping the relationship's rhythm in step where the plan owns it. */
   savePlan(plan: Plan, config: ModelConfig): Promise<void>;
@@ -279,7 +279,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     async (plan: Plan, config: ModelConfig) => {
       const before = plansRef.current.find((p) => p.id === plan.id);
       const now = Date.now();
-      const rel = resolveRelationships(logRef.current.relationshipEvents, config, now).get(plan.withId);
+      const target = rhythmTarget(plan);
+      const rel = target ? resolveRelationships(logRef.current.relationshipEvents, config, now).get(target) : undefined;
       const { events, setRhythm } = rel
         ? planRhythmEvents(plan, before, rel, now, randomUUID)
         : { events: [], setRhythm: false };

@@ -1,6 +1,6 @@
 import { computeScore, type RelationshipContribution } from '@sg/score-engine';
 import { isGroup } from '../../data/kinds';
-import { comingUp, planEveryText } from '../../data/plans';
+import { comingUp, planEveryText, planName } from '../../data/plans';
 import { localDate, shortDateLabel } from '../../ui/calendar';
 import { goBack } from '../../ui/nav';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
@@ -61,7 +61,8 @@ function PersonEditor({
 }) {
   const t = useTheme();
   const { log, updatePerson, deletePerson, deleteGroup, photos, setPhoto, groups, updateGroup, plans } = useStore();
-  const myPlans = plans.filter((p) => p.withId === personId);
+  const myPlans = plans.filter((p) => p.withIds.includes(personId));
+  const upcoming = comingUp(myPlans, localDate(Date.now()));
   const thisGroup = asGroup ? groups.find((g) => g.id === personId) : undefined;
   // Opened from "Set ideal": scroll straight to that question once it is laid out.
   const { focus } = useLocalSearchParams<{ focus?: string }>();
@@ -245,30 +246,36 @@ function PersonEditor({
       </Card>
 
       <Card>
-        <Label help="Plan a regular meetup (a weekly call, a monthly dinner) and the app asks after each date whether it happened. Only confirmed dates count as catch-ups.">
-          Regular meetups
+        <Label help="Plan a meetup (once or repeating) and the app asks after each date whether it happened. Only confirmed dates count as catch-ups.">
+          Meetups
         </Label>
-        {myPlans.length === 0 ? (
-          <Text style={{ color: t.muted, marginBottom: 8 }}>None planned.</Text>
+        {upcoming.length === 0 ? (
+          <Text style={{ color: t.muted, marginBottom: 8 }}>None coming up.</Text>
         ) : (
-          myPlans.map((p) => (
+          upcoming.map((d) => (
             <Pressable
-              key={p.id}
-              onPress={() => router.push({ pathname: '/plan/[id]', params: { id: p.id } })}
+              key={d.plan.id}
+              onPress={() => router.push({ pathname: '/plan/[id]', params: { id: d.plan.id } })}
               accessibilityRole="button"
               accessibilityHint="Edit this plan"
               style={{ paddingVertical: 6 }}
             >
               <Text style={{ color: t.text }}>
-                {INTERACTION_LABELS[p.type]} {planEveryText(p)}
-                <Text style={{ color: t.muted }}> · next {shortDateLabel(comingUp([p], localDate(Date.now()))[0]!.date, localDate(Date.now()))}</Text>
+                {d.plan.title ? `${d.plan.title} · ` : ''}
+                {INTERACTION_LABELS[d.plan.type]} {planEveryText(d.plan)}
+                <Text style={{ color: t.muted }}>
+                  {' '}
+                  · {d.plan.repeat ? 'next ' : ''}
+                  {shortDateLabel(d.date, localDate(Date.now()))}
+                  {d.plan.withIds.length > 1 ? ` · with ${planName({ withIds: d.plan.withIds.filter((x) => x !== personId) }, names)}` : ''}
+                </Text>
               </Text>
             </Pressable>
           ))
         )}
         <View style={{ marginTop: 10 }}>
           <Button
-            title="Plan a regular meetup"
+            title="Plan a meetup"
             variant="secondary"
             onPress={() => router.push({ pathname: '/plan/[id]', params: { id: 'new', with: personId } })}
           />

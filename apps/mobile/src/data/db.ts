@@ -189,7 +189,7 @@ export async function deleteGroup(groupId: string): Promise<void> {
   await db.runAsync('DELETE FROM event WHERE id = ?;', [`group:${groupId}`]);
 }
 
-/** Your planned regular meetups (see plans.ts). */
+/** Your planned meetups (see plans.ts). */
 export async function loadPlans(): Promise<Plan[]> {
   return plansFromEvents(await loadEvents());
 }

@@ -25,6 +25,37 @@ export function CalendarPicker({
   onPick: (daysAgo: number) => void;
   onClose: () => void;
 }) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={styles.scrim} onPress={onClose} accessibilityLabel="Close calendar">
+        <Pressable style={{ width: '100%', maxWidth: 380 }} onPress={() => undefined}>
+          <Calendar
+            daysAgo={daysAgo}
+            maxDaysAgo={maxDaysAgo}
+            maxDaysAhead={maxDaysAhead}
+            onPick={(d) => {
+              onPick(d);
+              onClose();
+            }}
+          />
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+/** The month calendar itself, for showing on a page (CalendarPicker shows it in a pop-up). */
+export function Calendar({
+  daysAgo,
+  maxDaysAgo,
+  maxDaysAhead = 0,
+  onPick,
+}: {
+  daysAgo: number;
+  maxDaysAgo: number;
+  maxDaysAhead?: number;
+  onPick: (daysAgo: number) => void;
+}) {
   const t = useTheme();
   const today = localDate(Date.now());
   const [shown, setShown] = useState(() => ({ year: today.year, month: today.month }));
@@ -40,9 +71,7 @@ export function CalendarPicker({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.scrim} onPress={onClose} accessibilityLabel="Close calendar">
-        <Pressable style={[styles.card, { backgroundColor: t.card, borderColor: t.border }]} onPress={() => undefined}>
+    <View style={[styles.card, { backgroundColor: t.card, borderColor: t.border }]}>
           <View style={styles.header}>
             <Arrow label="Previous month" text="‹" enabled={canBack} onPress={() => setShown(addMonths(shown.year, shown.month, -1))} />
             <Text style={[styles.month, { color: t.text }]}>
@@ -66,10 +95,7 @@ export function CalendarPicker({
                   <Pressable
                     key={di}
                     disabled={!s.enabled}
-                    onPress={() => {
-                      onPick(s.ago);
-                      onClose();
-                    }}
+                    onPress={() => onPick(s.ago)}
                     accessibilityRole="button"
                     accessibilityState={{ selected: s.selected, disabled: !s.enabled }}
                     accessibilityLabel={`${day} ${MONTH_NAMES[shown.month]}`}
@@ -91,9 +117,7 @@ export function CalendarPicker({
           <Text style={{ color: t.muted, fontSize: 12, textAlign: 'center', marginTop: 8 }}>
             {maxDaysAhead > 0 ? 'Up to a year back or ahead.' : 'Up to a year back. Future days can’t be chosen.'}
           </Text>
-        </Pressable>
-      </Pressable>
-    </Modal>
+    </View>
   );
 }
 

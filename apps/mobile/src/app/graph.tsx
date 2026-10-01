@@ -576,7 +576,7 @@ export default function GraphScreen() {
                   { key: 'catch-up', label: 'Log a catch-up', Icon: CatchUpIcon, onPress: () => router.push('/log') },
                   { key: 'add', label: 'Add person', Icon: AddPersonIcon, onPress: () => router.push('/person/new') },
                   { key: 'people', label: 'People and score', Icon: PeopleIcon, onPress: () => router.push('/people') },
-                  { key: 'meetups', label: 'Regular meetups', Icon: MeetupsIcon, onPress: () => router.push('/plans') },
+                  { key: 'meetups', label: 'Plan a meetup', Icon: MeetupsIcon, onPress: () => router.push('/plans') },
                 ]
           }
           onFrameAll={() => setSelectedPersonId(null)}
@@ -620,7 +620,7 @@ export default function GraphScreen() {
             <Pressable
               onPress={() => router.push('/plans')}
               accessibilityRole="button"
-              accessibilityHint="Opens regular meetups"
+              accessibilityHint="Opens meetups"
               style={({ pressed }) => [
                 styles.meetups,
                 { backgroundColor: translucent(t.card), borderColor: t.accent, opacity: pressed ? 0.75 : 1 },

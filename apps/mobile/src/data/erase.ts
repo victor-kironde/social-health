@@ -1,5 +1,6 @@
 import { MODEL_VERSION } from '@sg/score-engine';
 import type { StoredEvent } from './codec';
+import { normalisePlan } from './plans';
 
 /**
  * Right to erasure: everything recorded about a person, removed for real.
@@ -35,10 +36,15 @@ export function eraseFromLog(events: StoredEvent[], personId: string): { remove:
           replace.push({ ...e, body: { ...e.body, members: e.body.members.filter((m) => m !== personId) } });
         }
         break;
-      case 'plan':
-        // A plan with them goes; past catch-ups were handled above.
-        if (e.body.withId === personId) remove.push(e.id);
+      case 'plan': {
+        // Plans go on without them; one with nobody left goes. Past catch-ups were handled above.
+        const plan = normalisePlan(e.body);
+        if (!plan.withIds.includes(personId)) break;
+        const others = plan.withIds.filter((id) => id !== personId);
+        if (others.length === 0) remove.push(e.id);
+        else replace.push({ ...e, body: { ...plan, withIds: others } });
         break;
+      }
       default:
         break;
     }
