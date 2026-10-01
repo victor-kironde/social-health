@@ -1,4 +1,4 @@
-import { Canvas, Group, Picture, Skia, type SkPaint } from '@shopify/react-native-skia';
+import { BlurStyle, Canvas, Group, Picture, Skia, type SkPaint } from '@shopify/react-native-skia';
 import type { Category } from '@sg/score-engine';
 import type { HealthBand } from '../../data/health';
 import { routeEdge } from '../geometry';
@@ -85,6 +85,16 @@ const TAU = Math.PI * 2;
 const BRIDGE_GAP = 6;
 /** Halo radius relative to the node. */
 const GLOW_SCALE = 1.75;
+/** How far a type area's edge fades out (blur sigma, graph units). */
+const SET_FADE = 9;
+
+/** A type area's fill: its edges fade softly, so it reads as shading, never as a solid group square. */
+function softFill(colour: string): SkPaint {
+  const p = paint(colour);
+  p.setMaskFilter(Skia.MaskFilter.MakeBlur(BlurStyle.Normal, SET_FADE, true));
+  return p;
+}
+
 /** Corner radius of a type area. */
 const SET_CORNER = 22;
 /** How far a set reaches beyond its members' circles. */
@@ -216,7 +226,7 @@ function LiveSkia({
         const name = custom ? (custom.names[cat] ?? cat) : (style.categoryNames?.[cat as Category] ?? cat);
         sets.push({
           layer: paint('#000000', { alpha: SET_ALPHA }),
-          fill: paint(colour),
+          fill: softFill(colour),
           label: paint(colour),
           halo: paint(c.card, { stroke: 4, alpha: 0.9 }),
           name,
