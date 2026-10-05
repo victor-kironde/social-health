@@ -13,7 +13,7 @@ import { membership } from '../data/groups';
 import { groupIds, isGroup } from '../data/kinds';
 import { mixHex } from '../data/health';
 import { restrictLog } from '../data/subset';
-import { SCENARIO_AS_OF, findScenario, scenarioGroups, scenarioNames } from '../data/scenarioCatalog';
+import { SCENARIO_AS_OF, findScenario, scenarioGroups, scenarioMyPhoto, scenarioNames, scenarioPhotos } from '../data/scenarioCatalog';
 import { useStore } from '../data/store';
 import { TIER_LABELS, TIER_SET_LINK, layoutSignature, nodeRadii, orderTiers, tierLayout } from '../graph/arrange';
 import { DEFAULT_DISPLAY, activeFilterCount, applyFilters, type DisplayOptions } from '../graph/display';
@@ -341,6 +341,11 @@ export default function GraphScreen() {
     [liveSim, mixedXY],
   );
 
+  // Photos on the graph: yours, or a scenario's illustrated avatars (none for other samples).
+  const shownPhotos = useMemo(
+    () => (scenario ? scenarioPhotos(scenario.id) : sample ? undefined : photos),
+    [scenario, sample, photos],
+  );
   // Time from a new drawing being requested to the renderer committing it.
   const renderStart = useRef(performance.now());
   const [renderMs, setRenderMs] = useState<number | null>(null);
@@ -349,7 +354,7 @@ export default function GraphScreen() {
     // Anonymised: everyone numbered by importance, groups separately, and no photos (as in the report table).
     const numbered = anonymous ? anonymousNames(visible, groupIdSet) : new Map<string, string>();
     const shownNames = anonymous ? numbered : names;
-    const built = buildGraph(visible, shownNames, ties, metrics.nodes, radii, sample || anonymous ? undefined : photos);
+    const built = buildGraph(visible, shownNames, ties, metrics.nodes, radii, anonymous ? undefined : shownPhotos);
     const shown = new Set(visible.map((r) => r.personId));
     const memberOf = new Map(myGroups.map((g) => [g.id, g]));
     const nodes = built.nodes.map((n) => {
@@ -369,9 +374,15 @@ export default function GraphScreen() {
             .map((m) => ({ id: `member:${g.id}|${m}`, kind: 'tie' as const, member: true, source: g.id, target: m, weight: 1, count: 0, lastTs: 0 }))
         : [],
     );
-    const me = sample || anonymous ? { label: 'You' } : { label: myName || 'You', photo: photos.get(ME_ID) };
+    const me = anonymous
+      ? { label: 'You' }
+      : scenario
+        ? { label: 'You', photo: scenarioMyPhoto(scenario.id) }
+        : sample
+          ? { label: 'You' }
+          : { label: myName || 'You', photo: photos.get(ME_ID) };
     return { nodes, edges: [...memberEdges, ...built.edges], me };
-  }, [visible, names, ties, metrics, radii, photos, sample, groupAreas, groupsOf, myGroups, groupIdSet, collapsed, anonymous, myName]);
+  }, [visible, names, ties, metrics, radii, shownPhotos, sample, scenario, groupAreas, groupsOf, myGroups, groupIdSet, collapsed, anonymous, myName]);
   // The type areas on show, for dragging a whole area and keeping drags out of other areas
   // (members as indices into the live positions, as the renderer draws them).
   const dragAreas = useMemo(() => {
@@ -637,7 +648,7 @@ export default function GraphScreen() {
                 key={selectedPerson.personId}
                 rel={selectedPerson}
                 name={names.get(selectedPerson.personId) ?? '?'}
-                photo={sample ? undefined : photos.get(selectedPerson.personId)}
+                photo={shownPhotos?.get(selectedPerson.personId)}
                 stats={stats}
                 onOpen={sample ? undefined : () => openPerson(selectedPerson.personId)}
                 onSetIdeal={

@@ -12,9 +12,8 @@ import {
   addRoundedRoute,
   PICTURE_OFFSET,
   centreOffset,
-  diamondPath,
   drawPhoto,
-  drawPhotoDiamond,
+  drawPhotoSquare,
   graphPicture,
   graphSnapshot,
   glowPaint,
@@ -151,7 +150,7 @@ function LiveSkia({
         square: !!n.isGroup,
         badge,
         badgeDx: badge ? centreOffset(badge, fonts.label) : 0,
-        photo: image && !n.isGroup ? photoSpec(image, alpha) : null,
+        photo: image ? photoSpec(image, alpha) : null,
         fill: paint(c.card, { alpha }),
         ring: paint(encode.ringColour(n, style), { stroke: 4, alpha }),
         bridgeRing: n.bridge ? paint(c.text, { stroke: 1.5, alpha: 0.7 * alpha }) : null,
@@ -189,11 +188,11 @@ function LiveSkia({
     const meImage = data.me?.photo ? photoImage(ME_ID, data.me.photo) : null;
     const me = {
       fill: paint(c.accent),
-      ring: paint(c.accent, { stroke: 3 }),
+      ring: paint(c.accent, { stroke: 4 }),
       text: paint(c.onAccent),
       dx: centreOffset('You', fonts.me),
       photo: meImage ? photoSpec(meImage) : null,
-      // Under the diamond: their name, when they have a photo or a name of their own.
+      // Under your circle: their name, when they have a photo or a name of their own.
       label: meImage || meLabel !== 'You' ? encode.shortLabel(meLabel) : '',
       labelPaint: paint(c.text),
       labelDx: centreOffset(encode.shortLabel(meLabel), fonts.label),
@@ -340,7 +339,8 @@ function LiveSkia({
         if (n.square) {
           // A group: a rounded square, so it never reads as one person.
           const box = Skia.RRectXY(Skia.XYWHRect(x - n.r, y - n.r, 2 * n.r, 2 * n.r), n.r * 0.35, n.r * 0.35);
-          canvas.drawRRect(box, n.fill);
+          if (n.photo) drawPhotoSquare(canvas, n.photo, x, y, n.r, n.r * 0.35);
+          else canvas.drawRRect(box, n.fill);
           canvas.drawRRect(box, n.ring);
         } else {
           if (n.photo) drawPhoto(canvas, n.photo, x, y, n.r);
@@ -372,12 +372,12 @@ function LiveSkia({
         canvas.drawText(set.name, lx, ly, set.halo, fonts.set);
         canvas.drawText(set.name, lx, ly, set.label, fonts.set);
       }
-      const meR = NODE_RADIUS + 10;
+      const meR = NODE_RADIUS + 6;
       if (specs.me.photo) {
-        drawPhotoDiamond(canvas, specs.me.photo, 0, 0, meR);
-        canvas.drawPath(diamondPath(0, 0, meR), specs.me.ring);
+        drawPhoto(canvas, specs.me.photo, 0, 0, meR);
+        canvas.drawCircle(0, 0, meR, specs.me.ring);
       } else {
-        canvas.drawPath(diamondPath(0, 0, meR), specs.me.fill);
+        canvas.drawCircle(0, 0, meR, specs.me.fill);
         canvas.drawText('You', specs.me.dx, 5, specs.me.text, fonts.me);
       }
       if (specs.me.label) canvas.drawText(specs.me.label, specs.me.labelDx, meR + 14, specs.me.labelPaint, fonts.label);

@@ -122,32 +122,6 @@ export function photoSpec(image: SkImage, alpha = 1): PhotoSpec {
   return { paint: p, width: image.width(), height: image.height() };
 }
 
-/** The user's diamond, half-diagonal `r`, centred on (x, y), with softly rounded corners. */
-export function diamondPath(x: number, y: number, r: number) {
-  'worklet';
-  // How far along each side the rounding starts (0 = sharp, 0.5 = a circle).
-  const f = 0.24;
-  const vs = [
-    [x, y - r],
-    [x + r, y],
-    [x, y + r],
-    [x - r, y],
-  ];
-  const p = Skia.Path.Make();
-  for (let i = 0; i < 4; i++) {
-    const [vx, vy] = vs[i]!;
-    const [ax, ay] = vs[(i + 3) % 4]!;
-    const [bx, by] = vs[(i + 1) % 4]!;
-    const inX = vx + (ax - vx) * f;
-    const inY = vy + (ay - vy) * f;
-    if (i === 0) p.moveTo(inX, inY);
-    else p.lineTo(inX, inY);
-    p.quadTo(vx, vy, vx + (bx - vx) * f, vy + (by - vy) * f);
-  }
-  p.close();
-  return p;
-}
-
 /**
  * Appends a routed line ([x0, y0, x1, y1, …]) to `path`, rounding each turn with a small curve
  * (radius 10 by default, never more than half of either neighbouring segment). A literal default:
@@ -178,13 +152,15 @@ export function addRoundedRoute(path: SkPath, route: number[], radius = 10) {
   path.lineTo(route[2 * n - 2]!, route[2 * n - 1]!);
 }
 
-/** Fills the diamond (x, y, r) with the photo. Safe to call from a worklet. */
-export function drawPhotoDiamond(canvas: SkCanvas, photo: PhotoSpec, x: number, y: number, r: number) {
+/** Fills a rounded square (a group: centre x, y, half-side r, corner c) with the photo. Safe to call from a worklet. */
+export function drawPhotoSquare(canvas: SkCanvas, photo: PhotoSpec, x: number, y: number, r: number, c: number) {
   'worklet';
   canvas.save();
   canvas.translate(x - r, y - r);
-  canvas.scale((2 * r) / photo.width, (2 * r) / photo.height);
-  canvas.drawPath(diamondPath(photo.width / 2, photo.height / 2, photo.width / 2), photo.paint);
+  const sx = (2 * r) / photo.width;
+  const sy = (2 * r) / photo.height;
+  canvas.scale(sx, sy);
+  canvas.drawRRect(Skia.RRectXY(Skia.XYWHRect(0, 0, photo.width, photo.height), c / sx, c / sy), photo.paint);
   canvas.restore();
 }
 

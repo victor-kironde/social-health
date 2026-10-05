@@ -1,6 +1,6 @@
 import { createContext, useContext, type ReactNode } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import Svg, { Circle, G, Line, Polygon, Polyline, Rect, Text as SvgText } from 'react-native-svg';
+import Svg, { Circle, G, Line, Polyline, Rect, Text as SvgText } from 'react-native-svg';
 import { AddPersonIcon, CatchUpIcon, FocusIcon, HelpIcon, PeopleIcon, ResetIcon } from '../graph/icons';
 import { useTheme } from '../ui/theme';
 
@@ -35,14 +35,14 @@ export function GraphHelpBody({ floating = false }: { floating?: boolean }) {
         title="You"
         art={
           <Art>
-            <Polygon points="36,8 56,28 36,48 16,28" fill={t.accent} />
+            <Circle cx={36} cy={28} r={18} fill={t.accent} />
             <SvgText x={36} y={32} fontSize={10} fontWeight="700" fill={t.onAccent} textAnchor="middle">
               You
             </SvgText>
           </Art>
         }
       >
-        You are the diamond, always in the middle (or at the top, in tiers). Everyone else is placed relative to you.
+        You are the blue circle, always in the middle (or at the top, in tiers). Everyone else is placed relative to you.
         Tap it to add your own photo and name.
       </Item>
       <Item

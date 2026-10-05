@@ -84,7 +84,7 @@ export type GraphEdge = EgoEdge | TieEdge;
 export interface GraphData {
   nodes: GraphNode[];
   edges: GraphEdge[];
-  /** The user, drawn as a diamond at the centre: their name (or "You") and photo. */
+  /** The user, drawn as a circle at the centre: their name (or "You") and photo. */
   me?: { label: string; photo?: string };
 }
 

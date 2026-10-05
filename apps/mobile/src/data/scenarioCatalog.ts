@@ -1,6 +1,7 @@
 import type { EventLog } from '@sg/score-engine';
 import * as s from '@sg/synth/scenarios';
 import type { PersonGroup } from './groups';
+import { SCENARIO_AVATARS } from './scenarioAvatars';
 
 /**
  * Every synthetic scenario the engine is tested on, grouped for the engine preview, with a
@@ -82,4 +83,19 @@ export function scenarioGroups(log: EventLog): PersonGroup[] {
       return { id: p.id, name: p.displayName, members: [...members].sort(), createdAt: 0 };
     })
     .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** A scenario's illustrated avatars by person (and group) id; empty for scenarios without any. */
+export function scenarioPhotos(id: string): Map<string, string> {
+  const prefix = `${id}:`;
+  return new Map(
+    Object.entries(SCENARIO_AVATARS)
+      .filter(([k]) => k.startsWith(prefix) && !k.endsWith(':__me__'))
+      .map(([k, v]) => [k.slice(prefix.length), v]),
+  );
+}
+
+/** The avatar for a scenario's own "You", if it has one. */
+export function scenarioMyPhoto(id: string): string | undefined {
+  return SCENARIO_AVATARS[`${id}:__me__`];
 }

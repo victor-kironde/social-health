@@ -5,7 +5,7 @@ Screenshots of the app showing eight synthetic "lives" for the report. Each life
 | File | Shows |
 |---|---|
 | `<id>-graph.png` | The network graph (rings view, type areas on, all relationships shown) |
-| `<id>-summary.png` | The Social Health page: overall score, relationships by closeness band, comparison with the ideal, and the score's components |
+| `<id>-summary.png` | The Social Health pane, expanded to full screen: overall score, relationships by closeness band, comparison with the ideal, and the score's components |
 | `<id>-trends.png` | The same page scrolled to **Trends** over **5 months**: Social Health over time, closeness bands per week, and catch-ups per week |
 
 ## How they were made
@@ -16,15 +16,17 @@ Screenshots of the app showing eight synthetic "lives" for the report. Each life
 - **Date and model.** Every life is scored as of **1 July 2026** with the default settings and model **v0.4.0**. That puts the 5-month trend window at 4 February to 1 July 2026.
 - **Unnamed people.** The many people met at work, such as patients, pupils, customers and witnesses, are logged as **group catch-ups**. They count only as "others there (not named)", with no names stored.
 - **Group membership.** Anyone who is named at a group catch-up is shown as a member of that group.
-- **Device.** The screenshots were taken on a tablet emulator: Android 16 (API 36), 1600 × 2560 px at 320 dpi, in dark mode.
+- **Pictures.** Every person, group and "You" has an illustrated avatar drawn by `scripts/make-scenario-avatars.py` (no real people, no outside service). People's looks loosely fit the story, such as scrubs for the nurse and a suit for the lawyer. Groups show a symbol, such as a red cross for Patients and scales for Court. Re-run the script after changing a scenario's people.
+- **Device.** The screenshots were taken on a tablet emulator: Android 16 (API 36), 1600 × 2560 px at 320 dpi, in dark mode, on 12 October 2026.
 - **Retaking a screenshot.** Open `socialgraph://graph?scenario=<id>` or `socialgraph://score?scenario=<id>` on a device with the app installed.
 
 **Reading the graph:**
+- **"You":** the circle in the middle with a blue ring.
 - **Distance from "You":** shows importance.
 - **Node size:** shows how much in touch the user is with that person or group.
 - **Ring colour:** shows closeness. Green is close, amber is drifting, red is strained, grey is lost touch.
 - **Rounded squares:** groups.
-- **Shaded areas:** relationship types.
+- **Softly shaded rounded rectangles:** relationship types, in their own colours, kept apart from the closeness colours.
 - **Faint lines:** link groups to their named members.
 - **Hidden by default:** relationships marked in memoriam or archived, such as Margaret in the care home and the old team in "new in town".
 
@@ -130,7 +132,7 @@ A GP sees **6 to 14 new patients every weekday**. They are logged as one catch-u
 
 ## 7. A parent of three (`parentOfThree`)
 
-- **At home:** partner Chris, Mia (aged 2) and Leo (aged 15), all *living together*. Conversations with Leo move from *good* to *okay* three months ago, and he now sits at 6 (drifting a little), despite daily contact.
+- **At home:** partner Chris, Mia (aged 2) and Leo (aged 15), all *living together*. Conversations with Leo move from *good* to *okay* three months ago, and he now sits at 6 (drifting), despite daily contact.
 - **Ava (aged 21) moved out 120 days ago.** She changes from living together to a weekly video call plus a monthly family visit, and stays Close (10).
 - **Family support:** Grandma Rose helps weekly.
 - **Groups and friends:**

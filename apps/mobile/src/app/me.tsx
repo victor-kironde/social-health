@@ -10,7 +10,7 @@ import { useTheme } from '../ui/theme';
 
 const SIZE = 112;
 
-/** Your own node, the diamond at the centre of the graph: your photo and the name shown under it. */
+/** Your own node, the circle at the centre of the graph: your photo and the name shown under it. */
 export default function Me() {
   const t = useTheme();
   const { photos, setPhoto, myName, setMyName } = useStore();
@@ -52,12 +52,11 @@ export default function Me() {
     <ScrollView contentContainerStyle={styles.content}>
       <View style={styles.head}>
         <Pressable onPress={choosePhoto} disabled={busy} accessibilityRole="button" accessibilityLabel={photo ? 'Change your photo' : 'Add your photo'}>
-          {/* A diamond: a rotated rounded square, with the photo turned back upright inside it. */}
-          <View style={[styles.diamond, { backgroundColor: t.accent, borderColor: t.accent }]}>
+          <View style={[styles.avatar, { backgroundColor: t.accent, borderColor: t.accent }]}>
             {photo ? (
-              <Image source={{ uri: photoUri(photo) }} style={styles.diamondPhoto} />
+              <Image source={{ uri: photoUri(photo) }} style={styles.photo} />
             ) : (
-              <Text style={{ color: t.onAccent, fontWeight: '800', fontSize: 18, transform: [{ rotate: '-45deg' }] }}>You</Text>
+              <Text style={{ color: t.onAccent, fontWeight: '800', fontSize: 20 }}>You</Text>
             )}
           </View>
         </Pressable>
@@ -68,7 +67,7 @@ export default function Me() {
       </View>
 
       <View>
-        <Label help="Shown under your diamond at the centre of the graph. Leave it empty to show “You”. Your photo and name stay in this app's encrypted storage.">
+        <Label help="Shown under your circle at the centre of the graph. Leave it empty to show “You”. Your photo and name stay in this app's encrypted storage.">
           Your name
         </Label>
         <TextInput
@@ -91,17 +90,15 @@ export default function Me() {
 const styles = StyleSheet.create({
   content: { padding: 16, gap: 20 },
   head: { flexDirection: 'row', alignItems: 'center', gap: 28, paddingLeft: 12 },
-  diamond: {
-    width: SIZE / Math.SQRT2 + 8,
-    height: SIZE / Math.SQRT2 + 8,
-    margin: 16,
-    borderRadius: 6,
+  avatar: {
+    width: SIZE,
+    height: SIZE,
+    borderRadius: SIZE / 2,
     borderWidth: 3,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
-    transform: [{ rotate: '45deg' }],
   },
-  diamondPhoto: { width: SIZE, height: SIZE, transform: [{ rotate: '-45deg' }] },
+  photo: { width: SIZE, height: SIZE },
   input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 16 },
 });

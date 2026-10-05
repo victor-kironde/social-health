@@ -1,0 +1,437 @@
+[
+ {
+  "id": "doctor",
+  "people": [
+   {
+    "id": "patients",
+    "name": "Patients",
+    "group": true
+   },
+   {
+    "id": "grace",
+    "name": "Grace",
+    "group": false
+   },
+   {
+    "id": "tom",
+    "name": "Tom",
+    "group": false
+   },
+   {
+    "id": "edwin",
+    "name": "Edwin",
+    "group": false
+   },
+   {
+    "id": "amara",
+    "name": "Amara (nurse)",
+    "group": false
+   },
+   {
+    "id": "patel",
+    "name": "Dr Patel",
+    "group": false
+   },
+   {
+    "id": "sam",
+    "name": "Sam",
+    "group": false
+   },
+   {
+    "id": "mum",
+    "name": "Mum",
+    "group": false
+   },
+   {
+    "id": "jo",
+    "name": "Jo",
+    "group": false
+   },
+   {
+    "id": "raj",
+    "name": "Raj",
+    "group": false
+   }
+  ]
+ },
+ {
+  "id": "teacher",
+  "people": [
+   {
+    "id": "class",
+    "name": "My class",
+    "group": true
+   },
+   {
+    "id": "parents",
+    "name": "Class parents",
+    "group": true
+   },
+   {
+    "id": "priya",
+    "name": "Priya",
+    "group": false
+   },
+   {
+    "id": "mark",
+    "name": "Mark",
+    "group": false
+   },
+   {
+    "id": "tess",
+    "name": "Tess (TA)",
+    "group": false
+   },
+   {
+    "id": "bello",
+    "name": "Mrs Bello",
+    "group": false
+   },
+   {
+    "id": "dan",
+    "name": "Dan",
+    "group": false
+   },
+   {
+    "id": "kate",
+    "name": "Kate (sister)",
+    "group": false
+   },
+   {
+    "id": "lucy",
+    "name": "Lucy",
+    "group": false
+   },
+   {
+    "id": "ola",
+    "name": "Ola",
+    "group": false
+   },
+   {
+    "id": "choir",
+    "name": "Choir",
+    "group": true
+   }
+  ]
+ },
+ {
+  "id": "waitress",
+  "people": [
+   {
+    "id": "regulars",
+    "name": "Bar regulars",
+    "group": true
+   },
+   {
+    "id": "mick",
+    "name": "Mick",
+    "group": false
+   },
+   {
+    "id": "dee",
+    "name": "Dee",
+    "group": false
+   },
+   {
+    "id": "jonno",
+    "name": "Jonno",
+    "group": false
+   },
+   {
+    "id": "rosa",
+    "name": "Rosa (boss)",
+    "group": false
+   },
+   {
+    "id": "bea",
+    "name": "Bea",
+    "group": false
+   },
+   {
+    "id": "mum",
+    "name": "Mum",
+    "group": false
+   },
+   {
+    "id": "tia",
+    "name": "Tia",
+    "group": false
+   },
+   {
+    "id": "marcus",
+    "name": "Marcus",
+    "group": false
+   }
+  ]
+ },
+ {
+  "id": "lawyer",
+  "people": [
+   {
+    "id": "court",
+    "name": "Court",
+    "group": true
+   },
+   {
+    "id": "clients",
+    "name": "Clients",
+    "group": true
+   },
+   {
+    "id": "hale",
+    "name": "Mr Hale",
+    "group": false
+   },
+   {
+    "id": "reyes",
+    "name": "Ms Reyes",
+    "group": false
+   },
+   {
+    "id": "helen",
+    "name": "Helen",
+    "group": false
+   },
+   {
+    "id": "nia",
+    "name": "Nia",
+    "group": false
+   },
+   {
+    "id": "alex",
+    "name": "Alex",
+    "group": false
+   },
+   {
+    "id": "dad",
+    "name": "Dad",
+    "group": false
+   },
+   {
+    "id": "ben",
+    "name": "Ben",
+    "group": false
+   },
+   {
+    "id": "chloe",
+    "name": "Chloe",
+    "group": false
+   }
+  ]
+ },
+ {
+  "id": "careHome",
+  "people": [
+   {
+    "id": "carol",
+    "name": "Carol",
+    "group": false
+   },
+   {
+    "id": "peter",
+    "name": "Peter",
+    "group": false
+   },
+   {
+    "id": "lily",
+    "name": "Lily",
+    "group": false
+   },
+   {
+    "id": "josh",
+    "name": "Josh",
+    "group": false
+   },
+   {
+    "id": "joy",
+    "name": "Joy (carer)",
+    "group": false
+   },
+   {
+    "id": "edith",
+    "name": "Edith",
+    "group": false
+   },
+   {
+    "id": "margaret",
+    "name": "Margaret",
+    "group": false
+   },
+   {
+    "id": "bingo",
+    "name": "Bingo club",
+    "group": true
+   },
+   {
+    "id": "church",
+    "name": "Sunday service",
+    "group": true
+   }
+  ]
+ },
+ {
+  "id": "student",
+  "people": [
+   {
+    "id": "kai",
+    "name": "Kai",
+    "group": false
+   },
+   {
+    "id": "mo",
+    "name": "Mo",
+    "group": false
+   },
+   {
+    "id": "study",
+    "name": "Study group",
+    "group": true
+   },
+   {
+    "id": "climbing",
+    "name": "Climbing club",
+    "group": true
+   },
+   {
+    "id": "jess",
+    "name": "Jess",
+    "group": false
+   },
+   {
+    "id": "mum",
+    "name": "Mum",
+    "group": false
+   },
+   {
+    "id": "dad",
+    "name": "Dad",
+    "group": false
+   },
+   {
+    "id": "ellie",
+    "name": "Ellie",
+    "group": false
+   },
+   {
+    "id": "tom",
+    "name": "Tom",
+    "group": false
+   },
+   {
+    "id": "ahmed",
+    "name": "Dr Ahmed",
+    "group": false
+   }
+  ]
+ },
+ {
+  "id": "parentOfThree",
+  "people": [
+   {
+    "id": "chris",
+    "name": "Chris",
+    "group": false
+   },
+   {
+    "id": "mia",
+    "name": "Mia (2)",
+    "group": false
+   },
+   {
+    "id": "leo",
+    "name": "Leo (15)",
+    "group": false
+   },
+   {
+    "id": "ava",
+    "name": "Ava (21)",
+    "group": false
+   },
+   {
+    "id": "rose",
+    "name": "Grandma Rose",
+    "group": false
+   },
+   {
+    "id": "gate",
+    "name": "School gate",
+    "group": true
+   },
+   {
+    "id": "hana",
+    "name": "Hana",
+    "group": false
+   },
+   {
+    "id": "jade",
+    "name": "Jade",
+    "group": false
+   },
+   {
+    "id": "sol",
+    "name": "Sol",
+    "group": false
+   },
+   {
+    "id": "ben",
+    "name": "Ben",
+    "group": false
+   }
+  ]
+ },
+ {
+  "id": "newInTown",
+  "people": [
+   {
+    "id": "mum",
+    "name": "Mum",
+    "group": false
+   },
+   {
+    "id": "nat",
+    "name": "Nat",
+    "group": false
+   },
+   {
+    "id": "ollie",
+    "name": "Ollie",
+    "group": false
+   },
+   {
+    "id": "fran",
+    "name": "Fran",
+    "group": false
+   },
+   {
+    "id": "oldteam",
+    "name": "Old team",
+    "group": true
+   },
+   {
+    "id": "newteam",
+    "name": "New team",
+    "group": true
+   },
+   {
+    "id": "lena",
+    "name": "Lena",
+    "group": false
+   },
+   {
+    "id": "running",
+    "name": "Running club",
+    "group": true
+   },
+   {
+    "id": "kofi",
+    "name": "Kofi",
+    "group": false
+   },
+   {
+    "id": "mrsdunn",
+    "name": "Mrs Dunn",
+    "group": false
+   }
+  ]
+ }
+]

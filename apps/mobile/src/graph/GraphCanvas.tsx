@@ -20,7 +20,7 @@ const FIT_MARGIN = NODE_RADIUS + 50;
 
 /** How far a type area reaches beyond its members' circles (as drawn by the live renderer). */
 const AREA_PAD = 14;
-/** Your diamond at the centre, which an area may not be dragged onto. */
+/** You at the centre, which an area may not be dragged onto. */
 const YOU_BOX = [-(NODE_RADIUS + 14), -(NODE_RADIUS + 14), NODE_RADIUS + 14, NODE_RADIUS + 14];
 /** The band above an area where its name is drawn: grabbing the name moves the area too. */
 const AREA_LABEL_BAND = 26;
@@ -424,7 +424,7 @@ export function GraphCanvas({
       if (!success || !size) return;
       const hit = nodeAt(e);
       if (hit?.id) onNodePress?.(hit.id);
-      else if (hit && onMePress && Math.abs(hit.p.x) + Math.abs(hit.p.y) <= NODE_RADIUS + 14) onMePress();
+      else if (hit && onMePress && Math.hypot(hit.p.x, hit.p.y) <= NODE_RADIUS + 12) onMePress();
       else onBackgroundPress?.();
     });
 
