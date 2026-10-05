@@ -9,8 +9,11 @@ import {
   type SimNode,
 } from '../layout';
 
-/** Alpha the simulation is kept at while a node is being dragged. */
-const DRAG_ALPHA = 0.3;
+/**
+ * Alpha the simulation is kept at while someone is being dragged: low, so people nearby make room
+ * without the whole graph rearranging (what you move stays where you put it).
+ */
+const DRAG_ALPHA = 0.08;
 /** Faster cooling after a release (~100 ticks from DRAG_ALPHA) than d3's default (~250). */
 const RELEASE_DECAY = 0.055;
 /** Gentle reheat for a remembered layout whose forces changed (new ties). */

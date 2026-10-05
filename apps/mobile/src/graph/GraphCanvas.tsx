@@ -20,6 +20,8 @@ const FIT_MARGIN = NODE_RADIUS + 50;
 
 /** How far a type area reaches beyond its members' circles (as drawn by the live renderer). */
 const AREA_PAD = 14;
+/** Your diamond at the centre, which an area may not be dragged onto. */
+const YOU_BOX = [-(NODE_RADIUS + 14), -(NODE_RADIUS + 14), NODE_RADIUS + 14, NODE_RADIUS + 14];
 /** The band above an area where its name is drawn: grabbing the name moves the area too. */
 const AREA_LABEL_BAND = 26;
 
@@ -42,23 +44,34 @@ function areaRect(xy: number[], members: number[], radii: number[], skip: number
   return minX === Infinity ? null : [minX, minY, maxX, maxY];
 }
 
-function overlaps(a: number[], b: number[]): boolean {
+/** How much two boxes overlap (0 when apart). */
+function overlapArea(a: number[], b: number[]): number {
   'worklet';
-  return a[0]! < b[2]! && b[0]! < a[2]! && a[1]! < b[3]! && b[1]! < a[3]!;
+  const w = Math.min(a[2]!, b[2]!) - Math.max(a[0]!, b[0]!);
+  const h = Math.min(a[3]!, b[3]!) - Math.max(a[1]!, b[1]!);
+  return w > 0 && h > 0 ? w * h : 0;
 }
 
 /**
- * Whether moving a box from `now` to `next` would push it into an area it does not already
- * overlap. Areas listed in `own` (the ones being moved, or the person's own) never block.
+ * Whether moving a box from `now` to `next` would push it further into an area (or `extra`, e.g.
+ * you at the centre). Moving out of an overlap is always allowed. Areas listed in `own` (the ones
+ * being moved, or the person's own) never block.
  */
-function blocked(xy: number[], areas: { members: number[]; radii: number[] }[], own: boolean[], now: number[], next: number[]): boolean {
+function blocked(
+  xy: number[],
+  areas: { members: number[]; radii: number[] }[],
+  own: boolean[],
+  now: number[],
+  next: number[],
+  extra: number[] | null = null,
+): boolean {
   'worklet';
   for (let k = 0; k < areas.length; k++) {
     if (own[k]) continue;
     const r = areaRect(xy, areas[k]!.members, areas[k]!.radii, -1);
-    if (r && overlaps(next, r) && !overlaps(now, r)) return true;
+    if (r && overlapArea(next, r) > overlapArea(now, r) + 0.5) return true;
   }
-  return false;
+  return extra !== null && overlapArea(next, extra) > overlapArea(now, extra) + 0.5;
 }
 
 export interface DragHandlers {
@@ -269,7 +282,11 @@ export function GraphCanvas({
         const ddy = g.y - s.y - s.dy;
         // Areas sharing anyone with the moved one move with it (or overlap it by design).
         const own = areas.map((a, j) => j === k || a.members.some((m) => moving.indexOf(m) >= 0));
-        if (now && blocked(xy.value, areas, own, now, [now[0]! + ddx, now[1]! + ddy, now[2]! + ddx, now[3]! + ddy])) return;
+        if (now) {
+          const next = [now[0]! + ddx, now[1]! + ddy, now[2]! + ddx, now[3]! + ddy];
+          // Never further into another area, nor onto you at the centre.
+          if (blocked(xy.value, areas, own, now, next, YOU_BOX)) return;
+        }
         areaStart.value = { x: s.x, y: s.y, dx: g.x - s.x, dy: g.y - s.y };
         scheduleOnRN(drag.groupMove, g.x, g.y);
         return;
