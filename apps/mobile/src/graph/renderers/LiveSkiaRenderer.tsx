@@ -1,4 +1,4 @@
-import { BlurStyle, Canvas, Group, Picture, Skia, type SkPaint } from '@shopify/react-native-skia';
+import { BlurStyle, ClipOp, Canvas, Group, Picture, Skia, type SkPaint } from '@shopify/react-native-skia';
 import type { Category } from '@sg/score-engine';
 import type { HealthBand } from '../../data/health';
 import { routeEdge } from '../geometry';
@@ -16,7 +16,6 @@ import {
   drawPhotoSquare,
   graphPicture,
   graphSnapshot,
-  glowPaint,
   makeFonts,
   paint,
   photoImage,
@@ -82,8 +81,6 @@ interface SetSpec {
 const TAU = Math.PI * 2;
 /** Distance of the bridge ring outside the node. */
 const BRIDGE_GAP = 6;
-/** Halo radius relative to the node. */
-const GLOW_SCALE = 1.75;
 /** How far a type area's edge fades out (blur sigma, graph units). */
 const SET_FADE = 6;
 
@@ -104,7 +101,7 @@ const SET_ALPHA = 0.17;
 /**
  * Live Skia renderer: draws from per-frame positions published by the live
  * simulation. Three layers are recorded on the UI thread: edges and nodes
- * (re-recorded only when positions change) and a glow layer for people in
+ * (re-recorded only when positions change) and a water-wave layer for people in
  * recent contact, which breathes with the `pulse` phase. Falls back to the
  * static SkiaRenderer when no live positions are supplied.
  */
@@ -128,11 +125,11 @@ function LiveSkia({
 
   const specs = useMemo(() => {
     const index = new Map(live.ids.map((id, i) => [id, i]));
-    // One gradient paint per category, shared by every glowing node in it.
+    // One wave paint per colour, shared by every node in recent contact with it.
     const glows = new Map<string, SkPaint>();
     const glowFor = (colour: string) => {
       let g = glows.get(colour);
-      if (!g) glows.set(colour, (g = glowPaint(colour)));
+      if (!g) glows.set(colour, (g = paint(colour)));
       return g;
     };
     const nodes: NodeSpec[] = [];
@@ -308,6 +305,8 @@ function LiveSkia({
     });
   });
 
+  // In touch recently: a small water wave rolling across the bottom of the person (or group), in
+  // their own colour, drawn over their photo or initial and inside their ring.
   const glowPicture = useDerivedValue(() => {
     const xy = live.xy.value;
     // Positions arrive just after the first render; until then there is nothing to place.
@@ -316,13 +315,30 @@ function LiveSkia({
     return graphPicture((canvas) => {
       for (const n of specs.nodes) {
         if (!n.glow) continue;
-        const k = Math.sin(TAU * (phase + n.phase));
-        const r = n.r * GLOW_SCALE + 3 * k;
-        n.glow.setAlphaf(0.55 + 0.3 * k);
+        const x = xy[2 * n.i]!;
+        const y = xy[2 * n.i + 1]!;
+        const r = n.r - 1.5;
+        const t = TAU * (phase + n.phase);
         canvas.save();
-        canvas.translate(xy[2 * n.i]!, xy[2 * n.i + 1]!);
-        canvas.scale(r, r);
-        canvas.drawCircle(0, 0, 1, n.glow);
+        const box = Skia.XYWHRect(x - r, y - r, 2 * r, 2 * r);
+        const corner = n.square ? n.r * 0.35 : r;
+        canvas.clipRRect(Skia.RRectXY(box, corner, corner), ClipOp.Intersect, true);
+        // Two layers of wave, the back one fainter and out of step, for a sense of water.
+        for (let layer = 0; layer < 2; layer++) {
+          const level = y + r * (0.38 + 0.05 * Math.sin(t + layer)) + layer * r * 0.08;
+          const amp = r * (layer ? 0.07 : 0.1);
+          const len = r * 1.3;
+          const shift = (layer ? -1 : 1) * t * len * 0.35;
+          const path = Skia.Path.Make();
+          path.moveTo(x - r - len, y + r + 2);
+          for (let px = x - r - len; px <= x + r + len; px += 3) {
+            path.lineTo(px, level + amp * Math.sin(((px - x + shift) / len) * TAU));
+          }
+          path.lineTo(x + r + len, y + r + 2);
+          path.close();
+          n.glow.setAlphaf(layer ? 0.35 : 0.6);
+          canvas.drawPath(path, n.glow);
+        }
         canvas.restore();
       }
     });
@@ -421,7 +437,7 @@ function LiveSkia({
       const canvas = surface.getCanvas();
       canvas.scale(k, k);
       canvas.translate(-minX - PICTURE_OFFSET, -minY - PICTURE_OFFSET);
-      for (const picture of [setsPicture.value, edgesPicture.value, glowPicture.value, nodesPicture.value]) canvas.drawPicture(picture);
+      for (const picture of [setsPicture.value, edgesPicture.value, nodesPicture.value, glowPicture.value]) canvas.drawPicture(picture);
       surface.flush();
       return surface.makeImageSnapshot().encodeToBase64();
     };
@@ -436,8 +452,8 @@ function LiveSkia({
       <Group transform={transform}>
         <Picture picture={setsPicture} />
         <Picture picture={edgesPicture} />
-        <Picture picture={glowPicture} />
         <Picture picture={nodesPicture} />
+        <Picture picture={glowPicture} />
       </Group>
     </Canvas>
   );

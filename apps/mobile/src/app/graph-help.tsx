@@ -1,6 +1,6 @@
 import { createContext, useContext, type ReactNode } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import Svg, { Circle, G, Line, Polyline, Rect, Text as SvgText } from 'react-native-svg';
+import Svg, { Circle, ClipPath, Defs, G, Line, Path, Polyline, Rect, Text as SvgText } from 'react-native-svg';
 import { AddPersonIcon, CatchUpIcon, FocusIcon, HelpIcon, PeopleIcon, ResetIcon } from '../graph/icons';
 import { useTheme } from '../ui/theme';
 
@@ -105,16 +105,22 @@ export function GraphHelpBody({ floating = false }: { floating?: boolean }) {
         are gentle reminders, not judgements: you decide who matters.
       </Item>
       <Item
-        title="Glow: in touch this week"
+        title="Wave: in touch this week"
         art={
           <Art>
-            <Circle cx={36} cy={28} r={24} fill={h[5]} opacity={0.18} />
-            <Circle cx={36} cy={28} r={19} fill={h[5]} opacity={0.22} />
-            <Circle cx={36} cy={28} r={14} fill={t.card} stroke={h[5]} strokeWidth={4} />
+            <Circle cx={36} cy={28} r={16} fill={t.card} />
+            <Path d="M20 33 Q24 30 28 33 T36 33 T44 33 T52 33 L52 44 L20 44 Z" fill={h[5]} opacity={0.6} clipPath="url(#waveClip)" />
+            <Defs>
+              <ClipPath id="waveClip">
+                <Circle cx={36} cy={28} r={14} />
+              </ClipPath>
+            </Defs>
+            <Circle cx={36} cy={28} r={16} fill="none" stroke={h[5]} strokeWidth={4} />
           </Art>
         }
       >
-        A softly pulsing glow means you have been in touch within the last 7 days.
+        A small wave rolling along the bottom of someone's circle, in their colour, means you have been in touch within
+        the last 7 days.
       </Item>
       <Item
         title="Outer ring: connects groups"

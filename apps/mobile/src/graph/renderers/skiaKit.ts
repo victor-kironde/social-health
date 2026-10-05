@@ -61,24 +61,6 @@ function withAlpha(hex: string, alpha: number) {
   return Skia.Color(`rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`);
 }
 
-/**
- * A soft halo as a radial gradient on a unit circle at the origin. Draw it
- * with canvas.translate/scale per node: far cheaper per frame than a blur.
- */
-export function glowPaint(colour: string): SkPaint {
-  const p = Skia.Paint();
-  p.setAntiAlias(true);
-  p.setShader(
-    Skia.Shader.MakeRadialGradient(
-      { x: 0, y: 0 },
-      1,
-      [withAlpha(colour, 0.85), withAlpha(colour, 0.35), withAlpha(colour, 0)],
-      [0, 0.55, 1],
-      TileMode.Clamp,
-    ),
-  );
-  return p;
-}
 
 /** Horizontal offset that centres `text` on x when drawn with `font`. */
 export function centreOffset(text: string, font: SkFont): number {
