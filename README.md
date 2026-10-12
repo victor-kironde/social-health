@@ -14,7 +14,7 @@ scripts/                Helper scripts (e.g. scenario avatars)
 docs/model-spec.md      Scoring formula, properties, orderings and reference values
 docs/threat-model.md    Assets, actors, threats and mitigations
 docs/evaluation/        Sensitivity and ablation analysis (generated)
-docs/report/            Final report (final/report.html) and scenario screenshots
+docs/report/            Final report (final/report.pdf) and scenario screenshots
 ```
 
 ## Requirements
